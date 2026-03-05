@@ -31,9 +31,9 @@ export default function CountEntry() {
   useEffect(() => { loadCount(); }, [countId]);
 
   useEffect(() => {
-    if (search.length >= 2) {
+    if (search.length >= 1) {
       clearTimeout(searchTimer.current);
-      searchTimer.current = setTimeout(() => searchCatalog(search), 300);
+      searchTimer.current = setTimeout(() => searchCatalog(search), 150);
     } else {
       setCatalogResults([]);
     }
@@ -60,7 +60,7 @@ export default function CountEntry() {
   }
 
   async function searchCatalog(query) {
-    if (!query || query.length < 2) { setCatalogResults([]); return; }
+    if (!query || query.length < 1) { setCatalogResults([]); return; }
     setSearching(true);
     const q = query.toLowerCase();
     const catalog = count?.account?.catalog_source || 'edge';
@@ -244,10 +244,10 @@ export default function CountEntry() {
   });
 
   // Catalog results should show when search doesn't fully match existing items
-  const searchMatchesExisting = search.length >= 2 && filteredItems.length > 0;
+  const searchMatchesExisting = search.length >= 1 && filteredItems.length > 0;
 
-  const showAddFromCatalog = search.length >= 2 && catalogResults.length > 0 && !searchMatchesExisting;
-  const showAddCustom = search.length >= 2 && catalogResults.length === 0 && !searching && !searchMatchesExisting;
+  const showAddFromCatalog = search.length >= 1 && catalogResults.length > 0 && !searchMatchesExisting;
+  const showAddCustom = search.length >= 1 && catalogResults.length === 0 && !searching && !searchMatchesExisting;
 
   const totalItems = items.length;
   const totalUnits = items.reduce((sum, i) => sum + (i.quantity || 0), 0);
@@ -373,9 +373,9 @@ export default function CountEntry() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search item #, description, vendor, part #..."
-            style={{ width: '100%', background: '#F2F5F8', border: '1.5px solid ' + (search.length >= 2 ? '#0076BB' : '#E1E8EE'), borderRadius: 8, padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', color: '#1A2B38', boxSizing: 'border-box' }}
+            style={{ width: '100%', background: '#F2F5F8', border: '1.5px solid ' + (search.length >= 1 ? '#0076BB' : '#E1E8EE'), borderRadius: 8, padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', color: '#1A2B38', boxSizing: 'border-box' }}
             onFocus={e => e.target.style.borderColor = '#0076BB'}
-            onBlur={e => { if (search.length < 2) e.target.style.borderColor = '#E1E8EE'; }}
+            onBlur={e => { if (search.length < 1) e.target.style.borderColor = '#E1E8EE'; }}
           />
           {/* Catalog results dropdown - Option A style, floats over the list */}
           {showAddFromCatalog && (
