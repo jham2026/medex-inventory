@@ -156,7 +156,7 @@ export default function CountEntry() {
     if (error) { toast.error('Error: ' + error.message); setClosing(false); return; }
 
     await supabase.from('alerts').insert({
-      alert_type: 'unassigned_account',
+      alert_type: 'account_closed',
       message: `Account "${count.account.name}" was flagged as closed by ${profile.full_name} on ${closeForm.date}. Notes: ${closeForm.notes}`,
       is_read: false,
     });
