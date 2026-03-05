@@ -33,7 +33,7 @@ export default function CountEntry() {
   useEffect(() => {
     if (search.length >= 1) {
       clearTimeout(searchTimer.current);
-      searchTimer.current = setTimeout(() => searchCatalog(search), 150);
+      searchTimer.current = setTimeout(() => searchCatalog(search, count?.account?.catalog_source), 150);
     } else {
       setCatalogResults([]);
     }
@@ -59,22 +59,17 @@ export default function CountEntry() {
     setLoading(false);
   }
 
-  async function searchCatalog(query) {
+  async function searchCatalog(query, catalogSource) {
     if (!query || query.length < 1) { setCatalogResults([]); return; }
     setSearching(true);
     const q = query.toLowerCase();
-    const catalog = count?.account?.catalog_source || 'edge';
+    const catalog = catalogSource || 'edge';
+    console.log('searchCatalog called - catalog:', catalog, 'query:', q);
     const { data } = await supabase
       .from('item_catalog')
-      .select('id, item_number, description, primary_vendor, part_number, upc, catalog_source')
+      .select('id, item_number, description, primary_vendor, catalog_source')
       .eq('catalog_source', catalog)
-      .or([
-        'item_number.ilike.%' + q + '%',
-        'description.ilike.%' + q + '%',
-        'primary_vendor.ilike.%' + q + '%',
-        'part_number.ilike.%' + q + '%',
-        'upc.ilike.%' + q + '%',
-      ].join(','))
+      .or(`item_number.ilike.%${q}%,description.ilike.%${q}%,primary_vendor.ilike.%${q}%`)
       .limit(15);
     // Only show catalog results for items NOT already in the prepopulated list
     const existingNums = new Set(items.map(i => i.item_number_raw?.toLowerCase()));
@@ -381,7 +376,7 @@ export default function CountEntry() {
           {showAddFromCatalog && (
             <div style={{ position: 'absolute', left: 14, right: 14, top: '100%', zIndex: 50, background: 'white', border: '1.5px solid #0076BB', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,118,187,0.15)', overflow: 'hidden', marginTop: 2 }}>
               <div style={{ padding: '7px 12px', background: '#e8f4fb', borderBottom: '1px solid #cce6f5', fontSize: 11, fontWeight: 600, color: '#0076BB', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>&#128230; From Catalog â€” not in your count</span>
+                <span>From Catalog — not in your count</span>
                 <span style={{ color: '#7A909F' }}>{catalogResults.length} result{catalogResults.length !== 1 ? 's' : ''}</span>
               </div>
               {catalogResults.map(r => (
@@ -389,10 +384,10 @@ export default function CountEntry() {
                   style={{ padding: '10px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #F2F5F8', background: 'white' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#e8f4fb'}
                   onMouseLeave={e => e.currentTarget.style.background = 'white'}>
-                  <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#0076BB', background: '#e8f4fb', padding: '2px 6px', borderRadius: 4, flexShrink: 0, fontWeight: 700, whiteSpace: 'nowrap' }}>{r.item_number}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2B38', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description}</div>
-                    <div style={{ fontSize: 11, color: '#7A909F' }}>{r.primary_vendor}{r.part_number ? ' · ' + r.part_number : ''}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0076BB', fontFamily: 'monospace', marginBottom: 3 }}>{r.item_number}</div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#1A2B38', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>{r.description}</div>
+                    <div style={{ fontSize: 11, color: '#7A909F' }}>{r.primary_vendor}</div>
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'white', background: '#0076BB', padding: '4px 10px', borderRadius: 6, flexShrink: 0, whiteSpace: 'nowrap' }}>+ Add</div>
                 </div>
