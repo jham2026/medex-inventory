@@ -27,7 +27,7 @@ function NavIcon({ path }) {
   );
 }
 
-function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit }) {
+function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCount }) {
   const [expandedId, setExpandedId] = useState(null);
   const [denyModal, setDenyModal] = useState(null);
   const [denyReason, setDenyReason] = useState('');
@@ -126,7 +126,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit }) {
                     {expanded ? 'Hide' : 'Review'}
                   </button>
                 )}
-                <button className="btn btn-blue btn-sm" onClick={() => onComplete(t.id)}>Mark Approved</button>
+                <button className="btn btn-blue btn-sm" onClick={() => { onApproveCount(t.count_id); onComplete(t.id); }}>Mark Approved</button>
               </div>
             </div>
           </div>
@@ -434,8 +434,26 @@ export default function AdminDashboard() {
   }
 
   async function approveCount(countId) {
+    const { data: countData } = await supabase
+      .from('inventory_counts')
+      .select('rep_id, account:accounts(name)')
+      .eq('id', countId).single();
+
     await supabase.from('inventory_counts').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', countId);
     setProgress(prev => prev.map(p => p.id === countId ? { ...p, status: 'approved' } : p));
+
+    // Notify the rep
+    if (countData?.rep_id) {
+      await supabase.from('alerts').insert({
+        alert_type: 'count_approved',
+        title: 'Count Approved',
+        message: 'Your count for ' + (countData.account?.name || '') + ' has been reviewed and approved!',
+        is_read: false,
+        rep_id: countData.rep_id,
+        inventory_count_id: countId,
+      });
+    }
+
     toast.success('Count approved!');
   }
 
@@ -457,25 +475,43 @@ export default function AdminDashboard() {
   }
 
   async function approveEditRequest(todo) {
+    let meta = {};
+    try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
     if (todo.count_id) {
       await supabase.from('inventory_counts').update({ status: 'in_progress' }).eq('id', todo.count_id);
     }
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
-    await supabase.from('alerts').insert({ alert_type: 'edit_approved', message: 'Edit request approved: ' + todo.title.replace('Edit request: ', ''), is_read: false });
+    const { data: countData } = await supabase.from('inventory_counts').select('rep_id').eq('id', todo.count_id).single();
+    await supabase.from('alerts').insert({
+      alert_type: 'edit_approved',
+      title: 'Edit Request Approved',
+      message: 'Your request to reopen the count for ' + (meta.account_name || '') + ' has been approved. You can now edit your count.',
+      is_read: false,
+      rep_id: countData?.rep_id,
+      inventory_count_id: todo.count_id,
+    });
     setTodos(prev => prev.filter(t => t.id !== todo.id));
     toast.success('Edit request approved - count unlocked!');
     loadData();
   }
 
   async function denyEditRequest(todo, reason) {
-    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
     let meta = {};
     try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
+
+    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
+
+    // Notify the rep
+    const { data: countData } = await supabase.from('inventory_counts').select('rep_id').eq('id', todo.count_id).single();
     await supabase.from('alerts').insert({
       alert_type: 'edit_denied',
-      message: 'Edit request denied for ' + (meta.account_name || todo.title) + (reason ? ' â€” ' + reason : ''),
+      title: 'Edit Request Denied',
+      message: 'Your request to reopen the count for ' + (meta.account_name || '') + ' was denied.' + (reason ? ' Reason: ' + reason : ''),
       is_read: false,
+      rep_id: countData?.rep_id,
+      inventory_count_id: todo.count_id,
     });
+
     setTodos(prev => prev.filter(t => t.id !== todo.id));
     toast.info('Edit request denied.');
   }
@@ -729,6 +765,7 @@ export default function AdminDashboard() {
               onComplete={completeTodo}
               onApproveEdit={approveEditRequest}
               onDenyEdit={denyEditRequest}
+              onApproveCount={approveCount}
             />
           )}
 

@@ -23,6 +23,8 @@ export default function RepDashboard() {
   const [editForm, setEditForm] = useState({ reason: '', details: '', urgency: 'normal' });
   const [submittingRequest, setSubmittingRequest] = useState(false);
   const [pendingRequests, setPendingRequests] = useState({}); // countId -> true if request pending
+  const [notifications, setNotifications] = useState([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => { loadData(); }, []);
 
@@ -54,6 +56,17 @@ export default function RepDashboard() {
         setPendingRequests(pending);
       }
     }
+    // Load rep notifications
+    if (profile?.id) {
+      const { data: notifData } = await supabase
+        .from('alerts')
+        .select('*')
+        .eq('rep_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(20);
+      setNotifications(notifData || []);
+    }
+
     setLoading(false);
   }
 
@@ -94,6 +107,13 @@ export default function RepDashboard() {
     setEditForm({ reason: '', details: '', urgency: 'normal' });
     toast.success('Edit request sent to admin!');
     setSubmittingRequest(false);
+  }
+
+  async function markAllRead() {
+    const unreadIds = notifications.filter(n => !n.is_read).map(n => n.id);
+    if (unreadIds.length === 0) return;
+    await supabase.from('alerts').update({ is_read: true }).in('id', unreadIds);
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   }
 
   async function signOut() {
@@ -143,6 +163,18 @@ export default function RepDashboard() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={signOut} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
+          {/* Notification Bell */}
+          <div style={{ position: 'relative' }}>
+            <button onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markAllRead(); }}
+              style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
+              <span style={{ fontSize: 16 }}>&#128276;</span>
+              {notifications.filter(n => !n.is_read).length > 0 && (
+                <span style={{ position: 'absolute', top: 2, right: 2, background: '#EF4444', color: 'white', fontSize: 9, fontWeight: 700, width: 16, height: 16, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  {notifications.filter(n => !n.is_read).length}
+                </span>
+              )}
+            </button>
+          </div>
           <div style={{ width: 34, height: 34, background: 'linear-gradient(135deg, #3398cc, #EEAF24)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: 'white' }}>
             {initials}
           </div>
@@ -255,6 +287,55 @@ export default function RepDashboard() {
           </div>
         )}
       </div>
+
+      {/* Notifications Panel */}
+      {showNotifications && (
+        <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 430, background: 'white', zIndex: 100, display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 20px rgba(0,0,0,0.15)' }}>
+          <div style={{ background: '#003f63', padding: '14px 18px', borderBottom: '3px solid #EEAF24', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>Notifications</div>
+            <button onClick={() => setShowNotifications(false)}
+              style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
+              Close
+            </button>
+          </div>
+          <div style={{ flex: 1, overflowY: 'auto' }}>
+            {notifications.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#7A909F', fontSize: 14 }}>
+                No notifications yet.
+              </div>
+            ) : notifications.map(n => {
+              const isApproved = n.alert_type === 'edit_approved' || n.alert_type === 'count_approved';
+              const isDenied = n.alert_type === 'edit_denied';
+              return (
+                <div key={n.id} style={{
+                  padding: '14px 18px',
+                  borderBottom: '1px solid #E1E8EE',
+                  background: n.is_read ? 'white' : '#f0f7ff',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%', flexShrink: 0,
+                      background: isApproved ? '#dcfce7' : isDenied ? '#fee2e2' : '#e8f4fb',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
+                    }}>
+                      {isApproved ? 'âœ“' : isDenied ? 'âœ—' : 'i'}
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: isApproved ? '#15803d' : isDenied ? '#b91c1c' : '#1A2B38', marginBottom: 3 }}>
+                        {n.title || n.alert_type?.replace(/_/g, ' ')}
+                      </div>
+                      <div style={{ fontSize: 13, color: '#3D5466', lineHeight: 1.5 }}>{n.message}</div>
+                      <div style={{ fontSize: 11, color: '#C5D1DA', marginTop: 4 }}>
+                        {new Date(n.created_at).toLocaleDateString()} at {new Date(n.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Bottom tab bar */}
       <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: 430, maxWidth: '100%', background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(20px)', borderTop: '1px solid #E1E8EE', display: 'flex', padding: '8px 0 20px', zIndex: 50 }}>
