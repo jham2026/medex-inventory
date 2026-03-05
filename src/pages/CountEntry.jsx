@@ -56,11 +56,14 @@ export default function CountEntry() {
 
   async function doAddSearch(q) {
     setAddSearching(true);
-    const { data } = await supabase
+    const catalogSource = count?.account?.catalog_source || 'edge';
+    let query = supabase
       .from('item_catalog')
       .select('id, item_number, description, primary_vendor, barcode_1, hcpcs_code')
+      .eq('catalog_source', catalogSource)
       .or(`item_number.ilike.%${q}%,description.ilike.%${q}%,barcode_1.eq.${q}`)
       .limit(15);
+    const { data } = await query;
     setAddResults(data || []);
     setAddSearching(false);
   }
@@ -71,7 +74,7 @@ export default function CountEntry() {
       .from('inventory_counts')
       .select(`
         id, status, cycle_id, started_at, submitted_at,
-        account:accounts(id, name, flagged_closed, closed_date, closed_notes, region:regions(name)),
+        account:accounts(id, name, catalog_source, flagged_closed, closed_date, closed_notes, region:regions(name)),
         cycle:count_cycles(id, name, status)
       `)
       .eq('id', countId)
@@ -539,7 +542,7 @@ export default function CountEntry() {
 
             <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--gray-mid)', display: 'flex', gap: 8, flexWrap: 'wrap', background: 'var(--gray-light)' }}>
               <input className="input" style={{ flex: 1, minWidth: 180 }}
-                placeholder=" Search item #, description, or vendor..."
+                placeholder="Search by item #, description, or vendor..."
                 value={search} onChange={e => setSearch(e.target.value)} />
               <select className="select" style={{ width: 160 }} value={filterVendor} onChange={e => setFilterVendor(e.target.value)}>
                 <option value="">All Vendors</option>
@@ -597,7 +600,7 @@ export default function CountEntry() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
                     <tr>
-                      <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'left', fontSize: 12, fontWeight: 'bold', whiteSpace: 'nowrap', width: '12%' }}>Item #</th>
+                      <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'left', fontSize: 12, fontWeight: 'bold', whiteSpace: 'nowrap', width: '16%' }}>Item #</th>
                       <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'left', fontSize: 12, fontWeight: 'bold' }}>Description</th>
                       <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'left', fontSize: 12, fontWeight: 'bold', whiteSpace: 'nowrap', width: '14%' }}>Vendor</th>
                       <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'center', fontSize: 12, fontWeight: 'bold', whiteSpace: 'nowrap', width: '8%' }}>Prev Qty</th>
@@ -615,9 +618,9 @@ export default function CountEntry() {
                         background: item.not_in_catalog ? '#fff8ec' : item.was_edited_after_submit ? '#fdf0ef' : idx % 2 === 0 ? 'white' : 'var(--gray-light)',
                         borderBottom: '1px solid var(--gray-mid)',
                       }}>
-                        <td style={{ padding: '7px 12px', fontSize: 11, color: 'var(--gray-dark)', fontFamily: 'monospace' }}>{item.item_number_raw || '--'}</td>
+                        <td style={{ padding: '7px 12px', fontFamily: 'monospace', fontWeight: 'bold', fontSize: 13, color: 'var(--teal-dark)' }}>{item.item_number_raw || '--'}</td>
                         <td style={{ padding: '7px 12px' }}>
-                          <div style={{ fontWeight: 'bold', fontSize: 13 }}>{item.description_raw}</div>
+                          <div style={{ fontSize: 13 }}>{item.description_raw}</div>
                           {item.is_new_item && <span style={{ fontSize: 10, color: 'var(--teal)', fontWeight: 'bold' }}>NEW</span>}
                         </td>
                         <td style={{ padding: '7px 12px', fontSize: 12, color: 'var(--gray-dark)' }}>{item.vendor_raw || '--'}</td>
