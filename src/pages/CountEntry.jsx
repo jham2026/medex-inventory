@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthContext';
@@ -28,6 +28,10 @@ export default function CountEntry() {
   const [addSearching, setAddSearching] = useState(false);
   const addSearchRef = useRef(null);
   const addTimer = useRef(null);
+
+  const [showCloseModal, setShowCloseModal] = useState(false);
+  const [closeForm, setCloseForm] = useState({ date: new Date().toISOString().split('T')[0], notes: '' });
+  const [closing, setClosing] = useState(false);
 
   useEffect(() => { loadCount(); }, [countId]);
 
@@ -59,7 +63,7 @@ export default function CountEntry() {
       .from('inventory_counts')
       .select(`
         id, status, cycle_id, started_at, submitted_at,
-        account:accounts(id, name, region:regions(name)),
+        account:accounts(id, name, flagged_closed, closed_date, closed_notes, region:regions(name)),
         cycle:count_cycles(id, name, status)
       `)
       .eq('id', countId)
@@ -135,6 +139,32 @@ export default function CountEntry() {
     setItems(prev => prev.map(i => ({ ...i, _dirty: false })));
     toast.success('Progress saved!');
     setSaving(false);
+  }
+
+  async function handleFlagClosed() {
+    if (!closeForm.notes.trim()) { toast.error('Please enter a reason for closing this account.'); return; }
+    setClosing(true);
+    const { error } = await supabase.from('accounts').update({
+      flagged_closed: true,
+      closed_date:    closeForm.date,
+      closed_notes:   closeForm.notes,
+      closed_by:      profile.id,
+      closed_at:      new Date().toISOString(),
+      is_active:      false,
+    }).eq('id', count.account.id);
+
+    if (error) { toast.error('Error: ' + error.message); setClosing(false); return; }
+
+    await supabase.from('alerts').insert({
+      alert_type: 'unassigned_account',
+      message: `Account "${count.account.name}" was flagged as closed by ${profile.full_name} on ${closeForm.date}. Notes: ${closeForm.notes}`,
+      is_read: false,
+    });
+
+    toast.success(`${count.account.name} flagged as closed. Admin has been notified.`);
+    setShowCloseModal(false);
+    setCount(prev => ({ ...prev, account: { ...prev.account, flagged_closed: true } }));
+    setClosing(false);
   }
 
   async function handleAddFromSearch(catalogItem) {
@@ -298,12 +328,46 @@ export default function CountEntry() {
   const cycleOpen    = count?.cycle?.status === 'open';
   const canEdit      = cycleOpen;
   const flaggedCount = items.filter(i => i.not_in_catalog || i.was_edited_after_submit).length;
+  const isClosed     = count?.account?.flagged_closed;
 
   return (
     <>
       <NavBar />
-      {scanning && (
-        <BarcodeScanner onDetected={handleBarcodeDetected} onClose={() => setScanning(false)} />
+      {scanning && <BarcodeScanner onDetected={handleBarcodeDetected} onClose={() => setScanning(false)} />}
+
+      {showCloseModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowCloseModal(false)}>
+          <div className="modal">
+            <div className="modal-header" style={{ background: 'var(--error)' }}>
+              <h3>🚫 Flag Account as Closed</h3>
+              <button className="btn btn-ghost btn-sm" onClick={() => setShowCloseModal(false)}
+                style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}>✕</button>
+            </div>
+            <div className="modal-body">
+              <div style={{ background: '#fff3f3', border: '1px solid var(--error)', borderRadius: 6, padding: 12, marginBottom: 16, fontSize: 13 }}>
+                ⚠ This will mark <strong>{count?.account?.name}</strong> as permanently closed and remove it from future count cycles. Admin will be notified.
+              </div>
+              <div className="input-group">
+                <label className="input-label">Close Date *</label>
+                <input className="input" type="date" value={closeForm.date}
+                  onChange={e => setCloseForm(p => ({ ...p, date: e.target.value }))} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Reason / Notes *</label>
+                <textarea className="input" rows={3} placeholder="e.g. Location permanently closed, moved to new address, etc."
+                  value={closeForm.notes}
+                  onChange={e => setCloseForm(p => ({ ...p, notes: e.target.value }))}
+                  style={{ resize: 'vertical' }} />
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-utility" onClick={() => setShowCloseModal(false)}>Cancel</button>
+              <button className="btn btn-danger" onClick={handleFlagClosed} disabled={closing}>
+                {closing ? 'Saving...' : '🚫 Confirm — Flag as Closed'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       <div className="page">
@@ -311,7 +375,10 @@ export default function CountEntry() {
           <div className="page-header">
             <div>
               <button className="btn btn-utility btn-sm" onClick={() => navigate('/')} style={{ marginBottom: 6 }}>← Back</button>
-              <div className="page-title">{count?.account?.name}</div>
+              <div className="page-title">
+                {count?.account?.name}
+                {isClosed && <span className="badge badge-closed" style={{ marginLeft: 10, fontSize: 13 }}>🚫 Closed</span>}
+              </div>
               <div className="page-sub">
                 {count?.account?.region?.name} &nbsp;·&nbsp; {count?.cycle?.name} &nbsp;·&nbsp;
                 <span className={`badge badge-${count?.status}`} style={{ marginLeft: 4 }}>
@@ -321,9 +388,20 @@ export default function CountEntry() {
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {canEdit && <button className="btn btn-secondary" onClick={() => setScanning(true)}>📷 Scan Barcode</button>}
+              {canEdit && !isClosed && (
+                <button className="btn btn-danger btn-sm" onClick={() => setShowCloseModal(true)}>
+                  🚫 Flag as Closed
+                </button>
+              )}
             </div>
           </div>
 
+          {isClosed && (
+            <div className="alert-banner" style={{ background: '#fff3f3', borderColor: 'var(--error)', color: 'var(--error)', marginBottom: 16 }}>
+              🚫 This account was flagged as closed on {count.account.closed_date}.
+              {count.account.closed_notes && <> Reason: {count.account.closed_notes}</>}
+            </div>
+          )}
           {!cycleOpen && <div className="alert-banner warning">⚠ The count cycle is closed. Viewing only.</div>}
           {flaggedCount > 0 && (
             <div className="alert-banner warning">
@@ -343,11 +421,9 @@ export default function CountEntry() {
             </div>
 
             <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--gray-mid)', display: 'flex', gap: 8, flexWrap: 'wrap', background: 'var(--gray-light)' }}>
-              <input
-                className="input" style={{ flex: 1, minWidth: 180 }}
+              <input className="input" style={{ flex: 1, minWidth: 180 }}
                 placeholder="🔍 Search item #, description, or vendor..."
-                value={search} onChange={e => setSearch(e.target.value)}
-              />
+                value={search} onChange={e => setSearch(e.target.value)} />
               <select className="select" style={{ width: 160 }} value={filterVendor} onChange={e => setFilterVendor(e.target.value)}>
                 <option value="">All Vendors</option>
                 {vendors.map(v => <option key={v} value={v}>{v}</option>)}
@@ -367,15 +443,11 @@ export default function CountEntry() {
                 <div style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--teal-dark)', marginBottom: 6 }}>
                   ADD ITEM — type to search catalog (item #, description, or barcode)
                 </div>
-                <input
-                  ref={addSearchRef}
-                  className="input"
+                <input ref={addSearchRef} className="input"
                   placeholder="Start typing to search..."
-                  value={addSearch}
-                  onChange={e => setAddSearch(e.target.value)}
+                  value={addSearch} onChange={e => setAddSearch(e.target.value)}
                   onKeyDown={e => e.key === 'Escape' && setAddMode(false)}
-                  style={{ marginBottom: 8 }}
-                />
+                  style={{ marginBottom: 8 }} />
                 {addSearching && <div style={{ fontSize: 12, color: 'var(--gray-dark)' }}>Searching...</div>}
                 {addResults.length > 0 && (
                   <div style={{ border: '1px solid var(--gray-mid)', borderRadius: 4, maxHeight: 220, overflowY: 'auto', background: 'white' }}>
@@ -422,38 +494,28 @@ export default function CountEntry() {
                         {items.length === 0 ? 'No items yet. Use + Add Item or scan a barcode to begin.' : 'No items match your search.'}
                       </td></tr>
                     ) : filtered.map((item, idx) => (
-                      <tr key={item.id}
-                        style={{
-                          background: item.not_in_catalog ? '#fff8ec' : item.was_edited_after_submit ? '#fdf0ef' : idx % 2 === 0 ? 'white' : 'var(--gray-light)',
-                          borderBottom: '1px solid var(--gray-mid)',
-                        }}>
-                        <td style={{ padding: '7px 12px', fontSize: 11, color: 'var(--gray-dark)', fontFamily: 'monospace' }}>
-                          {item.item_number_raw || '—'}
-                        </td>
+                      <tr key={item.id} style={{
+                        background: item.not_in_catalog ? '#fff8ec' : item.was_edited_after_submit ? '#fdf0ef' : idx % 2 === 0 ? 'white' : 'var(--gray-light)',
+                        borderBottom: '1px solid var(--gray-mid)',
+                      }}>
+                        <td style={{ padding: '7px 12px', fontSize: 11, color: 'var(--gray-dark)', fontFamily: 'monospace' }}>{item.item_number_raw || '—'}</td>
                         <td style={{ padding: '7px 12px' }}>
                           <div style={{ fontWeight: 'bold', fontSize: 13 }}>{item.description_raw}</div>
                           {item.is_new_item && <span style={{ fontSize: 10, color: 'var(--teal)', fontWeight: 'bold' }}>NEW</span>}
                         </td>
                         <td style={{ padding: '7px 12px', fontSize: 12, color: 'var(--gray-dark)' }}>{item.vendor_raw || '—'}</td>
-                        <td style={{ padding: '7px 12px', textAlign: 'center', color: 'var(--gray-dark)', fontSize: 13 }}>
-                          {item.previous_quantity ?? '—'}
-                        </td>
+                        <td style={{ padding: '7px 12px', textAlign: 'center', color: 'var(--gray-dark)', fontSize: 13 }}>{item.previous_quantity ?? '—'}</td>
                         <td style={{ padding: '7px 12px', textAlign: 'center' }}>
                           {canEdit ? (
                             <div className="qty-control" style={{ justifyContent: 'center' }}>
                               <button className="qty-btn" onClick={() => updateQty(item.id, (item.quantity||0) - 1)}>−</button>
-                              <input
-                                className="qty-val"
-                                type="number" min="0"
+                              <input className="qty-val" type="number" min="0"
                                 value={item.quantity || 0}
                                 onChange={e => handleQtyInput(item.id, e.target.value)}
-                                onBlur={() => flushQtyInput(item.id)}
-                              />
+                                onBlur={() => flushQtyInput(item.id)} />
                               <button className="qty-btn" onClick={() => updateQty(item.id, (item.quantity||0) + 1)}>+</button>
                             </div>
-                          ) : (
-                            <strong>{item.quantity}</strong>
-                          )}
+                          ) : <strong>{item.quantity}</strong>}
                         </td>
                         <td style={{ padding: '7px 12px', textAlign: 'center', fontSize: 16 }}>
                           {item.not_in_catalog && <span title="Not in catalog">⚠</span>}
