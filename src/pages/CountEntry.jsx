@@ -138,10 +138,14 @@ export default function CountEntry() {
   }
 
   async function handleAddFromSearch(catalogItem) {
-    const existing = items.find(i => i.item?.item_number === catalogItem.item_number);
+    const existing = items.find(i => i.item?.item_number === catalogItem.item_number || i.item_number_raw === catalogItem.item_number);
     if (existing) {
-      await updateQty(existing.id, (existing.quantity || 0) + 1);
-      toast.info(`+1 → ${catalogItem.description}`);
+      toast.warning(`"${catalogItem.description}" is already in your count list. Please find it in the list below and update the quantity there.`);
+      setAddMode(false);
+      setAddSearch('');
+      setAddResults([]);
+      setSearch(catalogItem.item_number);
+      return;
     } else {
       await addLineItem({
         item_catalog_id: catalogItem.id,
@@ -317,7 +321,6 @@ export default function CountEntry() {
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {canEdit && <button className="btn btn-secondary" onClick={() => setScanning(true)}>📷 Scan Barcode</button>}
-              {canEdit && <button className="btn btn-utility" onClick={saveProgress} disabled={saving}>{saving ? 'Saving...' : '💾 Save'}</button>}
             </div>
           </div>
 
