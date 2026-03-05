@@ -31,7 +31,7 @@ export default function CountEntry() {
 
   // Flag as closed
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [closeForm, setCloseForm] = useState({ date: new Date().toISOString().split('T')[0], notes: '' });
+  const [closeForm, setCloseForm] = useState({ date: new Date().toISOString().split('T')[0], notes: '', final_count_performed: '', final_count_date: '' });
   const [closing, setClosing] = useState(false);
 
   useEffect(() => { loadCount(); }, [countId]);
@@ -144,11 +144,12 @@ export default function CountEntry() {
 
   async function handleFlagClosed() {
     if (!closeForm.notes.trim()) { toast.error('Please enter a reason for closing this account.'); return; }
+    if (!closeForm.final_count_performed) { toast.error('Please indicate whether a final closing count was performed.'); return; }
     setClosing(true);
     const { error } = await supabase.from('accounts').update({
       flagged_closed: true,
       closed_date:    closeForm.date,
-      closed_notes:   closeForm.notes,
+      closed_notes:   `${closeForm.notes} | Final count performed: ${closeForm.final_count_performed} | Final count date: ${closeForm.final_count_date || 'N/A'}`,
       closed_by:      profile.id,
       closed_at:      new Date().toISOString(),
       is_active:      false,
@@ -159,8 +160,16 @@ export default function CountEntry() {
     // Create alert for admin
     await supabase.from('alerts').insert({
       alert_type: 'account_closed',
-      message: `Account "${count.account.name}" was flagged as closed by ${profile.full_name} on ${closeForm.date}. Notes: ${closeForm.notes}`,
+      message: `Account "${count.account.name}" was flagged as closed by ${profile.full_name} on ${closeForm.date}. Final count performed: ${closeForm.final_count_performed}. Notes: ${closeForm.notes}`,
       is_read: false,
+    });
+
+    // Create a To Do task for admin
+    await supabase.from('todos').insert({
+      title: `Review closed account: ${count.account.name}`,
+      description: `Flagged by ${profile.full_name} on ${closeForm.date}. Final count performed: ${closeForm.final_count_performed}${closeForm.final_count_date ? ` on ${closeForm.final_count_date}` : ''}. Notes: ${closeForm.notes}`,
+      priority: 'high',
+      is_complete: false,
     });
 
     toast.success(`${count.account.name} flagged as closed. Admin has been notified.`);
@@ -342,13 +351,13 @@ export default function CountEntry() {
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowCloseModal(false)}>
           <div className="modal">
             <div className="modal-header" style={{ background: 'var(--error)' }}>
-              <h3>ðŸš« Flag Account as Closed</h3>
+              <h3>Flag Account as Closed</h3>
               <button className="btn btn-ghost btn-sm" onClick={() => setShowCloseModal(false)}
-                style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}>âœ•</button>
+                style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}>X</button>
             </div>
             <div className="modal-body">
               <div style={{ background: '#fff3f3', border: '1px solid var(--error)', borderRadius: 6, padding: 12, marginBottom: 16, fontSize: 13 }}>
-                âš  This will mark <strong>{count?.account?.name}</strong> as permanently closed and remove it from future count cycles. Admin will be notified.
+                Note: This will mark <strong>{count?.account?.name}</strong> as permanently closed and remove it from future count cycles. Admin will be notified.
               </div>
               <div className="input-group">
                 <label className="input-label">Close Date *</label>
@@ -356,7 +365,24 @@ export default function CountEntry() {
                   onChange={e => setCloseForm(p => ({ ...p, date: e.target.value }))} />
               </div>
               <div className="input-group">
-                <label className="input-label">Reason / Notes *</label>
+                <label className="input-label">Was a final closing inventory count performed for this account? *</label>
+                <select className="select" value={closeForm.final_count_performed}
+                  onChange={e => setCloseForm(p => ({ ...p, final_count_performed: e.target.value }))}>
+                  <option value="">â€” Select â€”</option>
+                  <option value="Yes">Yes â€” a final count was completed</option>
+                  <option value="No">No â€” a final count was not performed</option>
+                  <option value="In Progress">In Progress â€” count is currently underway</option>
+                </select>
+              </div>
+              {closeForm.final_count_performed === 'Yes' && (
+                <div className="input-group">
+                  <label className="input-label">Date the final closing count was performed</label>
+                  <input className="input" type="date" value={closeForm.final_count_date}
+                    onChange={e => setCloseForm(p => ({ ...p, final_count_date: e.target.value }))} />
+                </div>
+              )}
+              <div className="input-group">
+                <label className="input-label">Reason for closure / Additional notes *</label>
                 <textarea className="input" rows={3} placeholder="e.g. Location permanently closed, moved to new address, etc."
                   value={closeForm.notes}
                   onChange={e => setCloseForm(p => ({ ...p, notes: e.target.value }))}
@@ -366,7 +392,7 @@ export default function CountEntry() {
             <div className="modal-footer">
               <button className="btn btn-utility" onClick={() => setShowCloseModal(false)}>Cancel</button>
               <button className="btn btn-danger" onClick={handleFlagClosed} disabled={closing}>
-                {closing ? 'Saving...' : 'ðŸš« Confirm -- Flag as Closed'}
+                {closing ? 'Saving...' : 'Confirm â€” Flag as Closed'}
               </button>
             </div>
           </div>
@@ -377,10 +403,10 @@ export default function CountEntry() {
         <div className="page-inner">
           <div className="page-header">
             <div>
-              <button className="btn btn-utility btn-sm" onClick={() => navigate('/')} style={{ marginBottom: 6 }}>â† Back</button>
+              <button className="btn btn-utility btn-sm" onClick={() => navigate('/')} style={{ marginBottom: 6 }}>Back</button>
               <div className="page-title">
                 {count?.account?.name}
-                {isClosed && <span className="badge badge-closed" style={{ marginLeft: 10, fontSize: 13 }}>ðŸš« Closed</span>}
+                {isClosed && <span className="badge badge-closed" style={{ marginLeft: 10, fontSize: 13 }}>CLOSED</span>}
               </div>
               <div className="page-sub">
                 {count?.account?.region?.name} &nbsp;Â·&nbsp; {count?.cycle?.name} &nbsp;Â·&nbsp;
@@ -390,10 +416,10 @@ export default function CountEntry() {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {canEdit && <button className="btn btn-secondary" onClick={() => setScanning(true)}>ðŸ“· Scan Barcode</button>}
+              {canEdit && <button className="btn btn-secondary" onClick={() => setScanning(true)}>Scan Barcode</button>}
               {canEdit && !isClosed && (
                 <button className="btn btn-danger btn-sm" onClick={() => setShowCloseModal(true)}>
-                  ðŸš« Flag as Closed
+                  Flag as Closed
                 </button>
               )}
             </div>
@@ -401,14 +427,14 @@ export default function CountEntry() {
 
           {isClosed && (
             <div className="alert-banner" style={{ background: '#fff3f3', borderColor: 'var(--error)', color: 'var(--error)', marginBottom: 16 }}>
-              ðŸš« This account was flagged as closed on {count.account.closed_date}.
+              This account was flagged as closed on {count.account.closed_date}.
               {count.account.closed_notes && <> Reason: {count.account.closed_notes}</>}
             </div>
           )}
-          {!cycleOpen && <div className="alert-banner warning">âš  The count cycle is closed. Viewing only.</div>}
+          {!cycleOpen && <div className="alert-banner warning">The count cycle is closed. Viewing only.</div>}
           {flaggedCount > 0 && (
             <div className="alert-banner warning">
-              âš  {flaggedCount} item{flaggedCount > 1 ? 's' : ''} flagged for admin review.
+              {flaggedCount} item{flaggedCount > 1 ? 's' : ''} flagged for admin review.
             </div>
           )}
 
@@ -433,7 +459,7 @@ export default function CountEntry() {
               </select>
               {canEdit && (
                 <button className="btn btn-secondary" onClick={() => { setAddMode(m => !m); setAddSearch(''); setAddResults([]); }}>
-                  {addMode ? 'âœ• Cancel' : '+ Add Item'}
+                  {addMode ? 'Cancel' : '+ Add Item'}
                 </button>
               )}
               {(search || filterVendor) && (
@@ -521,9 +547,9 @@ export default function CountEntry() {
                           ) : <strong>{item.quantity}</strong>}
                         </td>
                         <td style={{ padding: '7px 12px', textAlign: 'center', fontSize: 16 }}>
-                          {item.not_in_catalog && <span title="Not in catalog">âš </span>}
-                          {item.was_edited_after_submit && <span title="Edited after submission">âœï¸</span>}
-                          {item.entered_via_scan && <span title="Scanned" style={{ opacity: 0.5 }}>ðŸ“·</span>}
+                          {item.not_in_catalog && <span title="Not in catalog">[!]</span>}
+                          {item.was_edited_after_submit && <span title="Edited after submission">[edited]</span>}
+                          {item.entered_via_scan && <span title="Scanned" style={{ opacity: 0.5 }}>[scan]</span>}
                         </td>
                       </tr>
                     ))}
@@ -545,11 +571,11 @@ export default function CountEntry() {
                 {items.filter(i => i._dirty).length > 0 && '* Unsaved changes'}
               </span>
               <button className="btn btn-utility" onClick={saveProgress} disabled={saving}>
-                {saving ? 'Saving...' : 'ðŸ’¾ Save Progress'}
+                {saving ? 'Saving...' : 'Save Progress'}
               </button>
               <button className="btn btn-primary btn-lg" onClick={handleSubmit}
                 disabled={submitting || items.length === 0}>
-                {submitting ? 'Submitting...' : 'âœ“ Submit Count'}
+                {submitting ? 'Submitting...' : 'Submit Count'}
               </button>
             </div>
           )}
