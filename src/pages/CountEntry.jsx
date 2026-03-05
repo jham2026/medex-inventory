@@ -1,11 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthContext';
 import { useToast } from '../components/ToastContext';
 import NavBar from '../components/NavBar';
 import BarcodeScanner from '../components/BarcodeScanner';
-import AddItemModal from '../components/AddItemModal';
 
 export default function CountEntry() {
   const { countId } = useParams();
@@ -13,16 +12,46 @@ export default function CountEntry() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  const [count, setCount]         = useState(null);
-  const [items, setItems]         = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [saving, setSaving]       = useState(false);
+  const [count, setCount]           = useState(null);
+  const [items, setItems]           = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [saving, setSaving]         = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [scanning, setScanning]   = useState(false);
-  const [addingItem, setAddingItem] = useState(false);
-  const [scannedCode, setScannedCode] = useState(null);
+  const [scanning, setScanning]     = useState(false);
+
+  const [search, setSearch]         = useState('');
+  const [filterVendor, setFilterVendor] = useState('');
+
+  const [addMode, setAddMode]       = useState(false);
+  const [addSearch, setAddSearch]   = useState('');
+  const [addResults, setAddResults] = useState([]);
+  const [addSearching, setAddSearching] = useState(false);
+  const addSearchRef = useRef(null);
+  const addTimer = useRef(null);
 
   useEffect(() => { loadCount(); }, [countId]);
+
+  useEffect(() => {
+    if (addMode && addSearchRef.current) addSearchRef.current.focus();
+  }, [addMode]);
+
+  useEffect(() => {
+    clearTimeout(addTimer.current);
+    if (!addSearch || addSearch.length < 2) { setAddResults([]); return; }
+    addTimer.current = setTimeout(() => doAddSearch(addSearch), 300);
+    return () => clearTimeout(addTimer.current);
+  }, [addSearch]);
+
+  async function doAddSearch(q) {
+    setAddSearching(true);
+    const { data } = await supabase
+      .from('item_catalog')
+      .select('id, item_number, description, primary_vendor, barcode_1, hcpcs_code')
+      .or(`item_number.ilike.%${q}%,description.ilike.%${q}%,barcode_1.eq.${q}`)
+      .limit(15);
+    setAddResults(data || []);
+    setAddSearching(false);
+  }
 
   async function loadCount() {
     setLoading(true);
@@ -39,7 +68,6 @@ export default function CountEntry() {
     if (!countData) { navigate('/'); return; }
     setCount(countData);
 
-    // If not started yet, mark as in_progress
     if (countData.status === 'not_started') {
       await supabase.from('inventory_counts')
         .update({ status: 'in_progress', started_at: new Date().toISOString() })
@@ -47,14 +75,13 @@ export default function CountEntry() {
       countData.status = 'in_progress';
     }
 
-    // Load line items
     const { data: lineItems } = await supabase
       .from('count_line_items')
       .select(`
         id, quantity, previous_quantity, item_number_raw,
         description_raw, vendor_raw, not_in_catalog,
         was_edited_after_submit, is_new_item, entered_via_scan,
-        item:item_catalog(item_number, description, barcode_1, barcode_2, primary_vendor)
+        item:item_catalog(item_number, description, barcode_1, primary_vendor)
       `)
       .eq('inventory_count_id', countId)
       .order('description_raw');
@@ -63,84 +90,93 @@ export default function CountEntry() {
     setLoading(false);
   }
 
-  function updateQty(itemId, delta) {
-    setItems(prev => prev.map(item => {
-      if (item.id !== itemId) return item;
-      const newQty = Math.max(0, (item.quantity || 0) + delta);
-      return { ...item, quantity: newQty, _dirty: true };
-    }));
+  async function updateQty(itemId, newQty) {
+    const item = items.find(i => i.id === itemId);
+    if (!item) return;
+    const oldQty = item.quantity || 0;
+    if (newQty === oldQty) return;
+    const finalQty = Math.max(0, newQty);
+
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, quantity: finalQty, _dirty: true } : i));
+
+    const wasSubmitted = count?.status === 'submitted';
+    const updates = { quantity: finalQty, updated_by: profile.id };
+    if (wasSubmitted) updates.was_edited_after_submit = true;
+    await supabase.from('count_line_items').update(updates).eq('id', itemId);
+
+    await supabase.from('count_item_audit').insert({
+      line_item_id:       itemId,
+      inventory_count_id: countId,
+      changed_by:         profile.id,
+      old_quantity:       oldQty,
+      new_quantity:       finalQty,
+      note:               wasSubmitted ? 'Edited after submission' : null,
+    });
   }
 
-  function setQty(itemId, val) {
+  function handleQtyInput(itemId, val) {
     const qty = Math.max(0, parseInt(val) || 0);
-    setItems(prev => prev.map(item =>
-      item.id !== itemId ? item : { ...item, quantity: qty, _dirty: true }
-    ));
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, quantity: qty, _dirty: true } : i));
+  }
+
+  async function flushQtyInput(itemId) {
+    const item = items.find(i => i.id === itemId);
+    if (!item || !item._dirty) return;
+    await updateQty(itemId, item.quantity);
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, _dirty: false } : i));
   }
 
   async function saveProgress() {
     setSaving(true);
     const dirty = items.filter(i => i._dirty);
-    const wasSubmitted = count?.status === 'submitted';
-
     for (const item of dirty) {
-      const updates = { quantity: item.quantity, updated_by: profile.id };
-      if (wasSubmitted) updates.was_edited_after_submit = true;
-      await supabase.from('count_line_items').update(updates).eq('id', item.id);
-
-      // Log edit if post-submit
-      if (wasSubmitted) {
-        await supabase.from('count_edit_log').insert({
-          line_item_id: item.id,
-          inventory_count_id: countId,
-          edited_by: profile.id,
-          old_quantity: item.previous_quantity ?? 0,
-          new_quantity: item.quantity,
-        });
-      }
+      await updateQty(item.id, item.quantity);
     }
-
     setItems(prev => prev.map(i => ({ ...i, _dirty: false })));
     toast.success('Progress saved!');
     setSaving(false);
   }
 
-  async function handleBarcodeDetected(code) {
-    setScanning(false);
-    setScannedCode(code);
-
-    // Look up item in catalog
-    const { data: catalogItem } = await supabase
-      .from('item_catalog')
-      .select('id, item_number, description, primary_vendor, barcode_1, barcode_2')
-      .or(`barcode_1.eq.${code},barcode_2.eq.${code}`)
-      .single();
-
-    if (catalogItem) {
-      // Check if already in count
-      const existing = items.find(i => i.item?.item_number === catalogItem.item_number);
-      if (existing) {
-        updateQty(existing.id, 1);
-        toast.info(`+1 → ${catalogItem.description}`);
-      } else {
-        // Add new line item
-        await addLineItem({
-          item_catalog_id: catalogItem.id,
-          item_number_raw: catalogItem.item_number,
-          description_raw: catalogItem.description,
-          vendor_raw: catalogItem.primary_vendor,
-          quantity: 1,
-          entered_via_scan: true,
-          not_in_catalog: false,
-          is_new_item: true,
-        });
-        toast.success(`Added: ${catalogItem.description}`);
-      }
+  async function handleAddFromSearch(catalogItem) {
+    const existing = items.find(i => i.item?.item_number === catalogItem.item_number);
+    if (existing) {
+      await updateQty(existing.id, (existing.quantity || 0) + 1);
+      toast.info(`+1 → ${catalogItem.description}`);
     } else {
-      toast.warning(`Barcode ${code} not found in catalog — add manually`);
-      setAddingItem(true);
+      await addLineItem({
+        item_catalog_id: catalogItem.id,
+        item_number_raw: catalogItem.item_number,
+        description_raw: catalogItem.description,
+        vendor_raw:      catalogItem.primary_vendor,
+        quantity:        1,
+        is_new_item:     true,
+        not_in_catalog:  false,
+        entered_via_scan: false,
+      });
+      toast.success(`Added: ${catalogItem.description}`);
     }
-    setScannedCode(null);
+    setAddSearch('');
+    setAddResults([]);
+    setAddMode(false);
+  }
+
+  async function handleAddNotInCatalog() {
+    const desc = addSearch.trim();
+    if (!desc) return;
+    await addLineItem({
+      item_catalog_id: null,
+      item_number_raw: null,
+      description_raw: desc,
+      vendor_raw:      null,
+      quantity:        0,
+      is_new_item:     true,
+      not_in_catalog:  true,
+      entered_via_scan: false,
+    });
+    toast.warning(`Added "${desc}" — flagged for admin review`);
+    setAddSearch('');
+    setAddResults([]);
+    setAddMode(false);
   }
 
   async function addLineItem(lineData) {
@@ -151,17 +187,59 @@ export default function CountEntry() {
         id, quantity, previous_quantity, item_number_raw,
         description_raw, vendor_raw, not_in_catalog,
         was_edited_after_submit, is_new_item, entered_via_scan,
-        item:item_catalog(item_number, description, barcode_1, barcode_2, primary_vendor)
+        item:item_catalog(item_number, description, barcode_1, primary_vendor)
       `)
       .single();
 
-    if (data) setItems(prev => [...prev, data].sort((a,b) =>
-      a.description_raw?.localeCompare(b.description_raw)));
+    if (data) {
+      setItems(prev => [...prev, data].sort((a, b) =>
+        (a.description_raw || '').localeCompare(b.description_raw || '')));
+      await supabase.from('count_item_audit').insert({
+        line_item_id:       data.id,
+        inventory_count_id: countId,
+        changed_by:         profile.id,
+        old_quantity:       0,
+        new_quantity:       lineData.quantity || 0,
+        note:               'Item added',
+      });
+    }
+  }
+
+  async function handleBarcodeDetected(code) {
+    setScanning(false);
+    const { data: catalogItem } = await supabase
+      .from('item_catalog')
+      .select('id, item_number, description, primary_vendor, barcode_1, barcode_2')
+      .or(`barcode_1.eq.${code},barcode_2.eq.${code}`)
+      .single();
+
+    if (catalogItem) {
+      const existing = items.find(i => i.item?.item_number === catalogItem.item_number);
+      if (existing) {
+        await updateQty(existing.id, (existing.quantity || 0) + 1);
+        toast.info(`+1 → ${catalogItem.description}`);
+      } else {
+        await addLineItem({
+          item_catalog_id: catalogItem.id,
+          item_number_raw: catalogItem.item_number,
+          description_raw: catalogItem.description,
+          vendor_raw:      catalogItem.primary_vendor,
+          quantity:        1,
+          is_new_item:     true,
+          not_in_catalog:  false,
+          entered_via_scan: true,
+        });
+        toast.success(`Scanned & added: ${catalogItem.description}`);
+      }
+    } else {
+      toast.warning(`Barcode ${code} not in catalog — use Add Item`);
+      setAddMode(true);
+      setAddSearch(code);
+    }
   }
 
   async function handleSubmit() {
-    if (!window.confirm(`Submit count for ${count?.account?.name}?\n\nA CSV will be emailed to you and the admin. You can still edit after submitting.`)) return;
-
+    if (!window.confirm(`Submit count for ${count?.account?.name}?\n\nA CSV will be downloaded. You can still edit after submitting.`)) return;
     setSubmitting(true);
     await saveProgress();
 
@@ -170,10 +248,8 @@ export default function CountEntry() {
       submitted_at: new Date().toISOString(),
     }).eq('id', countId);
 
-    // Build CSV and trigger email via Supabase Edge Function (if configured)
-    // For now we save locally and show download
     const csvRows = [
-      ['Item Number', 'Description', 'Vendor', 'Quantity', 'Previous Qty', 'New Item', 'Not In Catalog', 'Edited After Submit'],
+      ['Item Number','Description','Vendor','Quantity','Previous Qty','New Item','Not In Catalog','Edited After Submit'],
       ...items.map(i => [
         i.item_number_raw || '',
         i.description_raw || '',
@@ -185,7 +261,7 @@ export default function CountEntry() {
         i.was_edited_after_submit ? 'FLAG' : 'NO',
       ])
     ];
-    const csv = csvRows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+    const csv  = csvRows.map(r => r.map(v => `"${v}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -199,6 +275,15 @@ export default function CountEntry() {
     setSubmitting(false);
   }
 
+  const vendors = [...new Set(items.map(i => i.vendor_raw).filter(Boolean))].sort();
+  const filtered = items
+    .filter(i => !filterVendor || i.vendor_raw === filterVendor)
+    .filter(i => !search ||
+      i.description_raw?.toLowerCase().includes(search.toLowerCase()) ||
+      i.item_number_raw?.toLowerCase().includes(search.toLowerCase()) ||
+      i.vendor_raw?.toLowerCase().includes(search.toLowerCase())
+    );
+
   if (loading) return (
     <>
       <NavBar />
@@ -206,163 +291,185 @@ export default function CountEntry() {
     </>
   );
 
-  const cycleOpen = count?.cycle?.status === 'open';
-  const canEdit   = cycleOpen;
+  const cycleOpen    = count?.cycle?.status === 'open';
+  const canEdit      = cycleOpen;
   const flaggedCount = items.filter(i => i.not_in_catalog || i.was_edited_after_submit).length;
 
   return (
     <>
       <NavBar />
       {scanning && (
-        <BarcodeScanner
-          onDetected={handleBarcodeDetected}
-          onClose={() => setScanning(false)}
-        />
-      )}
-      {addingItem && (
-        <AddItemModal
-          countId={countId}
-          prefillBarcode={scannedCode}
-          onAdd={item => { addLineItem(item); setAddingItem(false); }}
-          onClose={() => setAddingItem(false)}
-        />
+        <BarcodeScanner onDetected={handleBarcodeDetected} onClose={() => setScanning(false)} />
       )}
 
       <div className="page">
         <div className="page-inner">
-          {/* Header */}
           <div className="page-header">
             <div>
-              <button className="btn btn-utility btn-sm" onClick={() => navigate('/')}
-                style={{ marginBottom: '6px' }}>← Back</button>
+              <button className="btn btn-utility btn-sm" onClick={() => navigate('/')} style={{ marginBottom: 6 }}>← Back</button>
               <div className="page-title">{count?.account?.name}</div>
               <div className="page-sub">
                 {count?.account?.region?.name} &nbsp;·&nbsp; {count?.cycle?.name} &nbsp;·&nbsp;
                 <span className={`badge badge-${count?.status}`} style={{ marginLeft: 4 }}>
-                  {count?.status?.replace('_', ' ')}
+                  {count?.status?.replace('_',' ')}
                 </span>
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-              {canEdit && (
-                <button className="btn btn-secondary" onClick={() => setScanning(true)}>
-                  📷 Scan Barcode
-                </button>
-              )}
-              {canEdit && (
-                <button className="btn btn-utility" onClick={() => setAddingItem(true)}>
-                  + Add Item
-                </button>
-              )}
-              {canEdit && (
-                <button className="btn btn-utility" onClick={saveProgress} disabled={saving}>
-                  {saving ? 'Saving...' : '💾 Save'}
-                </button>
-              )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {canEdit && <button className="btn btn-secondary" onClick={() => setScanning(true)}>📷 Scan Barcode</button>}
+              {canEdit && <button className="btn btn-utility" onClick={saveProgress} disabled={saving}>{saving ? 'Saving...' : '💾 Save'}</button>}
             </div>
           </div>
 
-          {!cycleOpen && (
-            <div className="alert-banner warning">
-              ⚠ The count cycle is closed. Viewing only — edits are disabled.
-            </div>
-          )}
-
+          {!cycleOpen && <div className="alert-banner warning">⚠ The count cycle is closed. Viewing only.</div>}
           {flaggedCount > 0 && (
             <div className="alert-banner warning">
-              ⚠ {flaggedCount} item{flaggedCount > 1 ? 's' : ''} flagged for admin review
-              (not in catalog or edited after submission).
+              ⚠ {flaggedCount} item{flaggedCount > 1 ? 's' : ''} flagged for admin review.
             </div>
           )}
 
-          {/* Stats row */}
           <div className="stat-grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginBottom: 16 }}>
-            <div className="stat-card">
-              <div className="stat-val">{items.length}</div>
-              <div className="stat-label">Total Items</div>
-            </div>
-            <div className="stat-card green">
-              <div className="stat-val">{items.reduce((s,i) => s + (i.quantity||0), 0)}</div>
-              <div className="stat-label">Total Units</div>
-            </div>
-            <div className="stat-card orange">
-              <div className="stat-val">{flaggedCount}</div>
-              <div className="stat-label">Flagged Items</div>
-            </div>
+            <div className="stat-card"><div className="stat-val">{items.length}</div><div className="stat-label">Total Items</div></div>
+            <div className="stat-card green"><div className="stat-val">{items.reduce((s,i) => s+(i.quantity||0),0)}</div><div className="stat-label">Total Units</div></div>
+            <div className="stat-card orange"><div className="stat-val">{flaggedCount}</div><div className="stat-label">Flagged</div></div>
           </div>
 
-          {/* Line items table */}
           <div className="card" style={{ marginBottom: 80 }}>
             <div className="card-header">
-              <span style={{ fontWeight: 'bold', fontSize: 14 }}>
-                Items ({items.length})
-              </span>
+              <span style={{ fontWeight: 'bold' }}>Items ({filtered.length}{filtered.length !== items.length ? ` of ${items.length}` : ''})</span>
             </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Item # </th>
-                    <th>Description</th>
-                    <th>Vendor</th>
-                    <th style={{ textAlign: 'center' }}>Prev Qty</th>
-                    <th style={{ textAlign: 'center' }}>Count</th>
-                    <th style={{ textAlign: 'center' }}>Flags</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {items.length === 0 ? (
-                    <tr><td colSpan={6} className="table-empty">
-                      No items yet. Use + Add Item or 📷 Scan Barcode to begin.
-                    </td></tr>
-                  ) : items.map(item => (
-                    <tr key={item.id} onClick={e => e.stopPropagation()}
-                      style={{ background: item.not_in_catalog ? '#fff8ec' : item.was_edited_after_submit ? '#fdf0ef' : undefined }}>
-                      <td style={{ fontSize: 12, color: 'var(--gray-dark)' }}>
-                        {item.item_number_raw || '—'}
-                      </td>
-                      <td>
-                        <div style={{ fontWeight: 'bold', fontSize: 13 }}>{item.description_raw}</div>
-                        {item.is_new_item && <span style={{ fontSize: 11, color: 'var(--teal)' }}>NEW</span>}
-                      </td>
-                      <td style={{ fontSize: 12, color: 'var(--gray-dark)' }}>{item.vendor_raw || '—'}</td>
-                      <td style={{ textAlign: 'center', color: 'var(--gray-dark)' }}>
-                        {item.previous_quantity ?? '—'}
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        {canEdit ? (
-                          <div className="qty-control">
-                            <button className="qty-btn" onClick={() => updateQty(item.id, -1)}>−</button>
-                            <input
-                              className="qty-val"
-                              type="number" min="0"
-                              value={item.quantity || 0}
-                              onChange={e => setQty(item.id, e.target.value)}
-                            />
-                            <button className="qty-btn" onClick={() => updateQty(item.id, 1)}>+</button>
-                          </div>
-                        ) : (
-                          <strong>{item.quantity}</strong>
-                        )}
-                      </td>
-                      <td style={{ textAlign: 'center', fontSize: 18 }}>
-                        {item.not_in_catalog && <span title="Not in catalog">⚠</span>}
-                        {item.was_edited_after_submit && <span title="Edited after submission">✏️</span>}
-                        {item.entered_via_scan && <span title="Scanned" style={{ opacity: 0.5 }}>📷</span>}
-                      </td>
+
+            <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--gray-mid)', display: 'flex', gap: 8, flexWrap: 'wrap', background: 'var(--gray-light)' }}>
+              <input
+                className="input" style={{ flex: 1, minWidth: 180 }}
+                placeholder="🔍 Search item #, description, or vendor..."
+                value={search} onChange={e => setSearch(e.target.value)}
+              />
+              <select className="select" style={{ width: 160 }} value={filterVendor} onChange={e => setFilterVendor(e.target.value)}>
+                <option value="">All Vendors</option>
+                {vendors.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              {canEdit && (
+                <button className="btn btn-secondary" onClick={() => { setAddMode(m => !m); setAddSearch(''); setAddResults([]); }}>
+                  {addMode ? '✕ Cancel' : '+ Add Item'}
+                </button>
+              )}
+              {(search || filterVendor) && (
+                <button className="btn btn-utility btn-sm" onClick={() => { setSearch(''); setFilterVendor(''); }}>Clear</button>
+              )}
+            </div>
+
+            {addMode && (
+              <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--gray-mid)', background: '#f0f8ff' }}>
+                <div style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--teal-dark)', marginBottom: 6 }}>
+                  ADD ITEM — type to search catalog (item #, description, or barcode)
+                </div>
+                <input
+                  ref={addSearchRef}
+                  className="input"
+                  placeholder="Start typing to search..."
+                  value={addSearch}
+                  onChange={e => setAddSearch(e.target.value)}
+                  onKeyDown={e => e.key === 'Escape' && setAddMode(false)}
+                  style={{ marginBottom: 8 }}
+                />
+                {addSearching && <div style={{ fontSize: 12, color: 'var(--gray-dark)' }}>Searching...</div>}
+                {addResults.length > 0 && (
+                  <div style={{ border: '1px solid var(--gray-mid)', borderRadius: 4, maxHeight: 220, overflowY: 'auto', background: 'white' }}>
+                    {addResults.map(r => (
+                      <div key={r.id} onClick={() => handleAddFromSearch(r)}
+                        style={{ padding: '8px 12px', cursor: 'pointer', borderBottom: '1px solid var(--gray-mid)', fontSize: 13 }}
+                        onMouseEnter={e => e.currentTarget.style.background = '#e8f4fa'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                        <div style={{ fontWeight: 'bold' }}>{r.description}</div>
+                        <div style={{ fontSize: 11, color: 'var(--gray-dark)' }}>
+                          #{r.item_number} &nbsp;·&nbsp; {r.primary_vendor || '—'} &nbsp;·&nbsp; HCPCS: {r.hcpcs_code || '—'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {addSearch.length >= 2 && !addSearching && addResults.length === 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', fontSize: 13, color: 'var(--gray-dark)' }}>
+                    No catalog matches for "{addSearch}".
+                    <button className="btn btn-utility btn-sm" onClick={handleAddNotInCatalog}>
+                      Add "{addSearch}" as unlisted item (flagged)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ overflowX: 'auto' }}>
+              <div style={{ overflowY: 'auto', maxHeight: '540px' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead style={{ position: 'sticky', top: 0, zIndex: 10 }}>
+                    <tr>
+                      <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'left', fontSize: 12, fontWeight: 'bold', whiteSpace: 'nowrap', width: '12%' }}>Item #</th>
+                      <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'left', fontSize: 12, fontWeight: 'bold' }}>Description</th>
+                      <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'left', fontSize: 12, fontWeight: 'bold', whiteSpace: 'nowrap', width: '14%' }}>Vendor</th>
+                      <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'center', fontSize: 12, fontWeight: 'bold', whiteSpace: 'nowrap', width: '8%' }}>Prev Qty</th>
+                      <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'center', fontSize: 12, fontWeight: 'bold', width: '16%' }}>Count</th>
+                      <th style={{ background: 'var(--teal-dark)', color: 'white', padding: '9px 12px', textAlign: 'center', fontSize: 12, fontWeight: 'bold', width: '6%' }}>Flags</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filtered.length === 0 ? (
+                      <tr><td colSpan={6} className="table-empty">
+                        {items.length === 0 ? 'No items yet. Use + Add Item or scan a barcode to begin.' : 'No items match your search.'}
+                      </td></tr>
+                    ) : filtered.map((item, idx) => (
+                      <tr key={item.id}
+                        style={{
+                          background: item.not_in_catalog ? '#fff8ec' : item.was_edited_after_submit ? '#fdf0ef' : idx % 2 === 0 ? 'white' : 'var(--gray-light)',
+                          borderBottom: '1px solid var(--gray-mid)',
+                        }}>
+                        <td style={{ padding: '7px 12px', fontSize: 11, color: 'var(--gray-dark)', fontFamily: 'monospace' }}>
+                          {item.item_number_raw || '—'}
+                        </td>
+                        <td style={{ padding: '7px 12px' }}>
+                          <div style={{ fontWeight: 'bold', fontSize: 13 }}>{item.description_raw}</div>
+                          {item.is_new_item && <span style={{ fontSize: 10, color: 'var(--teal)', fontWeight: 'bold' }}>NEW</span>}
+                        </td>
+                        <td style={{ padding: '7px 12px', fontSize: 12, color: 'var(--gray-dark)' }}>{item.vendor_raw || '—'}</td>
+                        <td style={{ padding: '7px 12px', textAlign: 'center', color: 'var(--gray-dark)', fontSize: 13 }}>
+                          {item.previous_quantity ?? '—'}
+                        </td>
+                        <td style={{ padding: '7px 12px', textAlign: 'center' }}>
+                          {canEdit ? (
+                            <div className="qty-control" style={{ justifyContent: 'center' }}>
+                              <button className="qty-btn" onClick={() => updateQty(item.id, (item.quantity||0) - 1)}>−</button>
+                              <input
+                                className="qty-val"
+                                type="number" min="0"
+                                value={item.quantity || 0}
+                                onChange={e => handleQtyInput(item.id, e.target.value)}
+                                onBlur={() => flushQtyInput(item.id)}
+                              />
+                              <button className="qty-btn" onClick={() => updateQty(item.id, (item.quantity||0) + 1)}>+</button>
+                            </div>
+                          ) : (
+                            <strong>{item.quantity}</strong>
+                          )}
+                        </td>
+                        <td style={{ padding: '7px 12px', textAlign: 'center', fontSize: 16 }}>
+                          {item.not_in_catalog && <span title="Not in catalog">⚠</span>}
+                          {item.was_edited_after_submit && <span title="Edited after submission">✏️</span>}
+                          {item.entered_via_scan && <span title="Scanned" style={{ opacity: 0.5 }}>📷</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
-          {/* Sticky submit bar */}
           {canEdit && (
             <div style={{
               position: 'fixed', bottom: 0, left: 0, right: 0,
               background: 'white', borderTop: '2px solid var(--gray-mid)',
-              padding: '12px 16px', display: 'flex', gap: '12px',
+              padding: '12px 16px', display: 'flex', gap: 12,
               justifyContent: 'flex-end', alignItems: 'center',
               boxShadow: '0 -2px 8px rgba(0,0,0,0.1)', zIndex: 100,
             }}>
@@ -372,11 +479,8 @@ export default function CountEntry() {
               <button className="btn btn-utility" onClick={saveProgress} disabled={saving}>
                 {saving ? 'Saving...' : '💾 Save Progress'}
               </button>
-              <button
-                className="btn btn-primary btn-lg"
-                onClick={handleSubmit}
-                disabled={submitting || items.length === 0}
-              >
+              <button className="btn btn-primary btn-lg" onClick={handleSubmit}
+                disabled={submitting || items.length === 0}>
                 {submitting ? 'Submitting...' : '✓ Submit Count'}
               </button>
             </div>
