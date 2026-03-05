@@ -44,15 +44,138 @@ export default function AdminDashboard() {
 
   async function openCycle() {
     if (!cycleForm.name) { toast.error('Enter a cycle name'); return; }
-    const { error } = await supabase.from('count_cycles').insert({
+
+    const { data: newCycle, error } = await supabase.from('count_cycles').insert({
       name: cycleForm.name,
       quarter: cycleForm.quarter,
       year: cycleForm.year,
       status: 'open',
       opened_at: new Date().toISOString(),
-    });
+    }).select().single();
+
     if (error) { toast.error('Error: ' + error.message); return; }
-    toast.success(`Count cycle "${cycleForm.name}" opened!`);
+    toast.info(`Cycle "${cycleForm.name}" created — populating counts...`);
+
+    const { data: accounts } = await supabase
+      .from('accounts')
+      .select('id, name, assigned_rep_id, region:regions(name)')
+      .eq('is_active', true);
+
+    if (!accounts?.length) { toast.warning('No active accounts found.'); loadData(); return; }
+
+    const { data: prevCycles } = await supabase
+      .from('count_cycles')
+      .select('id, quarter, year, name')
+      .eq('status', 'closed')
+      .order('year', { ascending: false })
+      .order('quarter', { ascending: false })
+      .limit(1);
+
+    const prevCycle = prevCycles?.[0] || null;
+    let prevQtyMap = {};
+
+    if (prevCycle) {
+      const { data: prevItems } = await supabase
+        .from('count_line_items')
+        .select('quantity, item_number_raw, count:inventory_counts(account_id)')
+        .eq('count.cycle_id', prevCycle.id);
+      for (const item of prevItems || []) {
+        if (item.count?.account_id && item.item_number_raw) {
+          prevQtyMap[`${item.count.account_id}_${item.item_number_raw}`] = item.quantity;
+        }
+      }
+    }
+
+    const { data: histItems } = await supabase
+      .from('historical_counts')
+      .select('account_name, item_number, quantity, quarter, year')
+      .eq('quarter', cycleForm.quarter === 'Q1' ? 'Q3' : 'Q1')
+      .eq('year', cycleForm.quarter === 'Q1' ? cycleForm.year - 1 : cycleForm.year);
+
+    const acctNameMap = {};
+    for (const a of accounts) acctNameMap[a.name.trim().toUpperCase()] = a.id;
+
+    const histQtyMap = {};
+    for (const h of histItems || []) {
+      const acctId = acctNameMap[h.account_name?.trim().toUpperCase()];
+      if (acctId && h.item_number) histQtyMap[`${acctId}_${h.item_number}`] = h.quantity;
+    }
+
+    const countRows = accounts.map(a => ({
+      cycle_id:   newCycle.id,
+      account_id: a.id,
+      rep_id:     a.assigned_rep_id || null,
+      status:     'not_started',
+    }));
+
+    let totalCreated = 0;
+    for (let i = 0; i < countRows.length; i += 100) {
+      const batch = countRows.slice(i, i + 100);
+      const { data: created, error: batchError } = await supabase
+        .from('inventory_counts')
+        .insert(batch)
+        .select('id, account_id');
+
+      if (batchError) { toast.error('Error creating counts: ' + batchError.message); continue; }
+      totalCreated += created?.length || 0;
+
+      for (const countRecord of created || []) {
+        const lineItems = [];
+
+        const prevKeys = Object.keys(prevQtyMap).filter(k => k.startsWith(countRecord.account_id + '_'));
+        for (const key of prevKeys) {
+          const itemNum = key.replace(countRecord.account_id + '_', '');
+          lineItems.push({
+            inventory_count_id: countRecord.id,
+            item_number_raw: itemNum,
+            description_raw: itemNum,
+            quantity: 0,
+            previous_quantity: prevQtyMap[key],
+            is_new_item: false,
+            not_in_catalog: false,
+          });
+        }
+
+        if (!lineItems.length) {
+          const histKeys = Object.keys(histQtyMap).filter(k => k.startsWith(countRecord.account_id + '_'));
+          for (const key of histKeys) {
+            const itemNum = key.replace(countRecord.account_id + '_', '');
+            lineItems.push({
+              inventory_count_id: countRecord.id,
+              item_number_raw: itemNum,
+              description_raw: itemNum,
+              quantity: 0,
+              previous_quantity: histQtyMap[key],
+              is_new_item: false,
+              not_in_catalog: false,
+            });
+          }
+        }
+
+        if (lineItems.length > 0) {
+          const itemNumbers = [...new Set(lineItems.map(l => l.item_number_raw))];
+          const { data: catalogItems } = await supabase
+            .from('item_catalog')
+            .select('item_number, description, primary_vendor')
+            .in('item_number', itemNumbers.slice(0, 100));
+
+          const catalogMap = {};
+          for (const c of catalogItems || []) catalogMap[c.item_number] = c;
+
+          const enriched = lineItems.map(l => ({
+            ...l,
+            description_raw: catalogMap[l.item_number_raw]?.description || l.description_raw,
+            vendor_raw: catalogMap[l.item_number_raw]?.primary_vendor || null,
+          }));
+
+          for (let j = 0; j < enriched.length; j += 100) {
+            await supabase.from('count_line_items').insert(enriched.slice(j, j + 100));
+          }
+        }
+      }
+    }
+
+    toast.success(`✅ Cycle "${cycleForm.name}" opened! ${totalCreated} counts created.`);
     loadData();
   }
 
