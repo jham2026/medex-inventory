@@ -7,6 +7,7 @@ export default function AdminAccounts() {
   const [accounts, setAccounts]   = useState([]);
   const [reps, setReps]           = useState([]);
   const [regions, setRegions]     = useState([]);
+  const [accountReps, setAccountReps] = useState({}); // accountId -> [repIds]
   const [loading, setLoading]     = useState(true);
   const [search, setSearch]       = useState('');
   const [filterRegion, setFilterRegion] = useState('');
@@ -14,62 +15,80 @@ export default function AdminAccounts() {
   const [activeCard, setActiveCard] = useState('all');
   const [saving, setSaving]       = useState(null);
   const [selectedClosed, setSelectedClosed] = useState(null);
+  const [editingReps, setEditingReps] = useState(null); // accountId being edited
 
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {
     setLoading(true);
-    const [{ data: accts }, { data: repData }, { data: regData }] = await Promise.all([
+    const [{ data: accts }, { data: repData }, { data: regData }, { data: arData }] = await Promise.all([
       supabase.from('accounts')
         .select('id, name, rep_name_raw, is_active, assigned_rep_id, flagged_closed, closed_date, closed_notes, closed_at, closed_by, region:regions(id, name)')
         .order('name'),
       supabase.from('profiles').select('id, full_name, role').in('role', ['rep','manager','admin']).eq('is_active', true).order('full_name'),
       supabase.from('regions').select('*').order('name'),
+      supabase.from('account_reps').select('account_id, rep_id'),
     ]);
     setAccounts(accts || []);
     setReps(repData || []);
     setRegions(regData || []);
+
+    // Build accountReps map
+    const arMap = {};
+    for (const ar of arData || []) {
+      if (!arMap[ar.account_id]) arMap[ar.account_id] = [];
+      arMap[ar.account_id].push(ar.rep_id);
+    }
+    setAccountReps(arMap);
     setLoading(false);
   }
 
-  async function assignRep(accountId, repId) {
+  async function addRepToAccount(accountId, repId) {
+    if (!repId) return;
+    const current = accountReps[accountId] || [];
+    if (current.includes(repId)) { toast.info('Rep already assigned.'); return; }
+
     setSaving(accountId);
+    const { error } = await supabase.from('account_reps').insert({ account_id: accountId, rep_id: repId });
+    if (error) { toast.error('Failed: ' + error.message); setSaving(null); return; }
 
-    // 1. Update the account
-    const { error } = await supabase.from('accounts')
-      .update({ assigned_rep_id: repId || null })
-      .eq('id', accountId);
-
-    if (error) {
-      toast.error('Failed to update: ' + error.message);
-      setSaving(null);
-      return;
+    // Update primary assigned_rep_id if none set
+    const acct = accounts.find(a => a.id === accountId);
+    if (!acct?.assigned_rep_id) {
+      await supabase.from('accounts').update({ assigned_rep_id: repId }).eq('id', accountId);
+      setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, assigned_rep_id: repId } : a));
     }
 
-    // 2. Auto-sync to current open cycle's inventory_counts
-    const { data: openCycle } = await supabase
-      .from('count_cycles')
-      .select('id')
-      .eq('status', 'open')
-      .single();
-
+    // Sync to open cycle if no count exists yet for this rep
+    const { data: openCycle } = await supabase.from('count_cycles').select('id').eq('status', 'open').single();
     if (openCycle) {
-      const { error: syncError } = await supabase
-        .from('inventory_counts')
-        .update({ rep_id: repId || null })
-        .eq('account_id', accountId)
-        .eq('cycle_id', openCycle.id);
-
-      if (syncError) {
-        toast.error('Rep assigned but cycle sync failed: ' + syncError.message);
-      } else {
-        toast.success('Rep assigned and current cycle updated!');
+      const { data: existing } = await supabase.from('inventory_counts')
+        .select('id').eq('account_id', accountId).eq('cycle_id', openCycle.id).single();
+      if (!existing) {
+        await supabase.from('inventory_counts').insert({
+          cycle_id: openCycle.id, account_id: accountId, rep_id: repId, status: 'not_started'
+        });
       }
-    } else {
-      toast.success('Rep assigned!');
     }
 
-    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, assigned_rep_id: repId || null } : a));
+    setAccountReps(prev => ({ ...prev, [accountId]: [...(prev[accountId] || []), repId] }));
+    toast.success('Rep added!');
+    setSaving(null);
+  }
+
+  async function removeRepFromAccount(accountId, repId) {
+    setSaving(accountId);
+    await supabase.from('account_reps').delete().eq('account_id', accountId).eq('rep_id', repId);
+
+    const remaining = (accountReps[accountId] || []).filter(id => id !== repId);
+
+    // Update primary assigned_rep_id
+    const newPrimary = remaining[0] || null;
+    await supabase.from('accounts').update({ assigned_rep_id: newPrimary }).eq('id', accountId);
+    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, assigned_rep_id: newPrimary } : a));
+
+    setAccountReps(prev => ({ ...prev, [accountId]: remaining }));
+    toast.success('Rep removed.');
     setSaving(null);
   }
 
@@ -80,13 +99,12 @@ export default function AdminAccounts() {
   }
 
   async function approveClosure(account) {
-    if (!window.confirm(`Confirm permanent closure of "${account.name}"? This cannot be undone easily.`)) return;
+    if (!window.confirm(`Confirm permanent closure of "${account.name}"?`)) return;
     await supabase.from('accounts').update({ flagged_closed: true, is_active: false }).eq('id', account.id);
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).ilike('title', `%${account.name}%`);
-    await supabase.from('alerts').update({ is_read: true }).eq('alert_type', 'account_closed').ilike('message', `%${account.name}%`);
     setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, is_active: false } : a));
     setSelectedClosed(null);
-    toast.success(`Closure of ${account.name} approved and completed.`);
+    toast.success(`Closure of ${account.name} approved.`);
   }
 
   async function reactivateClosed(account) {
@@ -96,14 +114,14 @@ export default function AdminAccounts() {
       closed_by: null, closed_at: null, is_active: true,
     }).eq('id', account.id);
     setAccounts(prev => prev.map(a => a.id === account.id ? {
-      ...a, flagged_closed: false, closed_date: null, closed_notes: null, is_active: true
+      ...a, flagged_closed: false, is_active: true
     } : a));
     setSelectedClosed(null);
     toast.success(`${account.name} reactivated.`);
   }
 
   function parseClosedNotes(notes) {
-    if (!notes) return { reason: '', reasonCategory: '', finalCount: '', finalCountDate: '', inventoryRetrieved: '', closingCountEta: '' };
+    if (!notes) return {};
     const parts = notes.split(' | ');
     return {
       reason: parts[0] || '',
@@ -111,13 +129,12 @@ export default function AdminAccounts() {
       finalCount: parts.find(p => p.startsWith('Final count performed:'))?.replace('Final count performed: ', '').split(' on ')[0] || '',
       finalCountDate: parts.find(p => p.startsWith('Final count date:'))?.replace('Final count date: ', '') || '',
       inventoryRetrieved: parts.find(p => p.startsWith('Inventory retrieved:'))?.replace('Inventory retrieved: ', '') || '',
-      closingCountEta: parts.find(p => p.startsWith('Closing count ETA:'))?.replace('Closing count ETA: ', '') || '',
     };
   }
 
   const activeCount     = accounts.filter(a => !a.flagged_closed).length;
-  const unassignedCount = accounts.filter(a => !a.assigned_rep_id && !a.flagged_closed).length;
-  const assignedCount   = accounts.filter(a => !!a.assigned_rep_id && !a.flagged_closed).length;
+  const unassignedCount = accounts.filter(a => !(accountReps[a.id]?.length) && !a.flagged_closed).length;
+  const assignedCount   = accounts.filter(a => (accountReps[a.id]?.length > 0) && !a.flagged_closed).length;
   const closedCount     = accounts.filter(a => a.flagged_closed).length;
 
   function handleCardClick(card) {
@@ -128,30 +145,23 @@ export default function AdminAccounts() {
   const filtered = accounts
     .filter(a => {
       if (activeCard === 'closed')     return a.flagged_closed;
-      if (activeCard === 'unassigned') return !a.assigned_rep_id && !a.flagged_closed;
-      if (activeCard === 'assigned')   return !!a.assigned_rep_id && !a.flagged_closed;
+      if (activeCard === 'unassigned') return !(accountReps[a.id]?.length) && !a.flagged_closed;
+      if (activeCard === 'assigned')   return (accountReps[a.id]?.length > 0) && !a.flagged_closed;
       return !a.flagged_closed;
     })
     .filter(a => !filterRegion || a.region?.name === filterRegion)
-    .filter(a => !filterRep || a.assigned_rep_id === filterRep)
+    .filter(a => !filterRep || (accountReps[a.id] || []).includes(filterRep))
     .filter(a => !search || a.name.toLowerCase().includes(search.toLowerCase()));
 
   const isClosedView = activeCard === 'closed';
 
   if (loading) return <div className="loading-center"><div className="spinner" /></div>;
 
-  const cardStyle = (card, color) => ({
-    borderTop: `3px solid ${activeCard === card ? color : '#E1E8EE'}`,
-    cursor: 'pointer',
-    outline: activeCard === card ? `2px solid ${color}` : 'none',
-    transition: 'outline 0.15s',
-  });
-
   return (
     <div>
       {/* Closure Review Modal */}
       {selectedClosed && (() => {
-        const { reason, reasonCategory, finalCount, finalCountDate, inventoryRetrieved, closingCountEta } = parseClosedNotes(selectedClosed.closed_notes);
+        const { reason, reasonCategory, finalCount, finalCountDate, inventoryRetrieved } = parseClosedNotes(selectedClosed.closed_notes);
         const closedByRep = reps.find(r => r.id === selectedClosed.closed_by);
         return (
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,31,50,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
@@ -177,37 +187,95 @@ export default function AdminAccounts() {
                     </div>
                   </div>
                   <div style={{ background: '#FFF5F5', borderRadius: 8, padding: 12, border: '1px solid #fecaca' }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Reason for Closure</div>
-                    <div style={{ fontWeight: 600, color: '#EF4444' }}>{reasonCategory || '--'}</div>
-                    {reason && <div style={{ fontSize: 13, marginTop: 4, color: '#3D5466' }}>{reason}</div>}
+                    <div style={{ fontSize: 10, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Reason</div>
+                    <div style={{ fontWeight: 600, color: '#EF4444' }}>{reasonCategory || reason || '--'}</div>
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div style={{ background: finalCount === 'Yes' ? '#f0fff4' : finalCount === 'No' ? '#fff5f5' : '#fef8eb', borderRadius: 8, padding: 12 }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Final Count Performed</div>
-                      <div style={{ fontWeight: 600, color: finalCount === 'Yes' ? '#22C55E' : finalCount === 'No' ? '#EF4444' : '#c88e0f' }}>{finalCount || '--'}</div>
-                      {finalCountDate && <div style={{ fontSize: 11, marginTop: 2, color: '#7A909F' }}>Date: {finalCountDate}</div>}
-                      {closingCountEta && <div style={{ fontSize: 11, marginTop: 2, color: '#7A909F' }}>ETA: {closingCountEta}</div>}
+                    <div style={{ background: finalCount === 'Yes' ? '#f0fff4' : '#fff5f5', borderRadius: 8, padding: 12 }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Final Count</div>
+                      <div style={{ fontWeight: 600, color: finalCount === 'Yes' ? '#22C55E' : '#EF4444' }}>{finalCount || '--'}</div>
                     </div>
-                    <div style={{ background: inventoryRetrieved === 'Yes' ? '#f0fff4' : inventoryRetrieved === 'No' ? '#fff5f5' : '#fef8eb', borderRadius: 8, padding: 12 }}>
+                    <div style={{ background: inventoryRetrieved === 'Yes' ? '#f0fff4' : '#fff5f5', borderRadius: 8, padding: 12 }}>
                       <div style={{ fontSize: 10, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Inventory Retrieved</div>
-                      <div style={{ fontWeight: 600, color: inventoryRetrieved === 'Yes' ? '#22C55E' : inventoryRetrieved === 'No' ? '#EF4444' : '#c88e0f' }}>{inventoryRetrieved || '--'}</div>
+                      <div style={{ fontWeight: 600, color: inventoryRetrieved === 'Yes' ? '#22C55E' : '#EF4444' }}>{inventoryRetrieved || '--'}</div>
                     </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-                  <button onClick={() => setSelectedClosed(null)}
-                    style={{ flex: 1, padding: '12px', background: '#F2F5F8', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#3D5466', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Cancel
-                  </button>
-                  <button onClick={() => reactivateClosed(selectedClosed)}
-                    style={{ flex: 1, padding: '12px', background: '#0076BB', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Reactivate
-                  </button>
-                  <button onClick={() => approveClosure(selectedClosed)}
-                    style={{ flex: 1, padding: '12px', background: '#EF4444', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Approve Closure
-                  </button>
+                  <button onClick={() => setSelectedClosed(null)} style={{ flex: 1, padding: '12px', background: '#F2F5F8', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#3D5466', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
+                  <button onClick={() => reactivateClosed(selectedClosed)} style={{ flex: 1, padding: '12px', background: '#0076BB', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>Reactivate</button>
+                  <button onClick={() => approveClosure(selectedClosed)} style={{ flex: 1, padding: '12px', background: '#EF4444', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>Approve Closure</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Rep assignment modal */}
+      {editingReps && (() => {
+        const acct = accounts.find(a => a.id === editingReps);
+        const assigned = accountReps[editingReps] || [];
+        const assignedRepObjects = assigned.map(id => reps.find(r => r.id === id)).filter(Boolean);
+        const unassigned = reps.filter(r => !assigned.includes(r.id));
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,31,50,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+            onClick={e => e.target === e.currentTarget && setEditingReps(null)}>
+            <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 480, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+              <div style={{ background: '#003f63', padding: '20px 24px', borderBottom: '3px solid #EEAF24', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>Assign Reps</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{acct?.name} &middot; {acct?.region?.name}</div>
+                </div>
+                <button onClick={() => setEditingReps(null)} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit' }}>Done</button>
+              </div>
+              <div style={{ padding: 24 }}>
+                {/* Currently assigned */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>
+                    Assigned Reps ({assignedRepObjects.length})
+                  </div>
+                  {assignedRepObjects.length === 0 ? (
+                    <div style={{ fontSize: 13, color: '#C5D1DA', padding: '12px', background: '#F7F9FB', borderRadius: 8, textAlign: 'center' }}>No reps assigned yet</div>
+                  ) : assignedRepObjects.map(r => (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: '#e8f4fb', borderRadius: 8, marginBottom: 8, border: '1px solid #cce6f5' }}>
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#1A2B38' }}>{r.full_name}</div>
+                        <div style={{ fontSize: 11, color: '#7A909F' }}>{r.role}</div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {acct?.assigned_rep_id === r.id && (
+                          <span style={{ fontSize: 10, fontWeight: 600, color: '#0076BB', background: 'white', padding: '2px 8px', borderRadius: 10, border: '1px solid #0076BB' }}>Primary</span>
+                        )}
+                        <button onClick={() => removeRepFromAccount(editingReps, r.id)}
+                          style={{ background: '#EF4444', color: 'white', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add rep */}
+                {unassigned.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Add Rep</div>
+                    <div style={{ display: 'flex', gap: 10 }}>
+                      <select id="addRepSelect" className="select" style={{ flex: 1 }} defaultValue="">
+                        <option value="">Select a rep...</option>
+                        {unassigned.map(r => <option key={r.id} value={r.id}>{r.full_name} ({r.role})</option>)}
+                      </select>
+                      <button onClick={() => {
+                        const sel = document.getElementById('addRepSelect');
+                        if (sel.value) { addRepToAccount(editingReps, sel.value); sel.value = ''; }
+                      }}
+                        style={{ padding: '8px 16px', background: '#0076BB', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                        disabled={saving === editingReps}>
+                        {saving === editingReps ? 'Adding...' : 'Add'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -224,8 +292,7 @@ export default function AdminAccounts() {
         ].map(s => (
           <div key={s.key} onClick={() => handleCardClick(s.key)}
             style={{
-              background: 'white', borderRadius: 12, padding: '18px 20px',
-              cursor: 'pointer', transition: 'all 0.2s',
+              background: 'white', borderRadius: 12, padding: '18px 20px', cursor: 'pointer',
               border: activeCard === s.key ? `1.5px solid ${s.color}` : '1.5px solid #E1E8EE',
               boxShadow: activeCard === s.key ? `0 0 0 3px ${s.color}22` : '0 1px 4px rgba(0,118,187,0.08)',
             }}>
@@ -265,54 +332,63 @@ export default function AdminAccounts() {
             {activeCard === 'all'        && 'All Active Accounts'}
             {activeCard === 'unassigned' && 'Unassigned Accounts'}
             {activeCard === 'assigned'   && 'Assigned Accounts'}
-            {activeCard === 'closed'     && 'Flagged Closed Accounts - Click a row to review'}
+            {activeCard === 'closed'     && 'Flagged Closed Accounts'}
           </div>
         </div>
         <table className="tbl">
           <thead>
             {!isClosedView ? (
-              <tr><th>Account Name</th><th>Region</th><th>Original Rep</th><th>Assigned Rep</th><th>Status</th><th>Actions</th></tr>
+              <tr><th>Account Name</th><th>Region</th><th>Assigned Reps</th><th>Status</th><th>Actions</th></tr>
             ) : (
-              <tr><th>Account Name</th><th>Region</th><th>Flagged By</th><th>Close Date</th><th>Final Count</th><th>Actions</th></tr>
+              <tr><th>Account Name</th><th>Region</th><th>Flagged By</th><th>Close Date</th><th>Actions</th></tr>
             )}
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={6} className="table-empty">No accounts match your filter.</td></tr>
-            ) : !isClosedView ? filtered.map(acct => (
-              <tr key={acct.id} style={{ background: !acct.assigned_rep_id ? '#fef8eb' : undefined }}>
-                <td><strong style={{ color: '#1A2B38', fontWeight: 500 }}>{acct.name}</strong></td>
-                <td>{acct.region?.name}</td>
-                <td style={{ fontSize: 12, color: '#7A909F' }}>{acct.rep_name_raw || '--'}</td>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <select className="select" style={{ minWidth: 200 }}
-                      value={acct.assigned_rep_id || ''}
-                      onChange={e => assignRep(acct.id, e.target.value)}
-                      disabled={saving === acct.id}>
-                      <option value="">-- Unassigned --</option>
-                      {reps.map(r => <option key={r.id} value={r.id}>{r.full_name} ({r.role})</option>)}
-                    </select>
-                    {saving === acct.id && <span style={{ fontSize: 11, color: '#7A909F' }}>Saving...</span>}
-                  </div>
-                </td>
-                <td>
-                  <span className={'badge ' + (acct.is_active ? 'b-green' : 'b-gray')}>
-                    {acct.is_active ? 'Active' : 'Inactive'}
-                  </span>
-                </td>
-                <td>
-                  <button className="btn btn-ghost btn-sm" onClick={() => toggleActive(acct)}>
-                    {acct.is_active ? 'Deactivate' : 'Activate'}
-                  </button>
-                </td>
-              </tr>
-            )) : filtered.map(acct => {
-              const { finalCount } = parseClosedNotes(acct.closed_notes);
+              <tr><td colSpan={5} className="table-empty">No accounts match your filter.</td></tr>
+            ) : !isClosedView ? filtered.map(acct => {
+              const assigned = accountReps[acct.id] || [];
+              const assignedRepObjects = assigned.map(id => reps.find(r => r.id === id)).filter(Boolean);
+              return (
+                <tr key={acct.id} style={{ background: assigned.length === 0 ? '#fef8eb' : undefined }}>
+                  <td><strong style={{ color: '#1A2B38', fontWeight: 500 }}>{acct.name}</strong></td>
+                  <td>{acct.region?.name}</td>
+                  <td>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                      {assignedRepObjects.length === 0 ? (
+                        <span style={{ fontSize: 12, color: '#EF4444', fontWeight: 500 }}>Unassigned</span>
+                      ) : assignedRepObjects.map(r => (
+                        <span key={r.id} style={{
+                          fontSize: 12, background: acct.assigned_rep_id === r.id ? '#e8f4fb' : '#F2F5F8',
+                          color: acct.assigned_rep_id === r.id ? '#0076BB' : '#3D5466',
+                          padding: '3px 8px', borderRadius: 6, fontWeight: 500,
+                          border: acct.assigned_rep_id === r.id ? '1px solid #cce6f5' : '1px solid #E1E8EE',
+                        }}>
+                          {r.full_name}{acct.assigned_rep_id === r.id ? ' â˜…' : ''}
+                        </span>
+                      ))}
+                      <button onClick={() => setEditingReps(acct.id)}
+                        style={{ fontSize: 11, color: '#0076BB', background: 'none', border: '1px dashed #0076BB', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        + Edit
+                      </button>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={'badge ' + (acct.is_active ? 'b-green' : 'b-gray')}>
+                      {acct.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </td>
+                  <td>
+                    <button className="btn btn-ghost btn-sm" onClick={() => toggleActive(acct)}>
+                      {acct.is_active ? 'Deactivate' : 'Activate'}
+                    </button>
+                  </td>
+                </tr>
+              );
+            }) : filtered.map(acct => {
               const closedByRep = reps.find(r => r.id === acct.closed_by);
               return (
-                <tr key={acct.id}
-                  style={{ background: '#fff5f5', cursor: 'pointer' }}
+                <tr key={acct.id} style={{ background: '#fff5f5', cursor: 'pointer' }}
                   onClick={() => setSelectedClosed(acct)}
                   onMouseEnter={e => e.currentTarget.style.background = '#ffe8e8'}
                   onMouseLeave={e => e.currentTarget.style.background = '#fff5f5'}>
@@ -320,11 +396,6 @@ export default function AdminAccounts() {
                   <td>{acct.region?.name}</td>
                   <td style={{ fontSize: 12 }}>{closedByRep?.full_name || '--'}</td>
                   <td style={{ fontSize: 12 }}>{acct.closed_date || '--'}</td>
-                  <td>
-                    <span style={{ fontWeight: 600, fontSize: 12, color: finalCount === 'Yes' ? '#22C55E' : finalCount === 'No' ? '#EF4444' : '#c88e0f' }}>
-                      {finalCount || '--'}
-                    </span>
-                  </td>
                   <td>
                     <button className="btn btn-ghost btn-sm" onClick={e => { e.stopPropagation(); setSelectedClosed(acct); }}>Review</button>
                   </td>
