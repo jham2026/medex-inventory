@@ -249,7 +249,7 @@ export default function AdminDataManagement({ cycle }) {
                   cursor: 'pointer', background: file ? '#e8f4fb' : '#F7F9FB',
                 }}>
                   <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} />
-                  <span style={{ fontSize: 20 }}>ðŸ“</span>
+                  
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: file ? '#0076BB' : '#3D5466' }}>
                       {file ? file.name : 'Choose CSV file...'}
@@ -308,7 +308,7 @@ export default function AdminDataManagement({ cycle }) {
             <div className="card-body">
               {preview.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '40px 20px', color: '#C5D1DA' }}>
-                  <div style={{ fontSize: 40, marginBottom: 12 }}>ðŸ“</div>
+                  
                   <div style={{ fontSize: 14, fontWeight: 600 }}>No file selected</div>
                   <div style={{ fontSize: 12, marginTop: 4 }}>Upload a CSV to preview its contents</div>
                 </div>
