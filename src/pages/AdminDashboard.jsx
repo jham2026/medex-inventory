@@ -13,6 +13,7 @@ export default function AdminDashboard() {
   const [cycle, setCycle]         = useState(null);
   const [progress, setProgress]   = useState([]);
   const [alerts, setAlerts]       = useState([]);
+  const [todos, setTodos]         = useState([]);
   const [loading, setLoading]     = useState(true);
   const [progressFilter, setProgressFilter] = useState('all');
   const [cycleForm, setCycleForm] = useState({ name: '', quarter: 'Q1', year: new Date().getFullYear() });
@@ -21,12 +22,14 @@ export default function AdminDashboard() {
 
   async function loadData() {
     setLoading(true);
-    const [{ data: cycleData }, { data: alertData }] = await Promise.all([
+    const [{ data: cycleData }, { data: alertData }, { data: todoData }] = await Promise.all([
       supabase.from('count_cycles').select('*').eq('status', 'open').single(),
       supabase.from('alerts').select('*').eq('is_read', false).order('created_at', { ascending: false }).limit(50),
+      supabase.from('todos').select('*').eq('is_complete', false).order('created_at', { ascending: false }),
     ]);
     setCycle(cycleData);
     setAlerts(alertData || []);
+    setTodos(todoData || []);
 
     if (cycleData) {
       const { data: counts } = await supabase
@@ -51,7 +54,7 @@ export default function AdminDashboard() {
       status: 'open', opened_at: new Date().toISOString(),
     }).select().single();
     if (error) { toast.error('Error: ' + error.message); return; }
-    toast.info(`Cycle "${cycleForm.name}" created — populating counts...`);
+    toast.info(`Cycle "${cycleForm.name}" created â€” populating counts...`);
 
     const { data: accounts } = await supabase.from('accounts').select('id, name, assigned_rep_id').eq('is_active', true);
     if (!accounts?.length) { toast.warning('No active accounts found.'); loadData(); return; }
@@ -103,7 +106,7 @@ export default function AdminDashboard() {
         }
       }
     }
-    toast.success(`✅ Cycle "${cycleForm.name}" opened! ${totalCreated} counts created.`);
+    toast.success('Cycle "' + cycleForm.name + '" opened! ' + totalCreated + ' counts created.');
     loadData();
   }
 
@@ -123,6 +126,19 @@ export default function AdminDashboard() {
   async function dismissAlert(alertId) {
     await supabase.from('alerts').update({ is_read: true }).eq('id', alertId);
     setAlerts(prev => prev.filter(a => a.id !== alertId));
+  }
+
+  async function dismissAllAlerts() {
+    if (!window.confirm('Mark all alerts as read?')) return;
+    await supabase.from('alerts').update({ is_read: true }).eq('is_read', false);
+    setAlerts([]);
+    toast.success('All alerts cleared.');
+  }
+
+  async function completeTodo(todoId) {
+    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todoId);
+    setTodos(prev => prev.filter(t => t.id !== todoId));
+    toast.success('Task marked complete!');
   }
 
   const stats = {
@@ -149,8 +165,17 @@ export default function AdminDashboard() {
           </div>
 
           <div className="tab-bar">
-            {[['overview','Overview'],['accounts','Accounts'],['users','Users'],['export','Export Data']].map(([k,v]) => (
-              <button key={k} className={`tab ${tab===k?'active':''}`} onClick={() => setTab(k)}>{v}</button>
+            {[
+              ['overview', 'Overview'],
+              ['todos', `To Do${todos.length > 0 ? ` (${todos.length})` : ''}`],
+              ['accounts', 'Accounts'],
+              ['users', 'Users'],
+              ['export', 'Export Data'],
+            ].map(([k, v]) => (
+              <button key={k} className={`tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}
+                style={k === 'todos' && todos.length > 0 ? { color: 'var(--error)', fontWeight: 'bold' } : {}}>
+                {v}
+              </button>
             ))}
           </div>
 
@@ -158,9 +183,12 @@ export default function AdminDashboard() {
             <>
               {alerts.length > 0 && (
                 <div className="card" style={{ marginBottom: 20 }}>
-                  <div className="card-header"><span style={{ fontWeight: 'bold' }}>🔔 Alerts ({alerts.length})</span></div>
+                  <div className="card-header">
+                    <span style={{ fontWeight: 'bold' }}>Alerts ({alerts.length})</span>
+                    <button className="btn btn-utility btn-sm" onClick={dismissAllAlerts}>Clear All</button>
+                  </div>
                   <div className="card-body" style={{ padding: 0 }}>
-                    {alerts.slice(0, 10).map(a => (
+                    {alerts.map(a => (
                       <div key={a.id} style={{ padding: '10px 16px', borderBottom: '1px solid var(--gray-mid)', display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
                         <span style={{ flex: 1 }}>{a.message}</span>
                         <span style={{ color: 'var(--gray-dark)', fontSize: 11 }}>{new Date(a.created_at).toLocaleDateString()}</span>
@@ -174,7 +202,7 @@ export default function AdminDashboard() {
               <div className="card" style={{ marginBottom: 20 }}>
                 <div className="card-header">
                   <span style={{ fontWeight: 'bold' }}>Count Cycle</span>
-                  {cycle && <span className="badge badge-open">{cycle.name} — Open</span>}
+                  {cycle && <span className="badge badge-open">{cycle.name} â€” Open</span>}
                 </div>
                 <div className="card-body">
                   {!cycle ? (
@@ -193,7 +221,7 @@ export default function AdminDashboard() {
                         <label className="input-label">Year</label>
                         <input className="input" type="number" style={{ width: 100 }} value={cycleForm.year} onChange={e => setCycleForm(p => ({ ...p, year: parseInt(e.target.value) }))} />
                       </div>
-                      <button className="btn btn-primary" onClick={openCycle}>▶ Open Cycle</button>
+                      <button className="btn btn-primary" onClick={openCycle}>Open Cycle</button>
                     </div>
                   ) : (
                     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
@@ -201,7 +229,7 @@ export default function AdminDashboard() {
                         <div style={{ fontWeight: 'bold' }}>{cycle.name}</div>
                         <div style={{ fontSize: 12, color: 'var(--gray-dark)' }}>Opened {new Date(cycle.opened_at).toLocaleDateString()}</div>
                       </div>
-                      <button className="btn btn-danger" onClick={closeCycle}>■ Close Cycle</button>
+                      <button className="btn btn-danger" onClick={closeCycle}>Close Cycle</button>
                     </div>
                   )}
                 </div>
@@ -220,7 +248,7 @@ export default function AdminDashboard() {
                         }}>
                         <div className="stat-val" style={{ color: COUNT_STATUS[status].color }}>{count}</div>
                         <div className="stat-label">{COUNT_STATUS[status].label}</div>
-                        {progressFilter === status && <div style={{ fontSize: 11, color: COUNT_STATUS[status].color, marginTop: 2 }}>● click to clear</div>}
+                        {progressFilter === status && <div style={{ fontSize: 11, color: COUNT_STATUS[status].color, marginTop: 2 }}>click to clear</div>}
                       </div>
                     ))}
                   </div>
@@ -228,7 +256,7 @@ export default function AdminDashboard() {
                   <div className="card">
                     <div className="card-header">
                       <span style={{ fontWeight: 'bold' }}>
-                        Count Progress — {cycle.name}
+                        Count Progress â€” {cycle.name}
                         {progressFilter !== 'all' && <span style={{ color: COUNT_STATUS[progressFilter]?.color, marginLeft: 8 }}>({COUNT_STATUS[progressFilter]?.label})</span>}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -250,7 +278,7 @@ export default function AdminDashboard() {
                               <td>{p.account?.region?.name}</td>
                               <td>{p.rep?.full_name || <span style={{ color: 'var(--error)' }}>Unassigned</span>}</td>
                               <td><span className={`badge badge-${p.status}`}>{COUNT_STATUS[p.status]?.label}</span></td>
-                              <td>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : '—'}</td>
+                              <td>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : 'â€”'}</td>
                               <td>{p.status === 'submitted' && <button className="btn btn-secondary btn-sm" onClick={() => approveCount(p.id)}>Approve</button>}</td>
                             </tr>
                           ))}
@@ -261,6 +289,43 @@ export default function AdminDashboard() {
                 </>
               )}
             </>
+          )}
+
+          {tab === 'todos' && (
+            <div>
+              <div className="card">
+                <div className="card-header">
+                  <span style={{ fontWeight: 'bold' }}>
+                    Pending Tasks {todos.length > 0 && <span style={{ color: 'var(--error)' }}>({todos.length} outstanding)</span>}
+                  </span>
+                </div>
+                {todos.length === 0 ? (
+                  <div className="table-empty" style={{ padding: 40, textAlign: 'center', color: 'var(--gray-dark)' }}>
+                    All caught up! No pending tasks.
+                  </div>
+                ) : (
+                  <div className="card-body" style={{ padding: 0 }}>
+                    {todos.map(t => (
+                      <div key={t.id} style={{ padding: '14px 16px', borderBottom: '1px solid var(--gray-mid)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span className={`badge badge-${t.priority === 'high' ? 'error' : 'warning'}`} style={{ fontSize: 11 }}>
+                              {t.priority === 'high' ? 'High Priority' : 'Normal'}
+                            </span>
+                            <span style={{ fontSize: 11, color: 'var(--gray-dark)' }}>{new Date(t.created_at).toLocaleDateString()}</span>
+                          </div>
+                          <div style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 4 }}>{t.title}</div>
+                          {t.description && <div style={{ fontSize: 13, color: 'var(--gray-dark)' }}>{t.description}</div>}
+                        </div>
+                        <button className="btn btn-secondary btn-sm" onClick={() => completeTodo(t.id)}>
+                          Mark Complete
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
           )}
 
           {tab === 'accounts' && <AdminAccounts />}
