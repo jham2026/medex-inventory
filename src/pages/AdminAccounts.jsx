@@ -88,12 +88,15 @@ export default function AdminAccounts() {
 
   // Parse notes into parts
   function parseClosedNotes(notes) {
-    if (!notes) return { reason: '', finalCount: '', finalCountDate: '' };
+    if (!notes) return { reason: '', reasonCategory: '', finalCount: '', finalCountDate: '', inventoryRetrieved: '', closingCountEta: '' };
     const parts = notes.split(' | ');
     const reason = parts[0] || '';
-    const finalCount = parts.find(p => p.startsWith('Final count performed:'))?.replace('Final count performed: ', '') || '';
+    const reasonCategory = parts.find(p => p.startsWith('Reason:'))?.replace('Reason: ', '') || '';
+    const finalCount = parts.find(p => p.startsWith('Final count performed:'))?.replace('Final count performed: ', '').split(' on ')[0] || '';
     const finalCountDate = parts.find(p => p.startsWith('Final count date:'))?.replace('Final count date: ', '') || '';
-    return { reason, finalCount, finalCountDate };
+    const inventoryRetrieved = parts.find(p => p.startsWith('Inventory retrieved:'))?.replace('Inventory retrieved: ', '') || '';
+    const closingCountEta = parts.find(p => p.startsWith('Closing count ETA:'))?.replace('Closing count ETA: ', '') || '';
+    return { reason, reasonCategory, finalCount, finalCountDate, inventoryRetrieved, closingCountEta };
   }
 
   const activeCount     = accounts.filter(a => !a.flagged_closed).length;
@@ -132,7 +135,7 @@ export default function AdminAccounts() {
     <div>
       {/* Closure Review Modal */}
       {selectedClosed && (() => {
-        const { reason, finalCount, finalCountDate } = parseClosedNotes(selectedClosed.closed_notes);
+        const { reason, reasonCategory, finalCount, finalCountDate, inventoryRetrieved, closingCountEta } = parseClosedNotes(selectedClosed.closed_notes);
         const closedByRep = reps.find(r => r.id === selectedClosed.closed_by);
         return (
           <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setSelectedClosed(null)}>
@@ -159,19 +162,22 @@ export default function AdminAccounts() {
                       <div style={{ fontWeight: 'bold' }}>{selectedClosed.closed_date || '--'}</div>
                     </div>
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <div style={{ background: finalCount === 'Yes' ? '#f0fff4' : '#fff8ec', borderRadius: 6, padding: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--gray-dark)', marginBottom: 4 }}>FINAL COUNT PERFORMED</div>
-                      <div style={{ fontWeight: 'bold', color: finalCount === 'Yes' ? 'var(--success)' : 'var(--amber)' }}>{finalCount || '--'}</div>
-                    </div>
-                    <div style={{ background: 'var(--gray-light)', borderRadius: 6, padding: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--gray-dark)', marginBottom: 4 }}>FINAL COUNT DATE</div>
-                      <div style={{ fontWeight: 'bold' }}>{finalCountDate && finalCountDate !== 'N/A' ? finalCountDate : '--'}</div>
-                    </div>
-                  </div>
                   <div style={{ background: 'var(--gray-light)', borderRadius: 6, padding: 12 }}>
                     <div style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--gray-dark)', marginBottom: 4 }}>REASON FOR CLOSURE</div>
-                    <div style={{ fontSize: 13 }}>{reason || '--'}</div>
+                    <div style={{ fontWeight: 'bold', color: 'var(--error)' }}>{reasonCategory || '--'}</div>
+                    {reason && <div style={{ fontSize: 13, marginTop: 4 }}>{reason}</div>}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                    <div style={{ background: finalCount === 'Yes' ? '#f0fff4' : finalCount === 'No' ? '#fff3f3' : '#fff8ec', borderRadius: 6, padding: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--gray-dark)', marginBottom: 4 }}>FINAL COUNT PERFORMED</div>
+                      <div style={{ fontWeight: 'bold', color: finalCount === 'Yes' ? 'var(--success)' : finalCount === 'No' ? 'var(--error)' : 'var(--amber)' }}>{finalCount || '--'}</div>
+                      {finalCountDate && finalCountDate !== 'N/A' && <div style={{ fontSize: 11, marginTop: 2 }}>Completed: {finalCountDate}</div>}
+                      {closingCountEta && <div style={{ fontSize: 11, marginTop: 2 }}>ETA: {closingCountEta}</div>}
+                    </div>
+                    <div style={{ background: inventoryRetrieved === 'Yes' ? '#f0fff4' : inventoryRetrieved === 'No' ? '#fff3f3' : '#fff8ec', borderRadius: 6, padding: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 'bold', color: 'var(--gray-dark)', marginBottom: 4 }}>INVENTORY RETRIEVED</div>
+                      <div style={{ fontWeight: 'bold', color: inventoryRetrieved === 'Yes' ? 'var(--success)' : inventoryRetrieved === 'No' ? 'var(--error)' : 'var(--amber)' }}>{inventoryRetrieved || '--'}</div>
+                    </div>
                   </div>
                 </div>
               </div>
