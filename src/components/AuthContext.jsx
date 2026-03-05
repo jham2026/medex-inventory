@@ -37,6 +37,7 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
     await loadProfile(data.user.id);
+    window.history.replaceState(null, '', '/');
     return data;
   }
 
