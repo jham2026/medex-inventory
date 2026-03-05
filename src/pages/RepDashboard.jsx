@@ -167,7 +167,7 @@ export default function RepDashboard() {
           <div style={{ position: 'relative' }}>
             <button onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markAllRead(); }}
               style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, width: 34, height: 34, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
-              <span style={{ fontSize: 16 }}>&#128276;</span>
+              <span style={{ fontSize: 16 }}>&#x1F514;</span>
               {notifications.filter(n => !n.is_read).length > 0 && (
                 <span style={{ position: 'absolute', top: 2, right: 2, background: '#EF4444', color: 'white', fontSize: 9, fontWeight: 700, width: 16, height: 16, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   {notifications.filter(n => !n.is_read).length}
