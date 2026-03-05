@@ -27,6 +27,209 @@ function NavIcon({ path }) {
   );
 }
 
+function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit }) {
+  const [expandedId, setExpandedId] = useState(null);
+  const [denyModal, setDenyModal] = useState(null);
+  const [denyReason, setDenyReason] = useState('');
+
+  const editRequests   = todos.filter(t => t.todo_type === 'edit_request');
+  const countApprovals = todos.filter(t => t.todo_type === 'count_approval');
+  const closureFlags   = todos.filter(t => t.todo_type === 'account_closure');
+  const general        = todos.filter(t => !t.todo_type || t.todo_type === 'general');
+
+  function parseMeta(t) {
+    try { return JSON.parse(t.metadata || '{}'); } catch { return {}; }
+  }
+
+  function Section({ title, badge, color, items, renderItem, emptyMsg }) {
+    return (
+      <div className="card" style={{ marginBottom: 16 }}>
+        <div className="card-header">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="card-title" style={{ fontSize: 17 }}>{title}</div>
+            <span style={{ background: items.length > 0 ? color : '#C5D1DA', color: 'white', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10 }}>{items.length}</span>
+          </div>
+        </div>
+        {items.length === 0
+          ? <div className="table-empty" style={{ padding: '24px 20px', fontSize: 13 }}>{emptyMsg || 'No items pending.'}</div>
+          : items.map(renderItem)
+        }
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {/* Edit Requests */}
+      <Section title="Count Edit Requests" emptyMsg="No edit requests pending." badge={editRequests.length} color="#0076BB" items={editRequests} renderItem={t => {
+        const meta = parseMeta(t);
+        const expanded = expandedId === t.id;
+        return (
+          <div key={t.id} style={{ borderBottom: '1px solid #E1E8EE' }}>
+            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
+                  <span className={'badge ' + (t.priority === 'high' ? 'b-red' : 'b-blue')} style={{ fontSize: 10 }}>
+                    {t.priority === 'high' ? 'Urgent' : 'Normal'}
+                  </span>
+                  <span style={{ fontSize: 11, color: '#7A909F' }}>{new Date(t.created_at).toLocaleDateString()}</span>
+                </div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#1A2B38', marginBottom: 2 }}>{meta.account_name || t.title}</div>
+                <div style={{ fontSize: 12, color: '#7A909F' }}>{meta.rep_name} &middot; {meta.region}</div>
+                {meta.reason && <div style={{ fontSize: 12, color: '#3D5466', marginTop: 4 }}>Reason: <strong>{meta.reason.replace(/_/g, ' ')}</strong></div>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setExpandedId(expanded ? null : t.id)}>
+                  {expanded ? 'Hide Details' : 'View Details'}
+                </button>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button className="btn btn-blue btn-sm" onClick={() => onApproveEdit(t)}>Approve</button>
+                  <button className="btn btn-sm" style={{ background: '#EF4444', color: 'white' }} onClick={() => { setDenyModal(t); setDenyReason(''); }}>Deny</button>
+                </div>
+              </div>
+            </div>
+            {expanded && (
+              <div style={{ padding: '0 20px 16px', background: '#F7F9FB', borderTop: '1px solid #E1E8EE' }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, marginTop: 12 }}>Rep's Explanation</div>
+                <div style={{ fontSize: 13, color: '#3D5466', lineHeight: 1.6, background: 'white', border: '1px solid #E1E8EE', borderRadius: 8, padding: '10px 14px' }}>
+                  {meta.details || 'No details provided.'}
+                </div>
+                {meta.requested_at && (
+                  <div style={{ fontSize: 11, color: '#7A909F', marginTop: 8 }}>
+                    Requested: {new Date(meta.requested_at).toLocaleString()}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }} />
+
+      {/* Counts to Approve */}
+      <Section title="Counts to Approve" emptyMsg="No counts awaiting approval." badge={countApprovals.length} color="#c88e0f" items={countApprovals} renderItem={t => {
+        const meta = parseMeta(t);
+        const expanded = expandedId === t.id;
+        return (
+          <div key={t.id} style={{ borderBottom: '1px solid #E1E8EE' }}>
+            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span className="badge b-gold" style={{ fontSize: 10 }}>Awaiting Approval</span>
+                  <span style={{ fontSize: 11, color: '#7A909F' }}>{new Date(t.created_at).toLocaleDateString()}</span>
+                </div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#1A2B38', marginBottom: 2 }}>{t.title?.replace('Count to approve: ', '')}</div>
+                <div style={{ fontSize: 12, color: '#7A909F' }}>{t.description}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                {t.count_id && (
+                  <button className="btn btn-ghost btn-sm" onClick={() => setExpandedId(expanded ? null : t.id)}>
+                    {expanded ? 'Hide' : 'Review'}
+                  </button>
+                )}
+                <button className="btn btn-blue btn-sm" onClick={() => onComplete(t.id)}>Mark Approved</button>
+              </div>
+            </div>
+          </div>
+        );
+      }} />
+
+      {/* Account Closures */}
+      <Section title="Accounts Flagged for Closure" emptyMsg="No accounts flagged for closure." badge={closureFlags.length} color="#EF4444" items={closureFlags} renderItem={t => {
+        const meta = parseMeta(t);
+        const expanded = expandedId === t.id;
+        return (
+          <div key={t.id} style={{ borderBottom: '1px solid #E1E8EE' }}>
+            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                  <span className="badge b-red" style={{ fontSize: 10 }}>Closure Requested</span>
+                  <span style={{ fontSize: 11, color: '#7A909F' }}>{new Date(t.created_at).toLocaleDateString()}</span>
+                </div>
+                <div style={{ fontWeight: 600, fontSize: 14, color: '#1A2B38', marginBottom: 2 }}>{t.title?.replace('Account flagged for closure: ', '')}</div>
+                <div style={{ fontSize: 12, color: '#7A909F' }}>{meta.rep_name} &middot; Reason: {meta.reason?.replace(/_/g,' ') || 'Not specified'}</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => setExpandedId(expanded ? null : t.id)}>
+                  {expanded ? 'Hide' : 'Review'}
+                </button>
+                <button className="btn btn-sm" style={{ background: '#EF4444', color: 'white' }} onClick={() => onComplete(t.id)}>Close Account</button>
+              </div>
+            </div>
+            {expanded && (
+              <div style={{ padding: '0 20px 16px', background: '#FFF5F5', borderTop: '1px solid #fecaca' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
+                  {[
+                    { label: 'Reason', value: meta.reason?.replace(/_/g,' ') },
+                    { label: 'Last Count Date', value: meta.last_count_date },
+                    { label: 'Final Count Performed', value: meta.final_count_performed },
+                    { label: 'Inventory Retrieved', value: meta.inventory_retrieved },
+                  ].map((f, i) => f.value && (
+                    <div key={i} style={{ background: 'white', borderRadius: 8, padding: '10px 12px', border: '1px solid #fecaca' }}>
+                      <div style={{ fontSize: 10, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{f.label}</div>
+                      <div style={{ fontSize: 13, color: '#1A2B38', fontWeight: 500 }}>{f.value}</div>
+                    </div>
+                  ))}
+                </div>
+                {meta.notes && (
+                  <div style={{ marginTop: 12, background: 'white', borderRadius: 8, padding: '10px 12px', border: '1px solid #fecaca' }}>
+                    <div style={{ fontSize: 10, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Notes</div>
+                    <div style={{ fontSize: 13, color: '#3D5466', lineHeight: 1.5 }}>{meta.notes}</div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      }} />
+
+      {/* General Tasks */}
+      <Section title="General Tasks" emptyMsg="No general tasks pending." badge={general.length} color="#7A909F" items={general} renderItem={t => (
+        <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid #E1E8EE', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+              <span className={'badge ' + (t.priority === 'high' ? 'b-red' : 'b-gray')} style={{ fontSize: 10 }}>{t.priority === 'high' ? 'High Priority' : 'Normal'}</span>
+              <span style={{ fontSize: 11, color: '#7A909F' }}>{new Date(t.created_at).toLocaleDateString()}</span>
+            </div>
+            <div style={{ fontWeight: 600, fontSize: 14, color: '#1A2B38', marginBottom: 3 }}>{t.title}</div>
+            {t.description && <div style={{ fontSize: 13, color: '#7A909F' }}>{t.description}</div>}
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={() => onComplete(t.id)}>Mark Complete</button>
+        </div>
+      )} />
+
+      {/* Deny Modal */}
+      {denyModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,31,50,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 380, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+            <div style={{ background: '#7f1d1d', padding: '20px 24px', borderBottom: '3px solid #EF4444' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>Deny Edit Request</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{parseMeta(denyModal).account_name}</div>
+            </div>
+            <div style={{ padding: 24 }}>
+              <div style={{ fontSize: 13, color: '#3D5466', marginBottom: 16, lineHeight: 1.5 }}>
+                Please provide a reason for denying this request. The rep will be notified.
+              </div>
+              <textarea value={denyReason} onChange={e => setDenyReason(e.target.value)} rows={4}
+                placeholder="Explain why the edit request is being denied..."
+                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: 16 }} />
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setDenyModal(null)}
+                  style={{ flex: 1, padding: '12px', background: '#F2F5F8', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#3D5466', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Cancel
+                </button>
+                <button onClick={() => { onDenyEdit(denyModal, denyReason); setDenyModal(null); setDenyReason(''); }}
+                  style={{ flex: 2, padding: '12px', background: '#EF4444', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Deny Request
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PastCycleRow({ cycle, onExport }) {
   const [stats, setStats] = useState(null);
 
@@ -264,9 +467,15 @@ export default function AdminDashboard() {
     loadData();
   }
 
-  async function denyEditRequest(todo) {
+  async function denyEditRequest(todo, reason) {
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
-    await supabase.from('alerts').insert({ alert_type: 'edit_denied', message: 'Edit request denied: ' + todo.title.replace('Edit request: ', ''), is_read: false });
+    let meta = {};
+    try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
+    await supabase.from('alerts').insert({
+      alert_type: 'edit_denied',
+      message: 'Edit request denied for ' + (meta.account_name || todo.title) + (reason ? ' â€” ' + reason : ''),
+      is_read: false,
+    });
     setTodos(prev => prev.filter(t => t.id !== todo.id));
     toast.info('Edit request denied.');
   }
@@ -515,59 +724,12 @@ export default function AdminDashboard() {
 
           {/* â”€â”€ TO DO â”€â”€ */}
           {tab === 'todos' && (
-            <div className="card">
-              <div className="card-header">
-                <div><div className="card-title" style={{ fontSize: 17 }}>Pending Tasks</div><div className="card-sub" style={{ fontSize: 13 }}>{todos.length} outstanding</div></div>
-              </div>
-              {todos.length === 0 ? (
-                <div className="table-empty" style={{ padding: 48 }}>All caught up! No pending tasks.</div>
-              ) : todos.map(t => {
-                const isEdit = t.title?.startsWith('Edit request:');
-                return (
-                  <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid #E1E8EE', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-                        <span className={'badge ' + (t.priority === 'high' ? 'b-red' : 'b-gray')} style={{ fontSize: 10 }}>{t.priority === 'high' ? 'High Priority' : 'Normal'}</span>
-                        {isEdit && <span className="badge b-blue" style={{ fontSize: 10 }}>Edit Request</span>}
-                        <span style={{ fontSize: 11, color: '#7A909F' }}>{new Date(t.created_at).toLocaleDateString()}</span>
-                      </div>
-                      <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 3, color: '#1A2B38' }}>{t.title}</div>
-                      {t.description && <div style={{ fontSize: 13, color: '#7A909F' }}>{t.description}</div>}
-                    </div>
-                    {isEdit ? (
-                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                        <button className="btn btn-blue btn-sm" onClick={() => approveEditRequest(t)}>Approve</button>
-                        <button className="btn btn-sm" style={{ background: '#EF4444', color: 'white' }} onClick={() => denyEditRequest(t)}>Deny</button>
-                      </div>
-                    ) : (
-                      <button className="btn btn-ghost btn-sm" onClick={() => completeTodo(t.id)}>Mark Complete</button>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* â”€â”€ PAST CYCLES â”€â”€ */}
-          {tab === 'overview' && pastCycles.length > 0 && (
-            <div className="card" style={{ marginTop: 8 }}>
-              <div className="card-header">
-                <div>
-                  <div className="card-title" style={{ fontSize: 17 }}>Past Cycles</div>
-                  <div className="card-sub" style={{ fontSize: 13 }}>{pastCycles.length} closed cycle{pastCycles.length !== 1 ? 's' : ''}</div>
-                </div>
-              </div>
-              <table className="tbl">
-                <thead>
-                  <tr><th>Cycle</th><th>Opened</th><th>Closed</th><th>Accounts</th><th>Export</th></tr>
-                </thead>
-                <tbody>
-                  {pastCycles.map(pc => (
-                    <PastCycleRow key={pc.id} cycle={pc} onExport={exportCycle} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <TodoSection
+              todos={todos}
+              onComplete={completeTodo}
+              onApproveEdit={approveEditRequest}
+              onDenyEdit={denyEditRequest}
+            />
           )}
 
           {tab === 'accounts' && <AdminAccounts />}

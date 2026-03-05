@@ -6,8 +6,8 @@ import { useToast } from '../components/ToastContext';
 
 const STATUS_COLOR = {
   not_started: { color: '#7A909F', label: 'Not Started' },
-  in_progress:  { color: '#c88e0f', label: 'In Progress' },
-  submitted:    { color: '#22C55E', label: 'Submitted' },
+  in_progress:  { color: '#0076BB', label: 'In Progress' },
+  submitted:    { color: '#c88e0f', label: 'Submitted for Review' },
   approved:     { color: '#22C55E', label: 'Approved' },
 };
 
@@ -15,11 +15,14 @@ export default function RepDashboard() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
-  const [cycle, setCycle]   = useState(null);
-  const [counts, setCounts] = useState([]);
+  const [cycle, setCycle]     = useState(null);
+  const [counts, setCounts]   = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('accounts');
-  const [requestingEdit, setRequestingEdit] = useState({});
+  const [editRequestModal, setEditRequestModal] = useState(null); // holds the count object
+  const [editForm, setEditForm] = useState({ reason: '', details: '', urgency: 'normal' });
+  const [submittingRequest, setSubmittingRequest] = useState(false);
+  const [pendingRequests, setPendingRequests] = useState({}); // countId -> true if request pending
 
   useEffect(() => { loadData(); }, []);
 
@@ -37,32 +40,60 @@ export default function RepDashboard() {
         .eq('rep_id', profile.id)
         .order('status');
       setCounts(countData || []);
+
+      // Check which counts have pending edit requests
+      if (countData?.length) {
+        const { data: pendingTodos } = await supabase
+          .from('todos')
+          .select('count_id')
+          .in('count_id', countData.map(c => c.id))
+          .eq('todo_type', 'edit_request')
+          .eq('is_complete', false);
+        const pending = {};
+        for (const t of pendingTodos || []) pending[t.count_id] = true;
+        setPendingRequests(pending);
+      }
     }
     setLoading(false);
   }
 
-  async function requestEdit(count) {
-    setRequestingEdit(p => ({ ...p, [count.id]: true }));
-    const { data: existing } = await supabase
-      .from('todos')
-      .select('id')
-      .eq('count_id', count.id)
-      .eq('is_complete', false)
-      .single();
-    if (existing) {
-      toast.info('Edit request already pending.');
-      setRequestingEdit(p => ({ ...p, [count.id]: false }));
-      return;
-    }
+  async function submitEditRequest() {
+    if (!editForm.reason) { toast.error('Please select a reason.'); return; }
+    if (!editForm.details.trim()) { toast.error('Please provide details about why you need to reopen this count.'); return; }
+    setSubmittingRequest(true);
+
+    const count = editRequestModal;
     await supabase.from('todos').insert({
       title: 'Edit request: ' + count.account?.name,
-      description: profile?.full_name + ' is requesting to edit their submitted count for ' + count.account?.name,
-      priority: 'high',
-      is_complete: false,
+      description: profile?.full_name + ' is requesting to reopen their submitted count for ' + count.account?.name,
+      priority: editForm.urgency === 'urgent' ? 'high' : 'normal',
+      todo_type: 'edit_request',
+      account_id: count.account?.id,
       count_id: count.id,
+      is_complete: false,
+      metadata: JSON.stringify({
+        rep_name: profile?.full_name,
+        rep_email: profile?.email,
+        account_name: count.account?.name,
+        region: count.account?.region?.name,
+        reason: editForm.reason,
+        details: editForm.details,
+        urgency: editForm.urgency,
+        requested_at: new Date().toISOString(),
+      }),
     });
+
+    await supabase.from('alerts').insert({
+      alert_type: 'edit_request',
+      message: profile?.full_name + ' requested to reopen count for ' + count.account?.name + ' â€” Reason: ' + editForm.reason,
+      is_read: false,
+    });
+
+    setPendingRequests(p => ({ ...p, [count.id]: true }));
+    setEditRequestModal(null);
+    setEditForm({ reason: '', details: '', urgency: 'normal' });
     toast.success('Edit request sent to admin!');
-    setRequestingEdit(p => ({ ...p, [count.id]: false }));
+    setSubmittingRequest(false);
   }
 
   async function signOut() {
@@ -72,10 +103,29 @@ export default function RepDashboard() {
 
   const firstName = profile?.full_name?.split(' ')[0] || 'there';
   const initials = profile?.full_name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2) || 'RR';
-  const submitted = counts.filter(c => c.status === 'submitted' || c.status === 'approved').length;
-  const remaining = counts.filter(c => c.status === 'not_started' || c.status === 'in_progress').length;
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+
+  const stats = {
+    not_started: counts.filter(c => c.status === 'not_started').length,
+    in_progress:  counts.filter(c => c.status === 'in_progress').length,
+    submitted:    counts.filter(c => c.status === 'submitted').length,
+    approved:     counts.filter(c => c.status === 'approved').length,
+  };
+  const total = counts.length;
+  const remaining = stats.not_started + stats.in_progress;
+
+  function StatBar({ value, total, color }) {
+    const pct = total > 0 ? Math.round(value / total * 100) : 0;
+    return (
+      <div style={{ marginTop: 6 }}>
+        <div style={{ height: 3, background: 'rgba(255,255,255,0.15)', borderRadius: 2, overflow: 'hidden' }}>
+          <div style={{ height: '100%', background: color, borderRadius: 2, width: pct + '%', transition: 'width 0.4s' }} />
+        </div>
+        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>{pct}%</div>
+      </div>
+    );
+  }
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#F7F9FB' }}>
@@ -107,7 +157,9 @@ export default function RepDashboard() {
           {greeting}, {firstName}
         </div>
         <div style={{ fontSize: 13, color: '#7A909F', marginBottom: 18 }}>
-          {remaining > 0 ? remaining + ' account' + (remaining !== 1 ? 's' : '') + ' still need your attention' : 'All accounts submitted!'}
+          {remaining > 0
+            ? remaining + ' account' + (remaining !== 1 ? 's' : '') + ' still need your attention'
+            : total > 0 ? 'All accounts submitted!' : 'No accounts assigned yet.'}
         </div>
 
         {/* Hero card */}
@@ -115,20 +167,24 @@ export default function RepDashboard() {
           <div style={{ background: 'linear-gradient(135deg, #003f63 0%, #0076BB 100%)', borderRadius: 18, padding: 20, marginBottom: 20, color: 'white', position: 'relative', overflow: 'hidden', borderLeft: '4px solid #EEAF24' }}>
             <div style={{ position: 'absolute', right: -30, top: -30, width: 130, height: 130, background: 'rgba(255,255,255,0.04)', borderRadius: '50%' }} />
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Active Cycle</div>
-            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.4px', marginBottom: 14 }}>{cycle.name}</div>
-            <div style={{ display: 'flex', gap: 22 }}>
-              <div>
-                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px' }}>{counts.length}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Assigned</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', color: '#EEAF24' }}>{submitted}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Submitted</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', color: 'rgba(255,255,255,0.3)' }}>{remaining}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Remaining</div>
-              </div>
+            <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.4px', marginBottom: 16 }}>{cycle.name}</div>
+
+            {/* Expanded stats with progress bars */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 12 }}>
+              {[
+                { key: 'not_started', label: 'Not Started',        color: 'rgba(255,255,255,0.4)' },
+                { key: 'in_progress', label: 'In Progress',        color: '#60c4ff' },
+                { key: 'submitted',   label: 'Submitted for Review', color: '#EEAF24' },
+                { key: 'approved',    label: 'Approved',            color: '#4ade80' },
+              ].map(s => (
+                <div key={s.key}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-0.5px', color: s.color }}>{stats[s.key]}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>{s.label}</div>
+                  </div>
+                  <StatBar value={stats[s.key]} total={total} color={s.color} />
+                </div>
+              ))}
             </div>
           </div>
         ) : (
@@ -144,6 +200,7 @@ export default function RepDashboard() {
             {counts.map(count => {
               const st = STATUS_COLOR[count.status] || STATUS_COLOR.not_started;
               const locked = count.status === 'submitted' || count.status === 'approved';
+              const hasPendingRequest = pendingRequests[count.id];
               return (
                 <div key={count.id}
                   onClick={() => { if (!locked) navigate('/count/' + count.id); }}
@@ -154,17 +211,14 @@ export default function RepDashboard() {
                     boxShadow: '0 1px 4px rgba(0,118,187,0.08)',
                     cursor: locked ? 'default' : 'pointer',
                     transition: 'all 0.15s',
-                    opacity: count.status === 'approved' ? 0.6 : 1,
+                    opacity: count.status === 'approved' ? 0.7 : 1,
                   }}
                   onMouseEnter={e => { if (!locked) { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,118,187,0.12)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}}
                   onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,118,187,0.08)'; e.currentTarget.style.transform = 'none'; }}
                 >
-                  {/* Icon */}
                   <div style={{ width: 38, height: 38, background: '#e8f4fb', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
                     &#127973;
                   </div>
-
-                  {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 500, color: '#1A2B38', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{count.account?.name}</div>
                     <div style={{ fontSize: 11, color: '#7A909F', marginTop: 2 }}>
@@ -173,16 +227,21 @@ export default function RepDashboard() {
                     </div>
                   </div>
 
-                  {/* Action */}
-                  {locked ? (
-                    <button
-                      onClick={e => { e.stopPropagation(); requestEdit(count); }}
-                      disabled={requestingEdit[count.id]}
-                      style={{ fontSize: 11, fontWeight: 600, color: '#0076BB', background: '#e8f4fb', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit' }}>
-                      {requestingEdit[count.id] ? '...' : 'Request Edit'}
-                    </button>
-                  ) : (
-                    <div style={{ color: '#C5D1DA', fontSize: 22, marginLeft: 'auto' }}>&#8250;</div>
+                  {locked && (
+                    hasPendingRequest ? (
+                      <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', background: '#F2F5F8', border: '1px solid #E1E8EE', borderRadius: 6, padding: '5px 10px', flexShrink: 0 }}>
+                        Request Pending
+                      </div>
+                    ) : (
+                      <button
+                        onClick={e => { e.stopPropagation(); setEditRequestModal(count); setEditForm({ reason: '', details: '', urgency: 'normal' }); }}
+                        style={{ fontSize: 11, fontWeight: 600, color: '#0076BB', background: '#e8f4fb', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit' }}>
+                        Request Edit
+                      </button>
+                    )
+                  )}
+                  {!locked && (
+                    <div style={{ color: '#C5D1DA', fontSize: 22 }}>&#8250;</div>
                   )}
                 </div>
               );
@@ -211,6 +270,80 @@ export default function RepDashboard() {
           </div>
         ))}
       </div>
+
+      {/* Edit Request Modal */}
+      {editRequestModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,31,50,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 400, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ background: '#003f63', padding: '20px 24px', borderBottom: '3px solid #EEAF24' }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>Request to Reopen Count</div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{editRequestModal.account?.name}</div>
+            </div>
+            <div style={{ padding: 24 }}>
+              <div style={{ background: '#fef8eb', border: '1px solid #EEAF24', borderRadius: 8, padding: 12, fontSize: 13, color: '#78350f', marginBottom: 20, lineHeight: 1.5 }}>
+                This request will be sent to your admin for approval. You will not be able to edit your count until it is approved.
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                  Reason for Edit Request *
+                </label>
+                <select value={editForm.reason} onChange={e => setEditForm(p => ({ ...p, reason: e.target.value }))}
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none', background: 'white' }}>
+                  <option value="">Select a reason...</option>
+                  <option value="incorrect_quantity">Incorrect Quantity</option>
+                  <option value="missing_items">Missing Items</option>
+                  <option value="wrong_item">Wrong Item Added</option>
+                  <option value="data_entry_error">Data Entry Error</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                  Urgency
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  {[{ key: 'normal', label: 'Normal' }, { key: 'urgent', label: 'Urgent' }].map(u => (
+                    <button key={u.key} onClick={() => setEditForm(p => ({ ...p, urgency: u.key }))}
+                      style={{
+                        flex: 1, padding: '9px', border: '1.5px solid', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                        borderColor: editForm.urgency === u.key ? '#0076BB' : '#E1E8EE',
+                        background: editForm.urgency === u.key ? '#e8f4fb' : 'white',
+                        color: editForm.urgency === u.key ? '#0076BB' : '#7A909F',
+                      }}>
+                      {u.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>
+                  Details *
+                </label>
+                <textarea value={editForm.details} onChange={e => setEditForm(p => ({ ...p, details: e.target.value }))} rows={4}
+                  placeholder="Please explain what needs to be corrected and why..."
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                  onFocus={e => e.target.style.borderColor = '#0076BB'}
+                  onBlur={e => e.target.style.borderColor = '#E1E8EE'}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => { setEditRequestModal(null); setEditForm({ reason: '', details: '', urgency: 'normal' }); }}
+                  style={{ flex: 1, padding: '12px', background: '#F2F5F8', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#3D5466', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Cancel
+                </button>
+                <button onClick={submitEditRequest} disabled={submittingRequest}
+                  style={{ flex: 2, padding: '12px', background: '#0076BB', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  {submittingRequest ? 'Sending...' : 'Send Request'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
