@@ -385,9 +385,11 @@ export default function CountEntry() {
                   onMouseEnter={e => e.currentTarget.style.background = '#e8f4fb'}
                   onMouseLeave={e => e.currentTarget.style.background = 'white'}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#0076BB', fontFamily: 'monospace', marginBottom: 3 }}>{r.item_number}</div>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#1A2B38', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 2 }}>{r.description}</div>
-                    <div style={{ fontSize: 11, color: '#7A909F' }}>{r.primary_vendor}</div>
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 3 }}>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: '#0076BB', fontFamily: 'monospace' }}>{r.item_number}</span>
+                      <span style={{ fontSize: 12, fontWeight: 500, color: '#7A909F' }}>{r.primary_vendor}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: '#1A2B38', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description}</div>
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'white', background: '#0076BB', padding: '4px 10px', borderRadius: 6, flexShrink: 0, whiteSpace: 'nowrap' }}>+ Add</div>
                 </div>
