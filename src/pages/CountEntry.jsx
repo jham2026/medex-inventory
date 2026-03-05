@@ -262,7 +262,7 @@ export default function CountEntry() {
       const existing = items.find(i => i.item?.item_number === catalogItem.item_number);
       if (existing) {
         await updateQty(existing.id, (existing.quantity || 0) + 1);
-        toast.info(`+1 â†’ ${catalogItem.description}`);
+        toast.info(`+1 - ${catalogItem.description}`);
       } else {
         await addLineItem({
           item_catalog_id: catalogItem.id,
@@ -368,10 +368,10 @@ export default function CountEntry() {
                 <label className="input-label">Was a final closing inventory count performed for this account? *</label>
                 <select className="select" value={closeForm.final_count_performed}
                   onChange={e => setCloseForm(p => ({ ...p, final_count_performed: e.target.value }))}>
-                  <option value="">â€” Select â€”</option>
-                  <option value="Yes">Yes â€” a final count was completed</option>
-                  <option value="No">No â€” a final count was not performed</option>
-                  <option value="In Progress">In Progress â€” count is currently underway</option>
+                  <option value="">-- Select --</option>
+                  <option value="Yes">Yes - a final count was completed</option>
+                  <option value="No">No - a final count was not performed</option>
+                  <option value="In Progress">In Progress - count is currently underway</option>
                 </select>
               </div>
               {closeForm.final_count_performed === 'Yes' && (
@@ -392,7 +392,7 @@ export default function CountEntry() {
             <div className="modal-footer">
               <button className="btn btn-utility" onClick={() => setShowCloseModal(false)}>Cancel</button>
               <button className="btn btn-danger" onClick={handleFlagClosed} disabled={closing}>
-                {closing ? 'Saving...' : 'Confirm â€” Flag as Closed'}
+                {closing ? 'Saving...' : 'Confirm - Flag as Closed'}
               </button>
             </div>
           </div>
@@ -409,7 +409,7 @@ export default function CountEntry() {
                 {isClosed && <span className="badge badge-closed" style={{ marginLeft: 10, fontSize: 13 }}>CLOSED</span>}
               </div>
               <div className="page-sub">
-                {count?.account?.region?.name} &nbsp;Â·&nbsp; {count?.cycle?.name} &nbsp;Â·&nbsp;
+                {count?.account?.region?.name} &nbsp;|&nbsp; {count?.cycle?.name} &nbsp;|&nbsp;
                 <span className={`badge badge-${count?.status}`} style={{ marginLeft: 4 }}>
                   {count?.status?.replace('_',' ')}
                 </span>
@@ -451,7 +451,7 @@ export default function CountEntry() {
 
             <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--gray-mid)', display: 'flex', gap: 8, flexWrap: 'wrap', background: 'var(--gray-light)' }}>
               <input className="input" style={{ flex: 1, minWidth: 180 }}
-                placeholder="ðŸ” Search item #, description, or vendor..."
+                placeholder=" Search item #, description, or vendor..."
                 value={search} onChange={e => setSearch(e.target.value)} />
               <select className="select" style={{ width: 160 }} value={filterVendor} onChange={e => setFilterVendor(e.target.value)}>
                 <option value="">All Vendors</option>
@@ -487,7 +487,7 @@ export default function CountEntry() {
                         onMouseLeave={e => e.currentTarget.style.background = 'white'}>
                         <div style={{ fontWeight: 'bold' }}>{r.description}</div>
                         <div style={{ fontSize: 11, color: 'var(--gray-dark)' }}>
-                          #{r.item_number} &nbsp;Â·&nbsp; {r.primary_vendor || '--'} &nbsp;Â·&nbsp; HCPCS: {r.hcpcs_code || '--'}
+                          #{r.item_number} &nbsp;|&nbsp; {r.primary_vendor || '--'} &nbsp;|&nbsp; HCPCS: {r.hcpcs_code || '--'}
                         </div>
                       </div>
                     ))}
@@ -537,7 +537,7 @@ export default function CountEntry() {
                         <td style={{ padding: '7px 12px', textAlign: 'center' }}>
                           {canEdit ? (
                             <div className="qty-control" style={{ justifyContent: 'center' }}>
-                              <button className="qty-btn" onClick={() => updateQty(item.id, (item.quantity||0) - 1)}>âˆ’</button>
+                              <button className="qty-btn" onClick={() => updateQty(item.id, (item.quantity||0) - 1)}>-</button>
                               <input className="qty-val" type="number" min="0"
                                 value={item.quantity || 0}
                                 onChange={e => handleQtyInput(item.id, e.target.value)}
