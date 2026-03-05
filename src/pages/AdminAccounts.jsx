@@ -10,7 +10,7 @@ export default function AdminAccounts() {
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [filterRegion, setFilterRegion] = useState('');
-  const [activeCard, setActiveCard] = useState('all');
+  const [activeCard, setActiveCard] = useState('all'); // 'all','unassigned','assigned','closed'
   const [saving, setSaving]     = useState(null);
 
   useEffect(() => { loadData(); }, []);
@@ -79,7 +79,7 @@ export default function AdminAccounts() {
       if (activeCard === 'closed')     return a.flagged_closed;
       if (activeCard === 'unassigned') return !a.assigned_rep_id && !a.flagged_closed;
       if (activeCard === 'assigned')   return !!a.assigned_rep_id && !a.flagged_closed;
-      return !a.flagged_closed;
+      return !a.flagged_closed; // 'all'
     })
     .filter(a => !filterRegion || a.region?.name === filterRegion)
     .filter(a => !search || a.name.toLowerCase().includes(search.toLowerCase()));
@@ -97,36 +97,38 @@ export default function AdminAccounts() {
 
   return (
     <div>
+      {/* Clickable stat cards */}
       <div className="stat-grid" style={{ marginBottom: 16 }}>
         <div className="stat-card" style={cardStyle('all', 'var(--teal)')}
           onClick={() => handleCardClick('all')}>
           <div className="stat-val" style={{ color: 'var(--teal)' }}>{activeCount}</div>
           <div className="stat-label">Active Accounts</div>
-          {activeCard === 'all' && <div style={{ fontSize: 11, color: 'var(--teal)', marginTop: 2 }}>● click to clear</div>}
+          {activeCard === 'all' && <div style={{ fontSize: 11, color: 'var(--teal)', marginTop: 2 }}>* click to clear</div>}
         </div>
         <div className="stat-card" style={cardStyle('unassigned', unassignedCount > 0 ? 'var(--error)' : 'var(--success)')}
           onClick={() => handleCardClick('unassigned')}>
           <div className="stat-val" style={{ color: unassignedCount > 0 ? 'var(--error)' : 'var(--success)' }}>{unassignedCount}</div>
           <div className="stat-label">Unassigned</div>
-          {activeCard === 'unassigned' && <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 2 }}>● click to clear</div>}
+          {activeCard === 'unassigned' && <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 2 }}>* click to clear</div>}
         </div>
         <div className="stat-card" style={cardStyle('assigned', 'var(--success)')}
           onClick={() => handleCardClick('assigned')}>
           <div className="stat-val" style={{ color: 'var(--success)' }}>{assignedCount}</div>
           <div className="stat-label">Assigned</div>
-          {activeCard === 'assigned' && <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 2 }}>● click to clear</div>}
+          {activeCard === 'assigned' && <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 2 }}>* click to clear</div>}
         </div>
         <div className="stat-card" style={cardStyle('closed', 'var(--error)')}
           onClick={() => handleCardClick('closed')}>
           <div className="stat-val" style={{ color: closedCount > 0 ? 'var(--error)' : undefined }}>{closedCount}</div>
           <div className="stat-label">Flagged Closed</div>
-          {activeCard === 'closed' && <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 2 }}>● click to clear</div>}
+          {activeCard === 'closed' && <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 2 }}>* click to clear</div>}
           {closedCount > 0 && activeCard !== 'closed' && (
-            <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 2 }}>⚠ Needs review</div>
+            <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 2 }}>! Needs review</div>
           )}
         </div>
       </div>
 
+      {/* Filters */}
       <div className="filter-bar" style={{ marginBottom: 14 }}>
         {!isClosedView && <>
           <label>Region:</label>
@@ -149,13 +151,14 @@ export default function AdminAccounts() {
         </span>
       </div>
 
+      {/* Table */}
       <div className="card">
         <div className="card-header">
           <span style={{ fontWeight: 'bold' }}>
             {activeCard === 'all'        && 'All Active Accounts'}
-            {activeCard === 'unassigned' && '⚠ Unassigned Accounts'}
-            {activeCard === 'assigned'   && '✓ Assigned Accounts'}
-            {activeCard === 'closed'     && '🚫 Flagged Closed Accounts'}
+            {activeCard === 'unassigned' && 'Unassigned Accounts'}
+            {activeCard === 'assigned'   && 'Assigned Accounts'}
+            {activeCard === 'closed'     && 'Flagged Closed Accounts'}
           </span>
         </div>
         <div className="table-wrap">
@@ -174,13 +177,13 @@ export default function AdminAccounts() {
                 <tr key={acct.id} style={{ background: !acct.assigned_rep_id ? '#fff8ec' : undefined }}>
                   <td><strong>{acct.name}</strong></td>
                   <td>{acct.region?.name}</td>
-                  <td style={{ fontSize: 12, color: 'var(--gray-dark)' }}>{acct.rep_name_raw || '—'}</td>
+                  <td style={{ fontSize: 12, color: 'var(--gray-dark)' }}>{acct.rep_name_raw || '--'}</td>
                   <td>
                     <select className="select" style={{ minWidth: 180 }}
                       value={acct.assigned_rep_id || ''}
                       onChange={e => assignRep(acct.id, e.target.value)}
                       disabled={saving === acct.id}>
-                      <option value="">— Unassigned —</option>
+                      <option value="">-- Unassigned --</option>
                       {reps.map(r => <option key={r.id} value={r.id}>{r.full_name} ({r.role})</option>)}
                     </select>
                     {saving === acct.id && <span style={{ fontSize: 11, color: 'var(--gray-dark)', marginLeft: 6 }}>Saving...</span>}
@@ -201,11 +204,11 @@ export default function AdminAccounts() {
                 <tr key={acct.id} style={{ background: '#fff3f3' }}>
                   <td><strong>{acct.name}</strong></td>
                   <td>{acct.region?.name}</td>
-                  <td style={{ fontSize: 12 }}>{acct.closed_date || '—'}</td>
-                  <td style={{ fontSize: 12, color: 'var(--gray-dark)', maxWidth: 300 }}>{acct.closed_notes || '—'}</td>
+                  <td style={{ fontSize: 12 }}>{acct.closed_date || '--'}</td>
+                  <td style={{ fontSize: 12, color: 'var(--gray-dark)', maxWidth: 300 }}>{acct.closed_notes || '--'}</td>
                   <td>
                     <button className="btn btn-secondary btn-sm" onClick={() => reactivateClosed(acct)}>
-                      ↩ Reactivate
+                      <- Reactivate
                     </button>
                   </td>
                 </tr>
@@ -217,15 +220,3 @@ export default function AdminAccounts() {
     </div>
   );
 }
-```
-
----
-
-**File 2 — `src/pages/CountEntry.jsx`** — only one line changed (the alert_type). Find this line:
-```
-alert_type: 'unassigned_account',
-```
-
-Replace it with:
-```
-alert_type: 'account_closed',
