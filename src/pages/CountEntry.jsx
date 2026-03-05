@@ -418,8 +418,7 @@ export default function CountEntry() {
           </div>
         ) : filteredItems.length === 0 && search ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#7A909F', fontSize: 13 }}>
-            No existing items match "{search}" â€” check the catalog results above.
-          </div>
+            No existing items match your search — check the catalog results above.</div>
         ) : filteredItems.map(item => (
           <div key={item.id} style={{
             background: item.not_in_catalog ? '#fef8eb' : 'white',

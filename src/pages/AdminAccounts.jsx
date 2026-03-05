@@ -16,6 +16,10 @@ export default function AdminAccounts() {
   const [saving, setSaving]       = useState(null);
   const [selectedClosed, setSelectedClosed] = useState(null);
   const [editingReps, setEditingReps] = useState(null); // accountId being edited
+  const CATALOGS = [
+    { value: 'claimsoft', label: 'Claimsoft (18 items)' },
+    { value: 'edge', label: 'Edge (44 items)' },
+  ];
 
   useEffect(() => { loadData(); }, []);
 
@@ -23,7 +27,7 @@ export default function AdminAccounts() {
     setLoading(true);
     const [{ data: accts }, { data: repData }, { data: regData }, { data: arData }] = await Promise.all([
       supabase.from('accounts')
-        .select('id, name, rep_name_raw, is_active, assigned_rep_id, flagged_closed, closed_date, closed_notes, closed_at, closed_by, region:regions(id, name)')
+        .select('id, name, rep_name_raw, is_active, assigned_rep_id, flagged_closed, closed_date, closed_notes, closed_at, closed_by, catalog_source, region:regions(id, name)')
         .order('name'),
       supabase.from('profiles').select('id, full_name, role').in('role', ['rep','manager','admin']).eq('is_active', true).order('full_name'),
       supabase.from('regions').select('*').order('name'),
@@ -90,6 +94,12 @@ export default function AdminAccounts() {
     setAccountReps(prev => ({ ...prev, [accountId]: remaining }));
     toast.success('Rep removed.');
     setSaving(null);
+  }
+
+  async function assignCatalog(accountId, catalogSource) {
+    await supabase.from('accounts').update({ catalog_source: catalogSource }).eq('id', accountId);
+    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, catalog_source: catalogSource } : a));
+    toast.success('Catalog assigned!');
   }
 
   async function toggleActive(account) {
@@ -338,7 +348,7 @@ export default function AdminAccounts() {
         <table className="tbl">
           <thead>
             {!isClosedView ? (
-              <tr><th>Account Name</th><th>Region</th><th>Assigned Reps</th><th>Status</th><th>Actions</th></tr>
+              <tr><th>Account Name</th><th>Region</th><th>Catalog</th><th>Assigned Reps</th><th>Status</th><th>Actions</th></tr>
             ) : (
               <tr><th>Account Name</th><th>Region</th><th>Flagged By</th><th>Close Date</th><th>Actions</th></tr>
             )}
@@ -354,6 +364,14 @@ export default function AdminAccounts() {
                   <td><strong style={{ color: '#1A2B38', fontWeight: 500 }}>{acct.name}</strong></td>
                   <td>{acct.region?.name}</td>
                   <td>
+                    <select className="select" style={{ minWidth: 140 }}
+                      value={acct.catalog_source || ''}
+                      onChange={e => assignCatalog(acct.id, e.target.value)}>
+                      <option value="">-- None --</option>
+                      {CATALOGS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                    </select>
+                  </td>
+                <td>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
                       {assignedRepObjects.length === 0 ? (
                         <span style={{ fontSize: 12, color: '#EF4444', fontWeight: 500 }}>Unassigned</span>
@@ -361,10 +379,10 @@ export default function AdminAccounts() {
                         <span key={r.id} style={{
                           fontSize: 12, background: acct.assigned_rep_id === r.id ? '#e8f4fb' : '#F2F5F8',
                           color: acct.assigned_rep_id === r.id ? '#0076BB' : '#3D5466',
-                          padding: '3px 8px', borderRadius: 6, fontWeight: 500, whiteSpace: 'nowrap',
+                          padding: '3px 8px', borderRadius: 6, fontWeight: 500,
                           border: acct.assigned_rep_id === r.id ? '1px solid #cce6f5' : '1px solid #E1E8EE',
                         }}>
-                          {r.full_name}
+                          {r.full_name}{acct.assigned_rep_id === r.id ? ' â˜…' : ''}
                         </span>
                       ))}
                       <button onClick={() => setEditingReps(acct.id)}
