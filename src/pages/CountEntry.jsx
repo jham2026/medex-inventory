@@ -62,13 +62,20 @@ export default function CountEntry() {
   async function searchCatalog(query) {
     if (!query || query.length < 2) { setCatalogResults([]); return; }
     setSearching(true);
+    const q = query.toLowerCase();
     const catalog = count?.account?.catalog_source || 'edge';
     const { data } = await supabase
       .from('item_catalog')
-      .select('id, item_number, description, primary_vendor, catalog_source')
+      .select('id, item_number, description, primary_vendor, part_number, upc, catalog_source')
       .eq('catalog_source', catalog)
-      .or('item_number.ilike.%' + query + '%,description.ilike.%' + query + '%,primary_vendor.ilike.%' + query + '%')
-      .limit(10);
+      .or([
+        'item_number.ilike.%' + q + '%',
+        'description.ilike.%' + q + '%',
+        'primary_vendor.ilike.%' + q + '%',
+        'part_number.ilike.%' + q + '%',
+        'upc.ilike.%' + q + '%',
+      ].join(','))
+      .limit(15);
     // Only show catalog results for items NOT already in the prepopulated list
     const existingNums = new Set(items.map(i => i.item_number_raw?.toLowerCase()));
     const filtered = (data || []).filter(r => !existingNums.has(r.item_number?.toLowerCase()));
@@ -230,12 +237,16 @@ export default function CountEntry() {
     return (
       item.item_number_raw?.toLowerCase().includes(s) ||
       item.description_raw?.toLowerCase().includes(s) ||
-      item.vendor_raw?.toLowerCase().includes(s)
+      item.vendor_raw?.toLowerCase().includes(s) ||
+      item.part_number_raw?.toLowerCase().includes(s) ||
+      item.upc?.toLowerCase().includes(s)
     );
   });
 
+  // Catalog results should show when search doesn't fully match existing items
   const searchMatchesExisting = search.length >= 2 && filteredItems.length > 0;
-  const showAddFromCatalog = search.length >= 2 && catalogResults.length > 0;
+
+  const showAddFromCatalog = search.length >= 2 && catalogResults.length > 0 && !searchMatchesExisting;
   const showAddCustom = search.length >= 2 && catalogResults.length === 0 && !searching && !searchMatchesExisting;
 
   const totalItems = items.length;
@@ -357,32 +368,33 @@ export default function CountEntry() {
 
       {/* Search bar */}
       {!scanMode && (
-        <div style={{ background: 'white', padding: '10px 14px', borderBottom: '1px solid #E1E8EE', flexShrink: 0 }}>
+        <div style={{ background: 'white', padding: '10px 14px', borderBottom: '1px solid #E1E8EE', flexShrink: 0, position: 'relative' }}>
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search item #, description, vendor..."
-            style={{ width: '100%', background: '#F2F5F8', border: '1.5px solid #E1E8EE', borderRadius: 8, padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', color: '#1A2B38', boxSizing: 'border-box' }}
+            placeholder="Search item #, description, vendor, part #..."
+            style={{ width: '100%', background: '#F2F5F8', border: '1.5px solid ' + (search.length >= 2 ? '#0076BB' : '#E1E8EE'), borderRadius: 8, padding: '9px 12px', fontSize: 13, fontFamily: 'inherit', outline: 'none', color: '#1A2B38', boxSizing: 'border-box' }}
             onFocus={e => e.target.style.borderColor = '#0076BB'}
-            onBlur={e => e.target.style.borderColor = '#E1E8EE'}
+            onBlur={e => { if (search.length < 2) e.target.style.borderColor = '#E1E8EE'; }}
           />
-          {/* Catalog results - only shown when search doesn't match existing items */}
-          {showAddFromCatalog && !searchMatchesExisting && (
-            <div style={{ marginTop: 8, border: '1px solid #E1E8EE', borderRadius: 8, overflow: 'hidden' }}>
-              <div style={{ padding: '6px 12px', background: '#F2F5F8', fontSize: 11, color: '#7A909F', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Add from Catalog
+          {/* Catalog results dropdown - Option A style, floats over the list */}
+          {showAddFromCatalog && (
+            <div style={{ position: 'absolute', left: 14, right: 14, top: '100%', zIndex: 50, background: 'white', border: '1.5px solid #0076BB', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,118,187,0.15)', overflow: 'hidden', marginTop: 2 }}>
+              <div style={{ padding: '7px 12px', background: '#e8f4fb', borderBottom: '1px solid #cce6f5', fontSize: 11, fontWeight: 600, color: '#0076BB', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>&#128230; From Catalog â€” not in your count</span>
+                <span style={{ color: '#7A909F' }}>{catalogResults.length} result{catalogResults.length !== 1 ? 's' : ''}</span>
               </div>
               {catalogResults.map(r => (
                 <div key={r.id} onClick={() => addCatalogItem(r)}
-                  style={{ padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, borderTop: '1px solid #E1E8EE', background: 'white' }}
+                  style={{ padding: '10px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid #F2F5F8', background: 'white' }}
                   onMouseEnter={e => e.currentTarget.style.background = '#e8f4fb'}
                   onMouseLeave={e => e.currentTarget.style.background = 'white'}>
-                  <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#0076BB', background: '#e8f4fb', padding: '2px 6px', borderRadius: 4, flexShrink: 0, fontWeight: 700 }}>{r.item_number}</div>
+                  <div style={{ fontSize: 10, fontFamily: 'monospace', color: '#0076BB', background: '#e8f4fb', padding: '2px 6px', borderRadius: 4, flexShrink: 0, fontWeight: 700, whiteSpace: 'nowrap' }}>{r.item_number}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, color: '#1A2B38', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description}</div>
-                    <div style={{ fontSize: 11, color: '#7A909F' }}>{r.primary_vendor}</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#1A2B38', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.description}</div>
+                    <div style={{ fontSize: 11, color: '#7A909F' }}>{r.primary_vendor}{r.part_number ? ' · ' + r.part_number : ''}</div>
                   </div>
-                  <div style={{ fontSize: 11, color: '#0076BB', fontWeight: 600, flexShrink: 0 }}>+ Add</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'white', background: '#0076BB', padding: '4px 10px', borderRadius: 6, flexShrink: 0, whiteSpace: 'nowrap' }}>+ Add</div>
                 </div>
               ))}
             </div>
@@ -406,7 +418,7 @@ export default function CountEntry() {
           </div>
         ) : filteredItems.length === 0 && search ? (
           <div style={{ textAlign: 'center', padding: '20px', color: '#7A909F', fontSize: 13 }}>
-            No existing items match "{search}" — check the catalog results above.
+            No existing items match "{search}" â€” check the catalog results above.
           </div>
         ) : filteredItems.map(item => (
           <div key={item.id} style={{
