@@ -208,7 +208,7 @@ export default function AdminAccounts() {
                   <td style={{ fontSize: 12, color: 'var(--gray-dark)', maxWidth: 300 }}>{acct.closed_notes || '--'}</td>
                   <td>
                     <button className="btn btn-secondary btn-sm" onClick={() => reactivateClosed(acct)}>
-                      <- Reactivate
+                      &#8629; Reactivate
                     </button>
                   </td>
                 </tr>
