@@ -18,7 +18,7 @@ export default function AdminDashboard() {
 
   useEffect(() => { loadData(); }, []);
 
-  async function loadData() {
+async function loadData() {
     setLoading(true);
     const [{ data: cycleData }, { data: alertData }] = await Promise.all([
       supabase.from('count_cycles').select('*').eq('status', 'open').single(),
@@ -28,17 +28,32 @@ export default function AdminDashboard() {
     setAlerts(alertData || []);
 
     if (cycleData) {
-      const { data: prog } = await supabase
+      // Load counts without rep join to avoid null dropping rows
+      const { data: counts } = await supabase
         .from('inventory_counts')
         .select(`
-          id, status, submitted_at, approved_at,
-          rep:profiles(full_name),
+          id, status, submitted_at, approved_at, rep_id,
           account:accounts(name, region:regions(name))
         `)
         .eq('cycle_id', cycleData.id)
         .order('status')
         .limit(500);
-      setProgress(prog || []);
+
+      // Load all reps separately
+      const { data: reps } = await supabase
+        .from('profiles')
+        .select('id, full_name');
+
+      const repMap = {};
+      for (const r of reps || []) repMap[r.id] = r;
+
+      // Merge rep names in manually
+      const prog = (counts || []).map(c => ({
+        ...c,
+        rep: c.rep_id ? repMap[c.rep_id] : null,
+      }));
+
+      setProgress(prog);
     }
     setLoading(false);
   }
