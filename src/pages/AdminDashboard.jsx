@@ -36,7 +36,8 @@ export default function AdminDashboard() {
           account:accounts(name, region:regions(name))
         `)
         .eq('cycle_id', cycleData.id)
-        .order('status');
+        .order('status')
+        .limit(500);
       setProgress(prog || []);
     }
     setLoading(false);
