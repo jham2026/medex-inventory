@@ -273,12 +273,17 @@ export default function AdminDashboard() {
                           {filteredProgress.length === 0 ? (
                             <tr><td colSpan={6} className="table-empty">No counts match this filter.</td></tr>
                           ) : filteredProgress.map(p => (
-                            <tr key={p.id}>
+                            <tr key={p.id} style={{
+                              background:
+                                p.status === 'submitted' ? '#f0f8ff' :
+                                p.status === 'approved'  ? '#f0fff4' :
+                                p.status === 'in_progress' ? '#fffdf0' : undefined
+                            }}>
                               <td><strong>{p.account?.name}</strong></td>
                               <td>{p.account?.region?.name}</td>
                               <td>{p.rep?.full_name || <span style={{ color: 'var(--error)' }}>Unassigned</span>}</td>
                               <td><span className={`badge badge-${p.status}`}>{COUNT_STATUS[p.status]?.label}</span></td>
-                              <td>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : 'â€”'}</td>
+                              <td>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : '--'}</td>
                               <td>{p.status === 'submitted' && <button className="btn btn-secondary btn-sm" onClick={() => approveCount(p.id)}>Approve</button>}</td>
                             </tr>
                           ))}
