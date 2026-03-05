@@ -148,7 +148,7 @@ export default function AdminExport({ cycle }) {
             onClick={runExport}
             disabled={exporting || !selectedCycle}
           >
-            {exporting ? 'Exporting...' : '⬇ Download CSV Export'}
+            {exporting ? 'Exporting...' : ' Download CSV Export'}
           </button>
         </div>
       </div>

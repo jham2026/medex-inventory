@@ -540,7 +540,7 @@ export default function AdminDashboard() {
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
 
-      {/* â”€â”€ SIDEBAR â”€â”€ */}
+      {/* â”â” SIDEBAR â”â” */}
       <div style={{ width: 240, minWidth: 240, background: '#003f63', display: 'flex', flexDirection: 'column', height: '100vh', overflowY: 'auto', flexShrink: 0 }}>
 
         {/* Logo */}
@@ -609,7 +609,7 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* â”€â”€ MAIN â”€â”€ */}
+      {/* â”â” MAIN â”â” */}
       <div style={{ flex: 1, minWidth: 0, background: '#F7F9FB', overflowY: 'auto', height: '100vh' }}>
 
         {/* Sticky header */}
@@ -638,7 +638,7 @@ export default function AdminDashboard() {
         {/* Content */}
         <div style={{ padding: '24px 28px' }}>
 
-          {/* â”€â”€ OVERVIEW â”€â”€ */}
+          {/* â”â” OVERVIEW â”â” */}
           {tab === 'overview' && (
             <>
               {alerts.length > 0 && (
@@ -724,7 +724,7 @@ export default function AdminDashboard() {
                   <div className="card">
                     <div className="card-header">
                       <div>
-                        <div className="card-title" style={{ fontSize: 17 }}>Count Progress {progressFilter !== 'all' ? 'â€” ' + progressFilter.replace('_', ' ') : ''}</div>
+                        <div className="card-title" style={{ fontSize: 17 }}>Count Progress {progressFilter !== 'all' ? 'â” ' + progressFilter.replace('_', ' ') : ''}</div>
                         <div className="card-sub" style={{ fontSize: 13 }}>{filteredProgress.length} of {total} accounts{progressFilter === 'submitted' ? ' awaiting approval' : ''}</div>
                       </div>
                       {progressFilter !== 'all' && <button className="btn btn-ghost btn-sm" onClick={() => setProgressFilter('all')}>Clear Filter</button>}
@@ -758,7 +758,7 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {/* â”€â”€ TO DO â”€â”€ */}
+          {/* â”â” TO DO â”â” */}
           {tab === 'todos' && (
             <TodoSection
               todos={todos}

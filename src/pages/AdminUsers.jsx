@@ -117,7 +117,7 @@ export default function AdminUsers() {
             <div className="modal-header">
               <h3>{editUser ? `Edit — ${editUser.full_name}` : 'Add New User'}</h3>
               <button className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}
-                style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}>✕</button>
+                style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}></button>
             </div>
             <div className="modal-body">
               <div className="input-group">
@@ -257,7 +257,7 @@ function AccountRequests({ regions }) {
   if (!requests.length) return null;
   return (
     <div className="card" style={{ marginTop: 20 }}>
-      <div className="card-header"><span style={{ fontWeight: 'bold' }}>📋 Account Requests ({requests.length})</span></div>
+      <div className="card-header"><span style={{ fontWeight: 'bold' }}> Account Requests ({requests.length})</span></div>
       <div className="table-wrap">
         <table>
           <thead><tr><th>Rep</th><th>Account Requested</th><th>Region</th><th>Notes</th><th>Date</th><th>Actions</th></tr></thead>

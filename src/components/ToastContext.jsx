@@ -44,7 +44,7 @@ export function ToastProvider({ children }) {
             {toasts.map(t => (
               <div key={t.id} className={`toast toast-${t.type}`} onClick={() => dismissOne(t.id)}>
                 <span>{t.message}</span>
-                <span className="toast-close">✕</span>
+                <span className="toast-close"></span>
               </div>
             ))}
             <div className="toast-hint">Click anywhere to dismiss</div>

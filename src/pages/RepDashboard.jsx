@@ -98,7 +98,7 @@ export default function RepDashboard() {
 
     await supabase.from('alerts').insert({
       alert_type: 'edit_request',
-      message: profile?.full_name + ' requested to reopen count for ' + count.account?.name + ' â€” Reason: ' + editForm.reason,
+      message: profile?.full_name + ' requested to reopen count for ' + count.account?.name + ' â” Reason: ' + editForm.reason,
       is_read: false,
     });
 

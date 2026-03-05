@@ -60,7 +60,7 @@ export default function AddItemModal({ countId, prefillBarcode, onAdd, onClose }
         <div className="modal-header">
           <h3>Add Item</h3>
           <button className="btn btn-ghost btn-sm" onClick={onClose}
-            style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}>✕</button>
+            style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}></button>
         </div>
         <div className="modal-body">
           {!notInCatalog ? (
@@ -115,7 +115,7 @@ export default function AddItemModal({ countId, prefillBarcode, onAdd, onClose }
           ) : (
             <>
               <div className="alert-banner warning" style={{ marginBottom: 12 }}>
-                ⚠ This item will be flagged for admin review — not found in catalog.
+                 This item will be flagged for admin review — not found in catalog.
               </div>
               <div className="input-group">
                 <label className="input-label">Item Number (if known)</label>
@@ -134,7 +134,7 @@ export default function AddItemModal({ countId, prefillBarcode, onAdd, onClose }
                   onChange={e => setCustomItem(p => ({ ...p, vendor: e.target.value }))} />
               </div>
               <button className="btn btn-utility btn-sm" onClick={() => setNotInCatalog(false)}>
-                ← Back to Catalog Search
+                 Back to Catalog Search
               </button>
             </>
           )}
@@ -143,7 +143,7 @@ export default function AddItemModal({ countId, prefillBarcode, onAdd, onClose }
             <div className="input-group" style={{ marginTop: 16 }}>
               <label className="input-label">Quantity</label>
               <div className="qty-control">
-                <button className="qty-btn" onClick={() => setQty(q => Math.max(0, q-1))}>−</button>
+                <button className="qty-btn" onClick={() => setQty(q => Math.max(0, q-1))}></button>
                 <input className="qty-val" type="number" min="0" value={qty}
                   onChange={e => setQty(Math.max(0, parseInt(e.target.value)||0))} />
                 <button className="qty-btn" onClick={() => setQty(q => q+1)}>+</button>

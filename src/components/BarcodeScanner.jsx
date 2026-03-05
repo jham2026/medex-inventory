@@ -56,7 +56,7 @@ export default function BarcodeScanner({ onDetected, onClose }) {
   return (
     <div className="scan-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={{ color: 'white', fontSize: '18px', fontWeight: 'bold' }}>
-        📷 Scan Barcode
+         Scan Barcode
       </div>
 
       {error ? (

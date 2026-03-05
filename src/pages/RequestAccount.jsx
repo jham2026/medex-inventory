@@ -45,7 +45,7 @@ export default function RequestAccount() {
         <div className="page-inner" style={{ maxWidth: 600 }}>
           <div style={{ marginBottom: 20 }}>
             <button className="btn btn-utility btn-sm" onClick={() => navigate('/')}
-              style={{ marginBottom: 8 }}>← Back</button>
+              style={{ marginBottom: 8 }}> Back</button>
             <div className="page-title">Request Account Assignment</div>
             <div className="page-sub">
               If you have a new location that isn't in your list, submit a request here.
