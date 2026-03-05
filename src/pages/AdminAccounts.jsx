@@ -10,6 +10,7 @@ export default function AdminAccounts() {
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [filterRegion, setFilterRegion] = useState('');
+  const [filterRep, setFilterRep] = useState('');
   const [activeCard, setActiveCard] = useState('all'); // 'all','unassigned','assigned','closed'
   const [saving, setSaving]     = useState(null);
 
@@ -72,6 +73,7 @@ export default function AdminAccounts() {
     setActiveCard(prev => prev === card ? 'all' : card);
     setSearch('');
     setFilterRegion('');
+    setFilterRep('');
   }
 
   const filtered = accounts
@@ -82,6 +84,7 @@ export default function AdminAccounts() {
       return !a.flagged_closed; // 'all'
     })
     .filter(a => !filterRegion || a.region?.name === filterRegion)
+    .filter(a => !filterRep || a.assigned_rep_id === filterRep)
     .filter(a => !search || a.name.toLowerCase().includes(search.toLowerCase()));
 
   const isClosedView = activeCard === 'closed';
@@ -136,11 +139,16 @@ export default function AdminAccounts() {
             <option value="">All Regions</option>
             {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
           </select>
+          <label>Rep:</label>
+          <select className="select" value={filterRep} onChange={e => setFilterRep(e.target.value)}>
+            <option value="">All Reps</option>
+            {reps.map(r => <option key={r.id} value={r.id}>{r.full_name}</option>)}
+          </select>
         </>}
         <label>Search:</label>
         <input className="input" placeholder="Search accounts..." value={search} onChange={e => setSearch(e.target.value)} />
-        {(search || filterRegion) && (
-          <button className="btn btn-utility btn-sm" onClick={() => { setSearch(''); setFilterRegion(''); }}>Clear</button>
+        {(search || filterRegion || filterRep) && (
+          <button className="btn btn-utility btn-sm" onClick={() => { setSearch(''); setFilterRegion(''); setFilterRep(''); }}>Clear</button>
         )}
         <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gray-dark)' }}>
           {filtered.length} accounts
