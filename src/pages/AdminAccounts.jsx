@@ -361,10 +361,10 @@ export default function AdminAccounts() {
                         <span key={r.id} style={{
                           fontSize: 12, background: acct.assigned_rep_id === r.id ? '#e8f4fb' : '#F2F5F8',
                           color: acct.assigned_rep_id === r.id ? '#0076BB' : '#3D5466',
-                          padding: '3px 8px', borderRadius: 6, fontWeight: 500,
+                          padding: '3px 8px', borderRadius: 6, fontWeight: 500, whiteSpace: 'nowrap',
                           border: acct.assigned_rep_id === r.id ? '1px solid #cce6f5' : '1px solid #E1E8EE',
                         }}>
-                          {r.full_name}{acct.assigned_rep_id === r.id ? ' â˜…' : ''}
+                          {r.full_name}
                         </span>
                       ))}
                       <button onClick={() => setEditingReps(acct.id)}
