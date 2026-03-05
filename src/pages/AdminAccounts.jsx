@@ -10,8 +10,7 @@ export default function AdminAccounts() {
   const [loading, setLoading]   = useState(true);
   const [search, setSearch]     = useState('');
   const [filterRegion, setFilterRegion] = useState('');
-  const [filterAssigned, setFilterAssigned] = useState('all');
-  const [filterClosed, setFilterClosed] = useState('active');
+  const [activeCard, setActiveCard] = useState('all');
   const [saving, setSaving]     = useState(null);
 
   useEffect(() => { loadData(); }, []);
@@ -55,12 +54,8 @@ export default function AdminAccounts() {
   async function reactivateClosed(account) {
     if (!window.confirm(`Reactivate "${account.name}"? This will remove the closed flag and add it back to future count cycles.`)) return;
     await supabase.from('accounts').update({
-      flagged_closed: false,
-      closed_date:    null,
-      closed_notes:   null,
-      closed_by:      null,
-      closed_at:      null,
-      is_active:      true,
+      flagged_closed: false, closed_date: null, closed_notes: null,
+      closed_by: null, closed_at: null, is_active: true,
     }).eq('id', account.id);
     setAccounts(prev => prev.map(a => a.id === account.id ? {
       ...a, flagged_closed: false, closed_date: null, closed_notes: null, is_active: true
@@ -68,99 +63,114 @@ export default function AdminAccounts() {
     toast.success(`${account.name} reactivated!`);
   }
 
-  const closedAccounts = accounts.filter(a => a.flagged_closed);
+  const activeCount     = accounts.filter(a => !a.flagged_closed).length;
+  const unassignedCount = accounts.filter(a => !a.assigned_rep_id && !a.flagged_closed).length;
+  const assignedCount   = accounts.filter(a => !!a.assigned_rep_id && !a.flagged_closed).length;
+  const closedCount     = accounts.filter(a => a.flagged_closed).length;
+
+  function handleCardClick(card) {
+    setActiveCard(prev => prev === card ? 'all' : card);
+    setSearch('');
+    setFilterRegion('');
+  }
 
   const filtered = accounts
-    .filter(a => filterClosed === 'closed' ? a.flagged_closed : !a.flagged_closed)
-    .filter(a => !filterRegion || a.region?.name === filterRegion)
     .filter(a => {
-      if (filterAssigned === 'unassigned') return !a.assigned_rep_id;
-      if (filterAssigned === 'assigned')   return !!a.assigned_rep_id;
-      return true;
+      if (activeCard === 'closed')     return a.flagged_closed;
+      if (activeCard === 'unassigned') return !a.assigned_rep_id && !a.flagged_closed;
+      if (activeCard === 'assigned')   return !!a.assigned_rep_id && !a.flagged_closed;
+      return !a.flagged_closed;
     })
+    .filter(a => !filterRegion || a.region?.name === filterRegion)
     .filter(a => !search || a.name.toLowerCase().includes(search.toLowerCase()));
 
-  const unassignedCount = accounts.filter(a => !a.assigned_rep_id && !a.flagged_closed).length;
+  const isClosedView = activeCard === 'closed';
 
   if (loading) return <div className="loading-center"><div className="spinner" /></div>;
+
+  const cardStyle = (card, color) => ({
+    borderTop: `3px solid ${activeCard === card ? color : 'var(--gray-mid)'}`,
+    cursor: 'pointer',
+    outline: activeCard === card ? `2px solid ${color}` : 'none',
+    transition: 'outline 0.15s',
+  });
 
   return (
     <div>
       <div className="stat-grid" style={{ marginBottom: 16 }}>
-        <div className="stat-card">
-          <div className="stat-val">{accounts.filter(a => !a.flagged_closed).length}</div>
+        <div className="stat-card" style={cardStyle('all', 'var(--teal)')}
+          onClick={() => handleCardClick('all')}>
+          <div className="stat-val" style={{ color: 'var(--teal)' }}>{activeCount}</div>
           <div className="stat-label">Active Accounts</div>
+          {activeCard === 'all' && <div style={{ fontSize: 11, color: 'var(--teal)', marginTop: 2 }}>● click to clear</div>}
         </div>
-        <div className="stat-card" style={{ borderTop: unassignedCount > 0 ? '3px solid var(--error)' : '3px solid var(--success)' }}>
+        <div className="stat-card" style={cardStyle('unassigned', unassignedCount > 0 ? 'var(--error)' : 'var(--success)')}
+          onClick={() => handleCardClick('unassigned')}>
           <div className="stat-val" style={{ color: unassignedCount > 0 ? 'var(--error)' : 'var(--success)' }}>{unassignedCount}</div>
           <div className="stat-label">Unassigned</div>
+          {activeCard === 'unassigned' && <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 2 }}>● click to clear</div>}
         </div>
-        <div className="stat-card">
-          <div className="stat-val">{accounts.filter(a => a.assigned_rep_id && !a.flagged_closed).length}</div>
+        <div className="stat-card" style={cardStyle('assigned', 'var(--success)')}
+          onClick={() => handleCardClick('assigned')}>
+          <div className="stat-val" style={{ color: 'var(--success)' }}>{assignedCount}</div>
           <div className="stat-label">Assigned</div>
+          {activeCard === 'assigned' && <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 2 }}>● click to clear</div>}
         </div>
-        <div className="stat-card" style={{ borderTop: closedAccounts.length > 0 ? '3px solid var(--error)' : undefined }}>
-          <div className="stat-val" style={{ color: closedAccounts.length > 0 ? 'var(--error)' : undefined }}>{closedAccounts.length}</div>
+        <div className="stat-card" style={cardStyle('closed', 'var(--error)')}
+          onClick={() => handleCardClick('closed')}>
+          <div className="stat-val" style={{ color: closedCount > 0 ? 'var(--error)' : undefined }}>{closedCount}</div>
           <div className="stat-label">Flagged Closed</div>
+          {activeCard === 'closed' && <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 2 }}>● click to clear</div>}
+          {closedCount > 0 && activeCard !== 'closed' && (
+            <div style={{ fontSize: 11, color: 'var(--error)', marginTop: 2 }}>⚠ Needs review</div>
+          )}
         </div>
       </div>
 
-      {closedAccounts.length > 0 && filterClosed !== 'closed' && (
-        <div className="alert-banner warning" style={{ marginBottom: 14 }}>
-          🚫 {closedAccounts.length} account{closedAccounts.length > 1 ? 's have' : ' has'} been flagged as closed by reps.
-          <button className="btn btn-sm btn-utility" style={{ marginLeft: 12 }} onClick={() => setFilterClosed('closed')}>
-            Review Closed Accounts
-          </button>
-        </div>
-      )}
-
-      {unassignedCount > 0 && filterClosed !== 'closed' && (
-        <div className="alert-banner warning" style={{ marginBottom: 14 }}>
-          ⚠ {unassignedCount} accounts have no rep assigned.
-          <button className="btn btn-sm btn-utility" style={{ marginLeft: 12 }} onClick={() => setFilterAssigned('unassigned')}>
-            Show Unassigned Only
-          </button>
-        </div>
-      )}
-
       <div className="filter-bar" style={{ marginBottom: 14 }}>
-        <label>View:</label>
-        <select className="select" value={filterClosed} onChange={e => { setFilterClosed(e.target.value); setFilterAssigned('all'); }}>
-          <option value="active">Active Accounts</option>
-          <option value="closed">Flagged Closed</option>
-        </select>
-        {filterClosed === 'active' && <>
+        {!isClosedView && <>
           <label>Region:</label>
           <select className="select" value={filterRegion} onChange={e => setFilterRegion(e.target.value)}>
             <option value="">All Regions</option>
             {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
           </select>
-          <label>Assignment:</label>
-          <select className="select" value={filterAssigned} onChange={e => setFilterAssigned(e.target.value)}>
-            <option value="all">All</option>
-            <option value="unassigned">Unassigned Only</option>
-            <option value="assigned">Assigned Only</option>
-          </select>
         </>}
         <label>Search:</label>
         <input className="input" placeholder="Search accounts..." value={search} onChange={e => setSearch(e.target.value)} />
-        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gray-dark)' }}>{filtered.length} accounts</span>
+        {(search || filterRegion) && (
+          <button className="btn btn-utility btn-sm" onClick={() => { setSearch(''); setFilterRegion(''); }}>Clear</button>
+        )}
+        <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--gray-dark)' }}>
+          {filtered.length} accounts
+          {activeCard !== 'all' && (
+            <button className="btn btn-utility btn-sm" style={{ marginLeft: 8 }}
+              onClick={() => handleCardClick('all')}>Clear Filter</button>
+          )}
+        </span>
       </div>
 
       <div className="card">
+        <div className="card-header">
+          <span style={{ fontWeight: 'bold' }}>
+            {activeCard === 'all'        && 'All Active Accounts'}
+            {activeCard === 'unassigned' && '⚠ Unassigned Accounts'}
+            {activeCard === 'assigned'   && '✓ Assigned Accounts'}
+            {activeCard === 'closed'     && '🚫 Flagged Closed Accounts'}
+          </span>
+        </div>
         <div className="table-wrap">
           <table>
             <thead>
-              {filterClosed === 'active' ? (
+              {!isClosedView ? (
                 <tr><th>Account Name</th><th>Region</th><th>Original Rep</th><th>Assigned Rep</th><th>Status</th><th>Actions</th></tr>
               ) : (
-                <tr><th>Account Name</th><th>Region</th><th>Closed Date</th><th>Reason</th><th>Actions</th></tr>
+                <tr><th>Account Name</th><th>Region</th><th>Closed Date</th><th>Reason / Notes</th><th>Actions</th></tr>
               )}
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr><td colSpan={6} className="table-empty">No accounts match your filter.</td></tr>
-              ) : filterClosed === 'active' ? filtered.map(acct => (
+              ) : !isClosedView ? filtered.map(acct => (
                 <tr key={acct.id} style={{ background: !acct.assigned_rep_id ? '#fff8ec' : undefined }}>
                   <td><strong>{acct.name}</strong></td>
                   <td>{acct.region?.name}</td>
@@ -207,3 +217,15 @@ export default function AdminAccounts() {
     </div>
   );
 }
+```
+
+---
+
+**File 2 — `src/pages/CountEntry.jsx`** — only one line changed (the alert_type). Find this line:
+```
+alert_type: 'unassigned_account',
+```
+
+Replace it with:
+```
+alert_type: 'account_closed',
