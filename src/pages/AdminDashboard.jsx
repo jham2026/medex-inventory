@@ -5,6 +5,7 @@ import { COUNT_STATUS } from '../lib/supabase';
 import NavBar from '../components/NavBar';
 import AdminUsers from './AdminUsers';
 import AdminExport from './AdminExport';
+import AdminAccounts from './AdminAccounts';
 
 export default function AdminDashboard() {
   const toast = useToast();
@@ -65,12 +66,6 @@ export default function AdminDashboard() {
     loadData();
   }
 
-  async function reopenCycle(cycleId) {
-    await supabase.from('count_cycles').update({ status: 'open', closed_at: null }).eq('id', cycleId);
-    toast.success('Cycle reopened.');
-    loadData();
-  }
-
   async function approveCount(countId) {
     await supabase.from('inventory_counts')
       .update({ status: 'approved', approved_at: new Date().toISOString() })
@@ -113,15 +108,13 @@ export default function AdminDashboard() {
           </div>
 
           <div className="tab-bar">
-            {[['overview','Overview'],['users','Users'],['export','Export Data']].map(([k,v]) => (
+            {[['overview','Overview'],['accounts','Accounts'],['users','Users'],['export','Export Data']].map(([k,v]) => (
               <button key={k} className={`tab ${tab===k?'active':''}`} onClick={() => setTab(k)}>{v}</button>
             ))}
           </div>
 
-          {/* ── OVERVIEW TAB ── */}
           {tab === 'overview' && (
             <>
-              {/* Alerts */}
               {alerts.length > 0 && (
                 <div className="card" style={{ marginBottom: 20 }}>
                   <div className="card-header">
@@ -133,13 +126,7 @@ export default function AdminDashboard() {
                         padding: '10px 16px', borderBottom: '1px solid var(--gray-mid)',
                         display: 'flex', alignItems: 'center', gap: 10, fontSize: 13
                       }}>
-                        <span style={{ flex: 1 }}>
-                          {a.alert_type === 'not_started' && '⏰ '}
-                          {a.alert_type === 'high_variance' && '📊 '}
-                          {a.alert_type === 'item_not_in_catalog' && '⚠ '}
-                          {a.alert_type === 'count_edited_after_submit' && '✏️ '}
-                          {a.message}
-                        </span>
+                        <span style={{ flex: 1 }}>{a.message}</span>
                         <span style={{ color: 'var(--gray-dark)', fontSize: 11 }}>
                           {new Date(a.created_at).toLocaleDateString()}
                         </span>
@@ -150,13 +137,10 @@ export default function AdminDashboard() {
                 </div>
               )}
 
-              {/* Cycle controls */}
               <div className="card" style={{ marginBottom: 20 }}>
                 <div className="card-header">
                   <span style={{ fontWeight: 'bold' }}>Count Cycle</span>
-                  {cycle && (
-                    <span className="badge badge-open">{cycle.name} — Open</span>
-                  )}
+                  {cycle && <span className="badge badge-open">{cycle.name} — Open</span>}
                 </div>
                 <div className="card-body">
                   {!cycle ? (
@@ -198,7 +182,6 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
-              {/* Progress stats */}
               {cycle && (
                 <>
                   <div className="stat-grid">
@@ -210,14 +193,10 @@ export default function AdminDashboard() {
                       </div>
                     ))}
                   </div>
-
-                  {/* Progress table */}
                   <div className="card">
                     <div className="card-header">
                       <span style={{ fontWeight: 'bold' }}>Count Progress — {cycle.name}</span>
-                      <span style={{ fontSize: 12, color: 'var(--gray-dark)' }}>
-                        {progress.length} accounts
-                      </span>
+                      <span style={{ fontSize: 12, color: 'var(--gray-dark)' }}>{progress.length} accounts</span>
                     </div>
                     <div className="table-wrap">
                       <table>
@@ -237,9 +216,7 @@ export default function AdminDashboard() {
                               <td><strong>{p.account?.name}</strong></td>
                               <td>{p.account?.region?.name}</td>
                               <td>{p.rep?.full_name || '—'}</td>
-                              <td><span className={`badge badge-${p.status}`}>
-                                {COUNT_STATUS[p.status]?.label}
-                              </span></td>
+                              <td><span className={`badge badge-${p.status}`}>{COUNT_STATUS[p.status]?.label}</span></td>
                               <td>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : '—'}</td>
                               <td>
                                 {p.status === 'submitted' && (
@@ -261,6 +238,7 @@ export default function AdminDashboard() {
             </>
           )}
 
+          {tab === 'accounts' && <AdminAccounts />}
           {tab === 'users'  && <AdminUsers />}
           {tab === 'export' && <AdminExport cycle={cycle} />}
         </div>
