@@ -31,7 +31,15 @@ export default function CountEntry() {
 
   // Flag as closed
   const [showCloseModal, setShowCloseModal] = useState(false);
-  const [closeForm, setCloseForm] = useState({ date: new Date().toISOString().split('T')[0], notes: '', final_count_performed: '', final_count_date: '' });
+  const [closeForm, setCloseForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    notes: '',
+    reason_category: '',
+    final_count_performed: '',
+    final_count_date: '',
+    inventory_retrieved: '',
+    closing_count_eta: '',
+  });
   const [closing, setClosing] = useState(false);
 
   useEffect(() => { loadCount(); }, [countId]);
@@ -143,13 +151,15 @@ export default function CountEntry() {
   }
 
   async function handleFlagClosed() {
-    if (!closeForm.notes.trim()) { toast.error('Please enter a reason for closing this account.'); return; }
+    if (!closeForm.reason_category) { toast.error('Please select a reason category for the closure.'); return; }
+    if (!closeForm.notes.trim()) { toast.error('Please enter additional notes about the closure.'); return; }
     if (!closeForm.final_count_performed) { toast.error('Please indicate whether a final closing count was performed.'); return; }
+    if (!closeForm.inventory_retrieved) { toast.error('Please indicate whether inventory has been retrieved.'); return; }
     setClosing(true);
     const { error } = await supabase.from('accounts').update({
       flagged_closed: true,
       closed_date:    closeForm.date,
-      closed_notes:   `${closeForm.notes} | Final count performed: ${closeForm.final_count_performed} | Final count date: ${closeForm.final_count_date || 'N/A'}`,
+      closed_notes:   `${closeForm.notes} | Reason: ${closeForm.reason_category} | Final count performed: ${closeForm.final_count_performed}${closeForm.final_count_date ? ` on ${closeForm.final_count_date}` : ''} | Final count date: ${closeForm.final_count_date || 'N/A'} | Inventory retrieved: ${closeForm.inventory_retrieved}${closeForm.closing_count_eta ? ` | Closing count ETA: ${closeForm.closing_count_eta}` : ''}`,
       closed_by:      profile.id,
       closed_at:      new Date().toISOString(),
       is_active:      false,
@@ -160,7 +170,7 @@ export default function CountEntry() {
     // Create alert for admin
     await supabase.from('alerts').insert({
       alert_type: 'account_closed',
-      message: `Account "${count.account.name}" was flagged as closed by ${profile.full_name} on ${closeForm.date}. Final count performed: ${closeForm.final_count_performed}. Notes: ${closeForm.notes}`,
+      message: `Account "${count.account.name}" flagged as closed by ${profile.full_name} on ${closeForm.date}. Reason: ${closeForm.reason_category}. Final count: ${closeForm.final_count_performed}. Inventory retrieved: ${closeForm.inventory_retrieved}. Notes: ${closeForm.notes}`,
       is_read: false,
     });
 
@@ -360,33 +370,63 @@ export default function CountEntry() {
                 Note: This will mark <strong>{count?.account?.name}</strong> as permanently closed and remove it from future count cycles. Admin will be notified.
               </div>
               <div className="input-group">
-                <label className="input-label">Close Date *</label>
+                <label className="input-label">Closure Date *</label>
                 <input className="input" type="date" value={closeForm.date}
                   onChange={e => setCloseForm(p => ({ ...p, date: e.target.value }))} />
               </div>
               <div className="input-group">
-                <label className="input-label">Was a final closing inventory count performed for this account? *</label>
+                <label className="input-label">Reason for Closure *</label>
+                <select className="select" value={closeForm.reason_category}
+                  onChange={e => setCloseForm(p => ({ ...p, reason_category: e.target.value }))}>
+                  <option value="">-- Select a reason --</option>
+                  <option value="Permanently Closed">Permanently Closed</option>
+                  <option value="Relocated">Relocated / Moved to New Address</option>
+                  <option value="Lost Contract">Lost Contract</option>
+                  <option value="Merged with Another Location">Merged with Another Location</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div className="input-group">
+                <label className="input-label">Additional Notes *</label>
+                <textarea className="input" rows={2} placeholder="Any additional details about this closure..."
+                  value={closeForm.notes}
+                  onChange={e => setCloseForm(p => ({ ...p, notes: e.target.value }))}
+                  style={{ resize: 'vertical' }} />
+              </div>
+              <div className="input-group">
+                <label className="input-label">Has a final closing inventory count been performed? *</label>
                 <select className="select" value={closeForm.final_count_performed}
-                  onChange={e => setCloseForm(p => ({ ...p, final_count_performed: e.target.value }))}>
+                  onChange={e => setCloseForm(p => ({ ...p, final_count_performed: e.target.value, closing_count_eta: '' }))}>
                   <option value="">-- Select --</option>
-                  <option value="Yes">Yes - a final count was completed</option>
-                  <option value="No">No - a final count was not performed</option>
+                  <option value="Yes">Yes - final count has been completed</option>
+                  <option value="No">No - a final count has not been performed</option>
                   <option value="In Progress">In Progress - count is currently underway</option>
                 </select>
               </div>
               {closeForm.final_count_performed === 'Yes' && (
                 <div className="input-group">
-                  <label className="input-label">Date the final closing count was performed</label>
+                  <label className="input-label">Date the final closing count was completed</label>
                   <input className="input" type="date" value={closeForm.final_count_date}
                     onChange={e => setCloseForm(p => ({ ...p, final_count_date: e.target.value }))} />
                 </div>
               )}
+              {closeForm.final_count_performed === 'In Progress' && (
+                <div className="input-group">
+                  <label className="input-label">Estimated completion date for the closing count *</label>
+                  <input className="input" type="date" value={closeForm.closing_count_eta}
+                    onChange={e => setCloseForm(p => ({ ...p, closing_count_eta: e.target.value }))} />
+                </div>
+              )}
               <div className="input-group">
-                <label className="input-label">Reason for closure / Additional notes *</label>
-                <textarea className="input" rows={3} placeholder="e.g. Location permanently closed, moved to new address, etc."
-                  value={closeForm.notes}
-                  onChange={e => setCloseForm(p => ({ ...p, notes: e.target.value }))}
-                  style={{ resize: 'vertical' }} />
+                <label className="input-label">Has all inventory been retrieved or returned from this location? *</label>
+                <select className="select" value={closeForm.inventory_retrieved}
+                  onChange={e => setCloseForm(p => ({ ...p, inventory_retrieved: e.target.value }))}>
+                  <option value="">-- Select --</option>
+                  <option value="Yes">Yes - all inventory has been retrieved</option>
+                  <option value="No">No - inventory has not yet been retrieved</option>
+                  <option value="Partial">Partial - some inventory has been retrieved</option>
+                  <option value="N/A">N/A - no inventory on site</option>
+                </select>
               </div>
             </div>
             <div className="modal-footer">
