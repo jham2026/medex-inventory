@@ -4,7 +4,7 @@ import { useToast } from '../components/ToastContext';
 import { COUNT_STATUS } from '../lib/supabase';
 import NavBar from '../components/NavBar';
 import AdminUsers from './AdminUsers';
-import AdminExport from './AdminExport';
+import AdminDataManagement from './AdminDataManagement';
 import AdminAccounts from './AdminAccounts';
 
 export default function AdminDashboard() {
@@ -170,7 +170,7 @@ export default function AdminDashboard() {
               ['todos', `To Do${todos.length > 0 ? ` (${todos.length})` : ''}`],
               ['accounts', 'Accounts'],
               ['users', 'Users'],
-              ['export', 'Export Data'],
+              ['data', 'Data Management'],
             ].map(([k, v]) => (
               <button key={k} className={`tab ${tab === k ? 'active' : ''}`} onClick={() => setTab(k)}
                 style={k === 'todos' && todos.length > 0 ? { color: 'var(--error)', fontWeight: 'bold' } : {}}>
@@ -335,7 +335,7 @@ export default function AdminDashboard() {
 
           {tab === 'accounts' && <AdminAccounts />}
           {tab === 'users'  && <AdminUsers />}
-          {tab === 'export' && <AdminExport cycle={cycle} />}
+          {tab === 'data' && <AdminDataManagement cycle={cycle} />}
         </div>
       </div>
     </>
