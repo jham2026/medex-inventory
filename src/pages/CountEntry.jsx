@@ -29,7 +29,6 @@ export default function CountEntry() {
   const addSearchRef = useRef(null);
   const addTimer = useRef(null);
 
-  // Flag as closed
   const [showCloseModal, setShowCloseModal] = useState(false);
   const [closeForm, setCloseForm] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -167,14 +166,12 @@ export default function CountEntry() {
 
     if (error) { toast.error('Error: ' + error.message); setClosing(false); return; }
 
-    // Create alert for admin
     await supabase.from('alerts').insert({
       alert_type: 'account_closed',
       message: `Account "${count.account.name}" flagged as closed by ${profile.full_name} on ${closeForm.date}. Reason: ${closeForm.reason_category}. Final count: ${closeForm.final_count_performed}. Inventory retrieved: ${closeForm.inventory_retrieved}. Notes: ${closeForm.notes}`,
       is_read: false,
     });
 
-    // Create a To Do task for admin
     await supabase.from('todos').insert({
       title: `Review closed account: ${count.account.name}`,
       description: `Flagged by ${profile.full_name} on ${closeForm.date}. Final count performed: ${closeForm.final_count_performed}${closeForm.final_count_date ? ` on ${closeForm.final_count_date}` : ''}. Notes: ${closeForm.notes}`,
@@ -294,7 +291,7 @@ export default function CountEntry() {
   }
 
   async function handleSubmit() {
-    if (!window.confirm(`Submit count for ${count?.account?.name}?\n\nA CSV will be downloaded. You can still edit after submitting.`)) return;
+    if (!window.confirm(`Submit count for ${count?.account?.name}?\n\nOnce submitted you will not be able to edit without admin approval.`)) return;
     setSubmitting(true);
     await saveProgress();
 
@@ -346,6 +343,58 @@ export default function CountEntry() {
     </>
   );
 
+  // â”€â”€ LOCKED SCREEN â”€â”€
+  const isLocked = count?.status === 'submitted' || count?.status === 'approved';
+
+  if (isLocked) return (
+    <>
+      <NavBar />
+      <div className="page">
+        <div className="page-inner">
+          <div className="page-header">
+            <div>
+              <button className="btn btn-utility btn-sm" onClick={() => navigate('/')} style={{ marginBottom: 6 }}>Back</button>
+              <div className="page-title">{count?.account?.name}</div>
+              <div className="page-sub">
+                {count?.account?.region?.name} | {count?.cycle?.name} |
+                <span className={`badge badge-${count?.status}`} style={{ marginLeft: 4 }}>
+                  {count?.status?.replace('_',' ')}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div style={{
+            textAlign: 'center', padding: '60px 20px',
+            background: 'white', borderRadius: 8,
+            border: '1px solid var(--gray-mid)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.06)'
+          }}>
+            <div style={{ fontSize: 48, marginBottom: 16 }}>&#128274;</div>
+            <div style={{ fontSize: 20, fontWeight: 'bold', marginBottom: 8, color: 'var(--gray-900)' }}>
+              Count {count?.status === 'approved' ? 'Approved' : 'Submitted'} - Locked
+            </div>
+            <div style={{ fontSize: 14, color: 'var(--gray-dark)', maxWidth: 400, margin: '0 auto 24px' }}>
+              {count?.status === 'approved'
+                ? 'This count has been approved by your administrator and is now locked.'
+                : `This count was submitted on ${new Date(count?.submitted_at).toLocaleDateString()} and is locked for review.`
+              }
+            </div>
+            {count?.status === 'submitted' && (
+              <div style={{ background: '#f0f8ff', border: '1px solid var(--teal)', borderRadius: 6, padding: '14px 20px', maxWidth: 400, margin: '0 auto', fontSize: 13 }}>
+                Need to make changes? Go back to your dashboard and click
+                <strong> "Request Edit"</strong> on this account. Your administrator
+                will be notified and can approve your request.
+              </div>
+            )}
+            <button className="btn btn-utility" onClick={() => navigate('/')} style={{ marginTop: 24 }}>
+              Back to My Counts
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+
   const cycleOpen    = count?.cycle?.status === 'open';
   const canEdit      = cycleOpen;
   const flaggedCount = items.filter(i => i.not_in_catalog || i.was_edited_after_submit).length;
@@ -356,7 +405,6 @@ export default function CountEntry() {
       <NavBar />
       {scanning && <BarcodeScanner onDetected={handleBarcodeDetected} onClose={() => setScanning(false)} />}
 
-      {/* Flag as Closed Modal */}
       {showCloseModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowCloseModal(false)}>
           <div className="modal">

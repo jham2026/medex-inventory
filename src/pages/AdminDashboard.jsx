@@ -54,7 +54,7 @@ export default function AdminDashboard() {
       status: 'open', opened_at: new Date().toISOString(),
     }).select().single();
     if (error) { toast.error('Error: ' + error.message); return; }
-    toast.info(`Cycle "${cycleForm.name}" created â€” populating counts...`);
+    toast.info(`Cycle "${cycleForm.name}" created - populating counts...`);
 
     const { data: accounts } = await supabase.from('accounts').select('id, name, assigned_rep_id').eq('is_active', true);
     if (!accounts?.length) { toast.warning('No active accounts found.'); loadData(); return; }
@@ -141,6 +141,34 @@ export default function AdminDashboard() {
     toast.success('Task marked complete!');
   }
 
+  async function approveEditRequest(todo) {
+    if (todo.count_id) {
+      await supabase.from('inventory_counts')
+        .update({ status: 'in_progress' })
+        .eq('id', todo.count_id);
+    }
+    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
+    await supabase.from('alerts').insert({
+      alert_type: 'edit_approved',
+      message: `Edit request approved: ${todo.title.replace('Edit request: ', '')}`,
+      is_read: false,
+    });
+    setTodos(prev => prev.filter(t => t.id !== todo.id));
+    toast.success('Edit request approved - count unlocked!');
+    loadData();
+  }
+
+  async function denyEditRequest(todo) {
+    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
+    await supabase.from('alerts').insert({
+      alert_type: 'edit_denied',
+      message: `Edit request denied: ${todo.title.replace('Edit request: ', '')}`,
+      is_read: false,
+    });
+    setTodos(prev => prev.filter(t => t.id !== todo.id));
+    toast.info('Edit request denied.');
+  }
+
   const stats = {
     not_started: progress.filter(p => p.status === 'not_started').length,
     in_progress:  progress.filter(p => p.status === 'in_progress').length,
@@ -202,7 +230,7 @@ export default function AdminDashboard() {
               <div className="card" style={{ marginBottom: 20 }}>
                 <div className="card-header">
                   <span style={{ fontWeight: 'bold' }}>Count Cycle</span>
-                  {cycle && <span className="badge badge-open">{cycle.name} â€” Open</span>}
+                  {cycle && <span className="badge badge-open">{cycle.name} - Open</span>}
                 </div>
                 <div className="card-body">
                   {!cycle ? (
@@ -256,7 +284,7 @@ export default function AdminDashboard() {
                   <div className="card">
                     <div className="card-header">
                       <span style={{ fontWeight: 'bold' }}>
-                        Count Progress â€” {cycle.name}
+                        Count Progress - {cycle.name}
                         {progressFilter !== 'all' && <span style={{ color: COUNT_STATUS[progressFilter]?.color, marginLeft: 8 }}>({COUNT_STATUS[progressFilter]?.label})</span>}
                       </span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -310,23 +338,38 @@ export default function AdminDashboard() {
                   </div>
                 ) : (
                   <div className="card-body" style={{ padding: 0 }}>
-                    {todos.map(t => (
-                      <div key={t.id} style={{ padding: '14px 16px', borderBottom: '1px solid var(--gray-mid)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                            <span className={`badge badge-${t.priority === 'high' ? 'error' : 'warning'}`} style={{ fontSize: 11 }}>
-                              {t.priority === 'high' ? 'High Priority' : 'Normal'}
-                            </span>
-                            <span style={{ fontSize: 11, color: 'var(--gray-dark)' }}>{new Date(t.created_at).toLocaleDateString()}</span>
+                    {todos.map(t => {
+                      const isEditRequest = t.title?.startsWith('Edit request:');
+                      return (
+                        <div key={t.id} style={{ padding: '14px 16px', borderBottom: '1px solid var(--gray-mid)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                              <span className={`badge badge-${t.priority === 'high' ? 'error' : 'warning'}`} style={{ fontSize: 11 }}>
+                                {t.priority === 'high' ? 'High Priority' : 'Normal'}
+                              </span>
+                              {isEditRequest && (
+                                <span className="badge" style={{ fontSize: 11, background: '#e8f4fb', color: 'var(--teal-dark)', border: '1px solid var(--teal)' }}>
+                                  Edit Request
+                                </span>
+                              )}
+                              <span style={{ fontSize: 11, color: 'var(--gray-dark)' }}>{new Date(t.created_at).toLocaleDateString()}</span>
+                            </div>
+                            <div style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 4 }}>{t.title}</div>
+                            {t.description && <div style={{ fontSize: 13, color: 'var(--gray-dark)' }}>{t.description}</div>}
                           </div>
-                          <div style={{ fontWeight: 'bold', fontSize: 14, marginBottom: 4 }}>{t.title}</div>
-                          {t.description && <div style={{ fontSize: 13, color: 'var(--gray-dark)' }}>{t.description}</div>}
+                          {isEditRequest ? (
+                            <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                              <button className="btn btn-primary btn-sm" onClick={() => approveEditRequest(t)}>Approve</button>
+                              <button className="btn btn-danger btn-sm" onClick={() => denyEditRequest(t)}>Deny</button>
+                            </div>
+                          ) : (
+                            <button className="btn btn-secondary btn-sm" onClick={() => completeTodo(t.id)}>
+                              Mark Complete
+                            </button>
+                          )}
                         </div>
-                        <button className="btn btn-secondary btn-sm" onClick={() => completeTodo(t.id)}>
-                          Mark Complete
-                        </button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -334,8 +377,8 @@ export default function AdminDashboard() {
           )}
 
           {tab === 'accounts' && <AdminAccounts />}
-          {tab === 'users'  && <AdminUsers />}
-          {tab === 'data' && <AdminDataManagement cycle={cycle} />}
+          {tab === 'users'    && <AdminUsers />}
+          {tab === 'data'     && <AdminDataManagement cycle={cycle} />}
         </div>
       </div>
     </>
