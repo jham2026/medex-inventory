@@ -10,7 +10,7 @@ import AdminAccounts from './AdminAccounts';
 
 const NAV = [
   { section: 'MAIN' },
-  { key: 'overview', label: 'Overview',        icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+  { key: 'overview', label: 'Count Cycle Details',        icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
   { key: 'todos',    label: 'To Do',            icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
   { section: 'MANAGE' },
   { key: 'accounts', label: 'Accounts',         icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
@@ -654,7 +654,7 @@ export default function AdminDashboard() {
           <div>
             <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.5px', color: '#1A2B38' }}>{currentLabel}</div>
             <div style={{ fontSize: 14, color: '#7A909F', marginTop: 2 }}>
-              {tab === 'overview' && (cycle ? cycle.name + ' count cycle is active' : 'No active cycle')}
+              {tab === 'overview' && (cycle ? cycle.name + ' — ' + total + ' accounts' : 'No active cycle')}
               {tab === 'todos'    && todos.length + ' pending task' + (todos.length !== 1 ? 's' : '')}
               {tab === 'accounts' && 'Manage account assignments'}
               {tab === 'users'    && 'Manage rep accounts'}
@@ -718,90 +718,100 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ) : (
-                <div style={{ background: 'linear-gradient(135deg, #003f63 0%, #0076BB 100%)', borderRadius: 12, padding: '20px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, color: 'white', borderLeft: '4px solid #EEAF24', boxShadow: '0 4px 16px rgba(0,118,187,0.20)' }}>
-                  <div>
-                    <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.3px' }}>{cycle.name} Count Cycle</div>
-                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>Opened {new Date(cycle.opened_at).toLocaleDateString()} &middot; {total} accounts</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Completion</div>
-                    <div style={{ width: 120, height: 5, background: 'rgba(255,255,255,0.15)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', background: '#EEAF24', borderRadius: 3, width: pct + '%' }} />
+                <div style={{ background: 'linear-gradient(135deg, #003f63 0%, #0076BB 100%)', borderRadius: 14, padding: '28px 32px', marginBottom: 20, color: 'white', borderLeft: '5px solid #EEAF24', boxShadow: '0 4px 20px rgba(0,118,187,0.25)' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
+                    <div>
+                      <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>{cycle.name} Count Cycle</div>
+                      <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 6 }}>Opened {new Date(cycle.opened_at).toLocaleDateString()} &middot; {total} accounts total</div>
                     </div>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#EEAF24' }}>{pct}%</div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 56, fontWeight: 800, color: '#EEAF24', lineHeight: 1, letterSpacing: '-2px' }}>{pct}%</div>
+                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2 }}>Complete</div>
+                    </div>
+                  </div>
+                  <div style={{ height: 6, background: 'rgba(255,255,255,0.12)', borderRadius: 3, overflow: 'hidden', marginBottom: 24 }}>
+                    <div style={{ height: '100%', background: '#EEAF24', borderRadius: 3, width: pct + '%', transition: 'width 0.5s' }} />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
+                    {[
+                      { key: 'not_started', label: 'Not Started', color: 'rgba(255,255,255,0.6)', bg: 'rgba(255,255,255,0.07)' },
+                      { key: 'in_progress', label: 'In Progress',  color: '#7dd3fc', bg: 'rgba(0,118,187,0.3)' },
+                      { key: 'submitted',   label: 'Submitted',    color: '#EEAF24', bg: 'rgba(238,175,36,0.2)' },
+                      { key: 'approved',    label: 'Approved',     color: '#4ade80', bg: 'rgba(34,197,94,0.2)' },
+                    ].map(s => (
+                      <div key={s.key} onClick={() => setProgressFilter(f => f === s.key ? 'all' : s.key)}
+                        style={{ background: s.bg, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', border: progressFilter === s.key ? '1.5px solid ' + s.color : '1.5px solid transparent', transition: 'all 0.15s' }}>
+                        <div style={{ fontSize: 40, fontWeight: 800, color: s.color, lineHeight: 1, letterSpacing: '-1px' }}>{stats[s.key]}</div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 4 }}>{s.label}</div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
 
               {cycle && (
                 <>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 20 }}>
-                    {[
-                      { key: 'not_started', label: 'Not Started', color: '#7A909F', bar: '#C5D1DA' },
-                      { key: 'in_progress',  label: 'In Progress',  color: '#0076BB', bar: '#0076BB' },
-                      { key: 'submitted',    label: 'Submitted',    color: '#c88e0f', bar: '#EEAF24' },
-                      { key: 'approved',     label: 'Approved',     color: '#15803d', bar: '#22C55E' },
-                    ].map(s => (
-                      <div key={s.key}
-                        onClick={() => setProgressFilter(f => f === s.key ? 'all' : s.key)}
-                        style={{
-                          background: 'white', borderRadius: 12, padding: '18px 20px', cursor: 'pointer', transition: 'all 0.2s',
-                          border: progressFilter === s.key ? '1.5px solid #0076BB' : '1.5px solid #E1E8EE',
-                          boxShadow: progressFilter === s.key ? '0 0 0 3px #e8f4fb' : '0 1px 4px rgba(0,118,187,0.08)',
-                        }}>
-                        <div style={{ fontSize: 48, fontWeight: 700, letterSpacing: '-2px', lineHeight: 1, marginBottom: 6, color: s.color }}>{stats[s.key]}</div>
-                        <div style={{ fontSize: 14, color: '#7A909F', fontWeight: 600 }}>{s.label}</div>
-                        <div style={{ height: 3, borderRadius: 2, marginTop: 12, background: '#E1E8EE', overflow: 'hidden' }}>
-                          <div style={{ height: '100%', borderRadius: 2, background: s.bar, width: total > 0 ? (stats[s.key] / total * 100) + '%' : '0%' }} />
+                  {(() => {
+                    const regionMap = {};
+                    progress.forEach(p => {
+                      const rName = p.account?.region?.name || 'Unassigned';
+                      if (!regionMap[rName]) regionMap[rName] = [];
+                      regionMap[rName].push(p);
+                    });
+                    const regionNames = Object.keys(regionMap).sort();
+                    const filtered = progressFilter !== 'all';
+                    return regionNames.map(rName => {
+                      const counts = regionMap[rName];
+                      const shown = filtered ? counts.filter(p => p.status === progressFilter) : counts;
+                      if (shown.length === 0) return null;
+                      const rTotal = counts.length;
+                      const rApproved = counts.filter(p => p.status === 'approved').length;
+                      const rSubmitted = counts.filter(p => p.status === 'submitted').length;
+                      const rInProgress = counts.filter(p => p.status === 'in_progress').length;
+                      const rNotStarted = counts.filter(p => p.status === 'not_started').length;
+                      const rPct = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
+                      return (
+                        <div key={rName} className="card" style={{ marginBottom: 16 }}>
+                          <div style={{ padding: '14px 20px', background: '#003f63', borderRadius: '10px 10px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ fontSize: 16, fontWeight: 700, color: 'white' }}>{rName}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                              <div style={{ display: 'flex', gap: 12 }}>
+                                {rNotStarted > 0 && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>{rNotStarted} Not Started</span>}
+                                {rInProgress > 0 && <span style={{ fontSize: 11, color: '#7dd3fc', fontWeight: 600 }}>{rInProgress} In Progress</span>}
+                                {rSubmitted > 0  && <span style={{ fontSize: 11, color: '#EEAF24', fontWeight: 600 }}>{rSubmitted} Submitted</span>}
+                                {rApproved > 0   && <span style={{ fontSize: 11, color: '#4ade80', fontWeight: 600 }}>{rApproved} Approved</span>}
+                              </div>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: '#EEAF24', paddingLeft: 12, borderLeft: '1px solid rgba(255,255,255,0.15)' }}>{rPct}% done</div>
+                            </div>
+                          </div>
+                          <table className="tbl">
+                            <thead>
+                              <tr><th>Account</th><th>Rep(s)</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                              {shown.map(p => (
+                                <tr key={p.id}>
+                                  <td><strong style={{ color: '#1A2B38', fontWeight: 600 }}>{p.account?.name}</strong></td>
+                                  <td>{p.allReps?.length > 0 ? p.allReps.filter(Boolean).map(r => (<span key={r.id} style={{ display: 'inline-block', fontSize: 11, background: '#F2F5F8', color: '#3D5466', padding: '2px 7px', borderRadius: 5, marginRight: 4, whiteSpace: 'nowrap' }}>{r.full_name}</span>)) : <span style={{ color: '#EF4444', fontSize: 12 }}>Unassigned</span>}</td>
+                                  <td><span className={'badge ' + (p.status === 'approved' ? 'b-green' : p.status === 'submitted' ? 'b-gold' : p.status === 'in_progress' ? 'b-blue' : 'b-gray')}>{COUNT_STATUS[p.status]?.label}</span></td>
+                                  <td style={{ color: '#7A909F' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
+                                  <td style={{ display: 'flex', gap: 6 }}>
+                                    {p.status === 'submitted' && <button className="btn btn-blue btn-sm" onClick={() => approveCount(p.id)}>Approve</button>}
+                                    {(p.status === 'not_started' || p.status === 'in_progress') && <button className="btn btn-ghost btn-sm" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="card">
-                    <div className="card-header">
-                      <div>
-                        <div className="card-title" style={{ fontSize: 17 }}>Count Progress {progressFilter !== 'all' ? '— ' + progressFilter.replace('_', ' ') : ''}</div>
-                        <div className="card-sub" style={{ fontSize: 13 }}>{filteredProgress.length} of {total} accounts{progressFilter === 'submitted' ? ' awaiting approval' : ''}</div>
-                      </div>
-                      {progressFilter !== 'all' && <button className="btn btn-ghost btn-sm" onClick={() => setProgressFilter('all')}>Clear Filter</button>}
+                      );
+                    });
+                  })()}
+                  {progressFilter !== 'all' && (
+                    <div style={{ textAlign: 'center', marginTop: 8 }}>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setProgressFilter('all')}>Clear Filter — Show All</button>
                     </div>
-                    <table className="tbl">
-                      <thead>
-                        <tr><th>Account</th><th>Region</th><th>Rep(s)</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
-                      </thead>
-                      <tbody>
-                        {filteredProgress.length === 0 ? (
-                          <tr><td colSpan={6} className="table-empty">No counts match this filter.</td></tr>
-                        ) : filteredProgress.map(p => (
-                          <tr key={p.id}>
-                            <td><strong style={{ color: '#1A2B38', fontWeight: 500 }}>{p.account?.name}</strong></td>
-                            <td>{p.account?.region?.name}</td>
-                            <td>
-                              {p.allReps?.length > 0
-                                ? p.allReps.filter(Boolean).map(r => (
-                                    <span key={r.id} style={{ display: 'inline-block', fontSize: 11, background: '#F2F5F8', color: '#3D5466', padding: '2px 7px', borderRadius: 5, marginRight: 4, marginBottom: 2, whiteSpace: 'nowrap' }}>{r.full_name}</span>
-                                  ))
-                                : <span style={{ color: '#EF4444', fontSize: 12 }}>Unassigned</span>
-                              }
-                            </td>
-                            <td>
-                              <span className={'badge ' + (p.status === 'approved' ? 'b-green' : p.status === 'submitted' ? 'b-gold' : p.status === 'in_progress' ? 'b-blue' : 'b-gray')}>
-                                {COUNT_STATUS[p.status]?.label}
-                              </span>
-                            </td>
-                            <td style={{ color: '#7A909F' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '\u2014'}</td>
-                            <td style={{ display: 'flex', gap: 6 }}>
-                              {p.status === 'submitted' && <button className="btn btn-blue btn-sm" onClick={() => approveCount(p.id)}>Approve</button>}
-                              {(p.status === 'not_started' || p.status === 'in_progress') && (
-                                <button className="btn btn-ghost btn-sm" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  )}
                 </>
               )}
             </>
