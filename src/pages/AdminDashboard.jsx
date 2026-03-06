@@ -276,6 +276,7 @@ export default function AdminDashboard() {
   const { profile } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const [myCounts, setMyCounts] = useState([]);
   const [tab, setTab]           = useState('overview');
   const [cycle, setCycle]       = useState(null);
   const [progress, setProgress] = useState([]);
@@ -330,6 +331,16 @@ export default function AdminDashboard() {
         rep: c.rep_id ? repMap[c.rep_id] : null,
         allReps: acctRepsMap[c.account?.id] || [],
       })));
+    }
+    // Load counts assigned to current user
+    if (cycleData && profile?.id) {
+      const { data: myCountData } = await supabase
+        .from('inventory_counts')
+        .select('id, status, account:accounts(name)')
+        .eq('cycle_id', cycleData.id)
+        .eq('rep_id', profile.id)
+        .in('status', ['not_started', 'in_progress']);
+      setMyCounts(myCountData || []);
     }
     setLoading(false);
   }
@@ -600,6 +611,22 @@ export default function AdminDashboard() {
             );
           })}
         </div>
+
+        {/* My Counts */}
+        {myCounts.length > 0 && (
+          <div style={{ padding: '8px 8px 12px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ padding: '10px 12px 6px', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em' }}>MY COUNTS</div>
+            {myCounts.map(c => (
+              <div key={c.id} onClick={() => navigate('/count/' + c.id)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', margin: '1px 0', borderRadius: 8, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 500, transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'white'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}>
+                <span>{c.account?.name}</span>
+                <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 8, textTransform: 'uppercase', background: c.status === 'in_progress' ? 'rgba(0,118,187,0.3)' : 'rgba(255,255,255,0.1)', color: c.status === 'in_progress' ? '#7dd3fc' : 'rgba(255,255,255,0.4)' }}>{c.status === 'in_progress' ? 'In Progress' : 'Not Started'}</span>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Footer */}
         <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 10 }}>
