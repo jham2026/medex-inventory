@@ -348,7 +348,7 @@ export default function AdminAccounts() {
         <table className="tbl">
           <thead>
             {!isClosedView ? (
-              <tr><th style={{minWidth:80}}>Account Name</th><th style={{minWidth:80}}>Region</th><th style={{minWidth:160}}>Catalog</th><th style={{minWidth:220}}>Assigned Reps</th><th>Status</th><th>Actions</th></tr>
+              <tr><th style={{minWidth:80}}>Account Name</th><th style={{minWidth:80}}>Region</th><th style={{minWidth:160}}>Catalog</th><th style={{minWidth:440}}>Assigned Reps</th><th>Status</th><th>Actions</th></tr>
             ) : (
               <tr><th>Account Name</th><th>Region</th><th>Flagged By</th><th>Close Date</th><th>Actions</th></tr>
             )}
