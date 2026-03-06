@@ -348,7 +348,7 @@ export default function AdminAccounts() {
         <table className="tbl">
           <thead>
             {!isClosedView ? (
-              <tr><th>Account Name</th><th>Region</th><th>Catalog</th><th>Assigned Reps</th><th>Status</th><th>Actions</th></tr>
+              <tr><th style={{minWidth:80}}>Account Name</th><th style={{minWidth:80}}>Region</th><th style={{minWidth:160}}>Catalog</th><th style={{minWidth:220}}>Assigned Reps</th><th>Status</th><th>Actions</th></tr>
             ) : (
               <tr><th>Account Name</th><th>Region</th><th>Flagged By</th><th>Close Date</th><th>Actions</th></tr>
             )}
@@ -377,7 +377,7 @@ export default function AdminAccounts() {
                         <span style={{ fontSize: 12, color: '#EF4444', fontWeight: 500 }}>Unassigned</span>
                       ) : assignedRepObjects.map(r => (
                         <span key={r.id} style={{
-                          fontSize: 12, whiteSpace: 'nowrap', background: acct.assigned_rep_id === r.id ? '#e8f4fb' : '#F2F5F8',
+                          fontSize: 12, whiteSpace: 'nowrap', overflow: 'visible', background: acct.assigned_rep_id === r.id ? '#e8f4fb' : '#F2F5F8',
                           color: acct.assigned_rep_id === r.id ? '#0076BB' : '#3D5466',
                           padding: '3px 8px', borderRadius: 6, fontWeight: 500,
                           border: acct.assigned_rep_id === r.id ? '1px solid #cce6f5' : '1px solid #E1E8EE',
