@@ -313,13 +313,23 @@ export default function AdminDashboard() {
     if (cycleData) {
       const { data: counts } = await supabase
         .from('inventory_counts')
-        .select('id, status, submitted_at, approved_at, rep_id, account:accounts(name, region:regions(name))')
+        .select('id, status, submitted_at, approved_at, rep_id, account:accounts(id, name, region:regions(name))')
         .eq('cycle_id', cycleData.id)
         .order('status').limit(500);
       const { data: reps } = await supabase.from('profiles').select('id, full_name');
+      const { data: acctReps } = await supabase.from('account_reps').select('account_id, rep_id');
       const repMap = {};
       for (const r of reps || []) repMap[r.id] = r;
-      setProgress((counts || []).map(c => ({ ...c, rep: c.rep_id ? repMap[c.rep_id] : null })));
+      const acctRepsMap = {};
+      for (const ar of acctReps || []) {
+        if (!acctRepsMap[ar.account_id]) acctRepsMap[ar.account_id] = [];
+        acctRepsMap[ar.account_id].push(repMap[ar.rep_id]);
+      }
+      setProgress((counts || []).map(c => ({
+        ...c,
+        rep: c.rep_id ? repMap[c.rep_id] : null,
+        allReps: acctRepsMap[c.account?.id] || [],
+      })));
     }
     setLoading(false);
   }
@@ -724,14 +734,14 @@ export default function AdminDashboard() {
                   <div className="card">
                     <div className="card-header">
                       <div>
-                        <div className="card-title" style={{ fontSize: 17 }}>Count Progress {progressFilter !== 'all' ? 'â” ' + progressFilter.replace('_', ' ') : ''}</div>
+                        <div className="card-title" style={{ fontSize: 17 }}>Count Progress {progressFilter !== 'all' ? '— ' + progressFilter.replace('_', ' ') : ''}</div>
                         <div className="card-sub" style={{ fontSize: 13 }}>{filteredProgress.length} of {total} accounts{progressFilter === 'submitted' ? ' awaiting approval' : ''}</div>
                       </div>
                       {progressFilter !== 'all' && <button className="btn btn-ghost btn-sm" onClick={() => setProgressFilter('all')}>Clear Filter</button>}
                     </div>
                     <table className="tbl">
                       <thead>
-                        <tr><th>Account</th><th>Region</th><th>Rep</th><th>Status</th><th>Submitted</th><th></th></tr>
+                        <tr><th>Account</th><th>Region</th><th>Rep(s)</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
                       </thead>
                       <tbody>
                         {filteredProgress.length === 0 ? (
@@ -740,14 +750,26 @@ export default function AdminDashboard() {
                           <tr key={p.id}>
                             <td><strong style={{ color: '#1A2B38', fontWeight: 500 }}>{p.account?.name}</strong></td>
                             <td>{p.account?.region?.name}</td>
-                            <td style={{ color: p.rep ? '#3D5466' : '#EF4444' }}>{p.rep?.full_name || 'Unassigned'}</td>
+                            <td>
+                              {p.allReps?.length > 0
+                                ? p.allReps.filter(Boolean).map(r => (
+                                    <span key={r.id} style={{ display: 'inline-block', fontSize: 11, background: '#F2F5F8', color: '#3D5466', padding: '2px 7px', borderRadius: 5, marginRight: 4, marginBottom: 2, whiteSpace: 'nowrap' }}>{r.full_name}</span>
+                                  ))
+                                : <span style={{ color: '#EF4444', fontSize: 12 }}>Unassigned</span>
+                              }
+                            </td>
                             <td>
                               <span className={'badge ' + (p.status === 'approved' ? 'b-green' : p.status === 'submitted' ? 'b-gold' : p.status === 'in_progress' ? 'b-blue' : 'b-gray')}>
                                 {COUNT_STATUS[p.status]?.label}
                               </span>
                             </td>
                             <td style={{ color: '#7A909F' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '\u2014'}</td>
-                            <td>{p.status === 'submitted' && <button className="btn btn-blue btn-sm" onClick={() => approveCount(p.id)}>Approve</button>}</td>
+                            <td style={{ display: 'flex', gap: 6 }}>
+                              {p.status === 'submitted' && <button className="btn btn-blue btn-sm" onClick={() => approveCount(p.id)}>Approve</button>}
+                              {(p.status === 'not_started' || p.status === 'in_progress') && (
+                                <button className="btn btn-ghost btn-sm" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
