@@ -382,8 +382,7 @@ export default function AdminAccounts() {
                           padding: '3px 8px', borderRadius: 6, fontWeight: 500,
                           border: acct.assigned_rep_id === r.id ? '1px solid #cce6f5' : '1px solid #E1E8EE',
                         }}>
-                          {r.full_name}{acct.assigned_rep_id === r.id ? ' â…' : ''}
-                        </span>
+                          {r.full_name}</span>
                       ))}
                       <button onClick={() => setEditingReps(acct.id)}
                         style={{ fontSize: 11, color: '#0076BB', background: 'none', border: '1px dashed #0076BB', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
