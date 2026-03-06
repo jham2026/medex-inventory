@@ -68,7 +68,10 @@ export default function AdminAccounts() {
     if (openCycle) {
       const { data: existing } = await supabase.from('inventory_counts')
         .select('id').eq('account_id', accountId).eq('cycle_id', openCycle.id).single();
-      if (!existing) {
+      if (existing) {
+        // Update rep_id on existing count
+        await supabase.from('inventory_counts').update({ rep_id: repId }).eq('id', existing.id);
+      } else {
         await supabase.from('inventory_counts').insert({
           cycle_id: openCycle.id, account_id: accountId, rep_id: repId, status: 'not_started'
         });
