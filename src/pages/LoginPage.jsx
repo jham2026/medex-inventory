@@ -32,13 +32,13 @@ export default function LoginPage() {
         padding: '44px 40px',
         width: '100%',
         maxWidth: 500,
-        boxShadow: '0 4px 24px rgba(0,118,187,0.10), 0 1px 4px rgba(0,118,187,0.08)',
-        border: '1.5px solid #cce6f5',
+        boxShadow: '0 8px 40px rgba(0,118,187,0.18), 0 2px 8px rgba(0,118,187,0.10)',
+        border: '2.5px solid #a8d4ef',
       }}>
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: 8 }}>
-          <div style={{ fontSize: 64, fontWeight: 800, letterSpacing: '-2px', lineHeight: 1 }}>
+          <div style={{ fontSize: 96, fontWeight: 800, letterSpacing: '-3px', lineHeight: 1 }}>
             <span style={{ color: '#0076BB' }}>Med</span><span style={{ color: '#EEAF24' }}>Ex</span>
           </div>
           <div style={{ fontSize: 13, fontWeight: 600, color: '#7A909F', letterSpacing: '0.18em', textTransform: 'uppercase', marginTop: 6 }}>
@@ -79,7 +79,7 @@ export default function LoginPage() {
               border: '1.5px solid #E1E8EE', borderRadius: 8,
               padding: '14px 16px', color: '#1A2B38',
               fontSize: 16, fontFamily: 'inherit', outline: 'none',
-              transition: 'border-color 0.2s',
+              transition: 'border-color 0.2s', boxSizing: 'border-box',
             }}
             onFocus={e => e.target.style.borderColor = '#0076BB'}
             onBlur={e => e.target.style.borderColor = '#E1E8EE'}
@@ -103,29 +103,29 @@ export default function LoginPage() {
               border: '1.5px solid #E1E8EE', borderRadius: 8,
               padding: '14px 16px', color: '#1A2B38',
               fontSize: 16, fontFamily: 'inherit', outline: 'none',
-              transition: 'border-color 0.2s',
+              transition: 'border-color 0.2s', boxSizing: 'border-box',
             }}
             onFocus={e => e.target.style.borderColor = '#0076BB'}
             onBlur={e => e.target.style.borderColor = '#E1E8EE'}
           />
         </div>
 
-        {/* Sign in button */}
+        {/* Sign in button - always blue */}
         <button
           onClick={handleLogin}
-          disabled={loading || !email || !password}
+          disabled={loading}
           style={{
             width: '100%', padding: '16px',
-            background: loading || !email || !password ? '#7A909F' : '#0076BB',
+            background: loading ? '#005a8e' : '#0076BB',
             border: 'none', borderRadius: 8,
             color: 'white', fontSize: 18, fontWeight: 700,
-            cursor: loading || !email || !password ? 'not-allowed' : 'pointer',
+            cursor: loading ? 'not-allowed' : 'pointer',
             fontFamily: 'inherit', letterSpacing: '-0.2px',
             transition: 'background 0.2s',
             boxShadow: '0 4px 12px rgba(0,118,187,0.25)',
           }}
-          onMouseEnter={e => { if (!loading && email && password) e.target.style.background = '#005a8e'; }}
-          onMouseLeave={e => { if (!loading && email && password) e.target.style.background = '#0076BB'; }}
+          onMouseEnter={e => { if (!loading) e.target.style.background = '#005a8e'; }}
+          onMouseLeave={e => { if (!loading) e.target.style.background = '#0076BB'; }}
         >
           {loading ? 'Signing in...' : 'Sign In'}
         </button>
