@@ -115,7 +115,7 @@ export default function AdminUsers() {
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
           <div className="modal">
             <div className="modal-header">
-              <h3>{editUser ? `Edit — ${editUser.full_name}` : 'Add New User'}</h3>
+              <h3>{editUser ? `Edit â€” ${editUser.full_name}` : 'Add New User'}</h3>
               <button className="btn btn-ghost btn-sm" onClick={() => setShowForm(false)}
                 style={{ color: 'white', borderColor: 'rgba(255,255,255,0.3)' }}></button>
             </div>
@@ -158,7 +158,7 @@ export default function AdminUsers() {
               )}
               {!editUser && (
                 <div className="alert-banner info">
-                  Default password: <strong>MedEx1234!</strong> — ask the rep to change it on first login.
+                  Default password: <strong>MedEx1234!</strong> â€” ask the rep to change it on first login.
                 </div>
               )}
             </div>
@@ -266,8 +266,8 @@ function AccountRequests({ regions }) {
               <tr key={r.id}>
                 <td>{r.rep?.full_name}</td>
                 <td><strong>{r.account_name}</strong></td>
-                <td>{regions.find(reg => reg.id === r.region_id)?.name || '—'}</td>
-                <td style={{ fontSize: 12 }}>{r.notes || '—'}</td>
+                <td>{regions.find(reg => reg.id === r.region_id)?.name || 'â€”'}</td>
+                <td style={{ fontSize: 12 }}>{r.notes || 'â€”'}</td>
                 <td style={{ fontSize: 12 }}>{new Date(r.created_at).toLocaleDateString()}</td>
                 <td style={{ display: 'flex', gap: 6 }}>
                   <button className="btn btn-secondary btn-sm" onClick={() => resolve(r, 'approved')}>Approve</button>
