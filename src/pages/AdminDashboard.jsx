@@ -21,10 +21,10 @@ const NAV = [
 ];
 
 const STAT_CARDS = [
-  { key: 'not_started', label: 'Not Started', cls: 'sc-red',   tc: 'c-red'   },
-  { key: 'in_progress', label: 'In Progress',  cls: 'sc-gold',  tc: 'c-gold'  },
-  { key: 'submitted',   label: 'Submitted',    cls: 'sc-blue',  tc: 'c-blue'  },
-  { key: 'approved',    label: 'Approved',     cls: 'sc-green', tc: 'c-green' },
+  { key: 'not_started', label: 'Not Started', cls: 'sc-red',   tc: 'c-red',   soft: 'sc-red-soft',   stc: 'c-red-soft'   },
+  { key: 'in_progress', label: 'In Progress',  cls: 'sc-gold',  tc: 'c-gold',  soft: 'sc-gold-soft',  stc: 'c-gold-soft'  },
+  { key: 'submitted',   label: 'Submitted',    cls: 'sc-blue',  tc: 'c-blue',  soft: 'sc-blue-soft',  stc: 'c-blue-soft'  },
+  { key: 'approved',    label: 'Approved',     cls: 'sc-green', tc: 'c-green', soft: 'sc-green-soft', stc: 'c-green-soft' },
 ];
 
 function Pill({ status }) {
@@ -552,13 +552,13 @@ export default function AdminDashboard() {
                             {/* Center: stat cards fill all available space equally */}
                             <div style={{ display: 'flex', gap: 8, flex: 1, margin: '0 16px' }}>
                               {STAT_CARDS.map(s => (
-                                <div key={s.key} className={'stat-card ' + s.cls} style={{ padding: '8px 10px', flex: '1 1 0' }}>
+                                <div key={s.key} className={'stat-card ' + s.soft} style={{ padding: '8px 10px', flex: '1 1 0' }}>
                                   <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', position:'relative', zIndex:1 }}>
                                     <div>
-                                      <div className={'sc-num ' + s.tc} style={{ fontSize:22, letterSpacing:'-0.5px' }}>{rStats[s.key]}</div>
-                                      <div className={'sc-lbl ' + s.tc} style={{ fontSize:9 }}>{s.label}</div>
+                                      <div className={'sc-num ' + s.stc} style={{ fontSize:22, letterSpacing:'-0.5px' }}>{rStats[s.key]}</div>
+                                      <div className={'sc-lbl ' + s.stc} style={{ fontSize:9 }}>{s.label}</div>
                                     </div>
-                                    <div className={'sc-sub ' + s.tc} style={{ fontSize:16, fontWeight:800, lineHeight:1, opacity:0.85 }}>{rTotal > 0 ? Math.round(rStats[s.key] / rTotal * 100) : 0}%</div>
+                                    <div className={'sc-sub ' + s.stc} style={{ fontSize:16, fontWeight:800, lineHeight:1, opacity:0.85 }}>{rTotal > 0 ? Math.round(rStats[s.key] / rTotal * 100) : 0}%</div>
                                   </div>
                                 </div>
                               ))}
