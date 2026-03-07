@@ -816,7 +816,7 @@ export default function AdminDashboard() {
               {tab === 'mycounts'  && 'Your assigned accounts for the active cycle'}
               {tab === 'reports'   && 'Exports and audit trail'}
               {tab === 'accounts'  && 'Manage account assignments'}
-              {tab === 'users'     && 'Manage rep accounts'}
+              {tab === 'users'     && 'Manage users'}
               {tab === 'catalog'   && 'Manage inventory items'}
             </p>
           </div>
@@ -863,6 +863,27 @@ export default function AdminDashboard() {
                     });
                   }} />
                 </label>
+              </>
+            )}
+            {tab === 'users' && (
+              <>
+                <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    const csv = '#MedEx_Template,users,v1\nFirstName,LastName,FullName,EmailAddress,Role,Region,Status\nJane,Smith,Jane Smith,jsmith@example.com,rep,Austin,Active';
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = 'MedEx_Users_Template_v1.csv'; a.click();
+                    URL.revokeObjectURL(url);
+                  }}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Template
+                </button>
+                <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => setUsersShowImport(v => !v)}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 9V2M3.5 4.5l3-3 3 3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Import
+                </button>
+                <button className="btn btn-primary" onClick={() => setUsersShowAdd(true)}>+ Add User</button>
               </>
             )}
 
@@ -1033,7 +1054,7 @@ export default function AdminDashboard() {
           {tab === 'todos'    && <TodoSection todos={todos} onComplete={completeTodo} onApproveEdit={approveEditRequest} onDenyEdit={denyEditRequest} onApproveCount={approveCount} onRejectCount={rejectCount} />}
           {tab === 'mycounts' && <MyCounts cycle={cycle} profile={profile} navigate={navigate} />}
           {tab === 'accounts' && <AdminAccounts />}
-          {tab === 'users'    && <AdminUsers />}
+          {tab === 'users'    && <AdminUsers showImportPanel={usersShowImport} onImportClose={() => setUsersShowImport(false)} triggerAdd={usersShowAdd} onAddHandled={() => setUsersShowAdd(false)} />}
           {tab === 'catalog'  && <AdminItemCatalog />}
           {tab === 'reports'  && <ReportsPage cycle={cycle} />}
 
