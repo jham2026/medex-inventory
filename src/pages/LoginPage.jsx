@@ -20,56 +20,45 @@ export default function LoginPage() {
   return (
     <div className="login-page">
       <div className="login-card">
-
-        {/* Header */}
-        <div className="login-header">
-          <div className="login-logo-text">MedEx</div>
-          <div className="login-logo-sub">Inventory Counts</div>
+        <div style={{ marginBottom: 6 }}>
+          <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 4 }}>
+            <span style={{ color: '#1565C0' }}>Med</span><span style={{ color: '#F0A500' }}>Ex</span>
+          </div>
+          <div style={{ fontSize: 10, letterSpacing: 3, color: '#8FA3BF', textTransform: 'uppercase' }}>Inventory Counts</div>
+          <div style={{ width: 32, height: 2, background: '#F0A500', margin: '12px auto 20px' }} />
         </div>
+        <div className="login-title">Welcome Back</div>
+        <div className="login-sub">Sign in to access your inventory dashboard</div>
 
-        {/* Body */}
-        <div className="login-body">
-          <div className="login-title">Welcome Back</div>
-          <div className="login-sub">Sign in to access your inventory dashboard</div>
+        {error && <div className="alert-banner error">{error}</div>}
 
-          {error && (
-            <div className="alert-banner error" style={{ marginBottom: 20 }}>
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleLogin}>
-            <div className="input-group">
-              <label className="input-label">Email Address</label>
-              <input
-                className="input"
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                placeholder="you@example.com"
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            <div className="input-group">
-              <label className="input-label">Password</label>
-              <input
-                className="input"
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
-                required
-                autoComplete="current-password"
-              />
-            </div>
-
-            <button className="login-btn" type="submit" disabled={loading}>
-              {loading ? 'Signing inâ€¦' : 'Sign In'}
-            </button>
-          </form>
-        </div>
+        <form onSubmit={handleLogin}>
+          <label className="login-label">Email Address</label>
+          <input
+            className="login-input"
+            type="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="you@medexpsi.com"
+            required
+            autoComplete="email"
+          />
+          <label className="login-label">Password</label>
+          <input
+            className="login-input"
+            type="password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Enter your password"
+            style={{ letterSpacing: 0 }}
+            required
+            autoComplete="current-password"
+          />
+          <button className="login-btn" type="submit" disabled={loading}>
+            {loading ? 'Signing in...' : 'Sign In'}
+          </button>
+        </form>
+        <div className="login-help">Need access? Contact your administrator.</div>
       </div>
     </div>
   );
