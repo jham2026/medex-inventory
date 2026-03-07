@@ -362,11 +362,13 @@ export default function AdminUsers() {
         <span className="filter-label">Search:</span>
         <input className="search-input" placeholder="Name or email..." value={search} onChange={e => setSearch(e.target.value)} />
         <span className="count-lbl ml-auto">{filtered.length} of {users.length} users</span>
-        <button className="btn btn-outline" onClick={downloadTemplate} style={{ fontSize: 12 }}>
+        <button className="btn btn-outline" onClick={downloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
           Template
         </button>
-        <button className="btn btn-outline" onClick={() => setShowImport(v => !v)} style={{ fontSize: 12 }}>
-          {showImport ? 'Hide Import' : 'Import CSV'}
+        <button className="btn btn-outline" onClick={() => setShowImport(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 9V2M3.5 4.5l3-3 3 3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          {showImport ? 'Hide Import' : 'Import'}
         </button>
         <button className="btn btn-primary" onClick={openAdd}>+ Add User</button>
       </div>
