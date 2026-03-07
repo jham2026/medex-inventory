@@ -31,7 +31,7 @@ export default function AdminExport({ cycle }) {
         was_edited_after_submit, is_new_item, entered_via_scan,
         count:inventory_counts(
           id, submitted_at, approved_at, status,
-          rep:profiles(full_name, email),
+          rep:profiles!inventory_counts_rep_id_fkey(full_name, email),
           account:accounts(name, region:regions(name))
         )
       `)
