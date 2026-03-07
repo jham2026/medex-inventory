@@ -5,6 +5,7 @@ import { useAuth } from '../components/AuthContext';
 import { useToast } from '../components/ToastContext';
 import AdminUsers from './AdminUsers';
 import AdminExport from './AdminExport';
+import AdminAuditLog from './AdminAuditLog';
 import AdminAccounts from './AdminAccounts';
 import AdminItemCatalog from './AdminItemCatalog';
 
@@ -14,6 +15,7 @@ const NAV = [
   { key: 'todos',     label: 'Tasks' },
   { key: 'mycounts',  label: 'My Counts' },
   { key: 'reports',   label: 'Reports' },
+  { key: 'auditlog',  label: 'Audit Log' },
   { section: 'SETTINGS' },
   { key: 'accounts',  label: 'Accounts' },
   { key: 'users',     label: 'Users' },
@@ -1040,6 +1042,7 @@ export default function AdminDashboard() {
           {tab === 'users'    && <AdminUsers />}
           {tab === 'catalog'  && <AdminItemCatalog />}
           {tab === 'reports'  && <AdminExport cycle={cycle} />}
+              {tab === 'auditlog' && <AdminAuditLog />}
 
         </div>
       </div>
