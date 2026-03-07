@@ -159,13 +159,19 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
           .order('item_number_raw'),
         supabase
           .from('inventory_counts')
-          .select('submitted_at, account:accounts(name)')
+          .select('submitted_at, rep_id, account:accounts(name), region:regions(name), rep:profiles(full_name)')
           .eq('id', todo.count_id)
           .single(),
       ]);
       setCountItems(items || []);
-      // Store submitted_at on the modal todo for display
-      setReviewModal(prev => ({ ...prev, _submittedAt: countData?.submitted_at, _accountName: countData?.account?.name }));
+      setReviewModal(prev => ({
+        ...prev,
+        _submittedAt: countData?.submitted_at,
+        _accountName: countData?.account?.name,
+        _repName: countData?.rep?.full_name,
+        _region: countData?.region?.name,
+        _repId: countData?.rep_id,
+      }));
       setCountLoading(false);
     }
   }
@@ -275,7 +281,9 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
               </div>
               {/* For count_approval, parse rep info from description since it's not in metadata */}
               {reviewModal.todo_type === 'count_approval'
-                ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{reviewModal.description}</div>
+                ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
+                    Submitted by {reviewModal._repName || 'â€”'}{reviewModal._region ? ' \u00b7 ' + reviewModal._region : ''}{reviewModal._submittedAt ? ' \u00b7 ' + new Date(reviewModal._submittedAt).toLocaleDateString() : ''}
+                  </div>
                 : meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Submitted by {meta.rep_name}{meta.region ? ' \u00b7 ' + meta.region : ''}</div>
               }
             </div>
@@ -295,7 +303,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     </div>
                   ))}
                 </div>
-                <div style={{ padding: '16px 24px', maxHeight: 300, overflowY: 'auto' }}>
+                <div style={{ padding: '16px 24px', maxHeight: 280, overflowY: 'auto' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 10 }}>Count Details</div>
                   {countLoading ? (
                     <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>Loading count data...</div>
@@ -324,10 +332,11 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     </table>
                   )}
                 </div>
+                {/* Reject reason â€” outside scroll area so it's always visible */}
                 {rejectingId === reviewModal.id && (
-                  <div style={{ padding: '0 24px 16px' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Reason for Rejection \u2014 Rep will be notified</div>
-                    <textarea className="form-ta" value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Explain what needs to be corrected before resubmitting..." />
+                  <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', background: '#FFF8F8' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#991B1B', marginBottom: 8 }}>Reason for Rejection â€” Rep will be notified</div>
+                    <textarea className="form-ta" value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Explain what needs to be corrected before resubmitting..." style={{ borderColor: '#FCA5A5' }} />
                   </div>
                 )}
               </>
@@ -470,24 +479,36 @@ export default function AdminDashboard() {
   }
 
   async function rejectCount(todo, reason) {
-    let meta = {}; try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
     const countId = todo.count_id;
+    const repId = todo._repId;
+    const accountName = todo._accountName || todo.title?.replace('Count to approve: ', '') || '';
     await supabase.from('inventory_counts').update({ status: 'in_progress' }).eq('id', countId);
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
-    const { data: countData } = await supabase.from('inventory_counts').select('rep_id').eq('id', countId).single();
-    if (countData?.rep_id) {
+    if (repId) {
+      // Alert â€” shows as a notification on the rep's dashboard
       await supabase.from('alerts').insert({
         alert_type: 'count_rejected',
-        title: 'Count Rejected â€” Action Required',
-        message: 'Your count for ' + (meta.account_name || '') + ' was rejected and needs corrections.' + (reason ? ' Reason: ' + reason : ''),
+        title: 'Count Rejected \u2014 Action Required',
+        message: 'Your count for ' + accountName + ' was rejected and needs corrections.' + (reason ? ' Reason: ' + reason : ''),
         is_read: false,
-        rep_id: countData.rep_id,
+        rep_id: repId,
         inventory_count_id: countId,
+      });
+      // Rep-facing todo task so they must acknowledge and resubmit
+      await supabase.from('todos').insert({
+        title: 'Resubmit count: ' + accountName,
+        description: 'Your count was rejected.' + (reason ? ' Reason: ' + reason : '') + ' Please make corrections and resubmit.',
+        priority: 'high',
+        todo_type: 'resubmit_required',
+        account_id: todo.account_id,
+        count_id: countId,
+        rep_id: repId,
+        is_complete: false,
       });
     }
     setProgress(prev => prev.map(p => p.id === countId ? { ...p, status: 'in_progress' } : p));
     setTodos(prev => prev.filter(t => t.id !== todo.id));
-    toast.info('Count rejected â€” rep has been notified.');
+    toast.info('Count rejected \u2014 rep has been notified.');
   }
 
   async function completeTodo(todoId) {
