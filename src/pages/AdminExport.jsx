@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { useAuth } from '../components/AuthContext';
+import { logAudit } from '../hooks/useAudit';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastContext';
 
 export default function AdminExport({ cycle }) {
   const toast = useToast();
+  const { profile } = useAuth();
   const [cycles, setCycles]             = useState([]);
   const [regions, setRegions]           = useState([]);
   const [selectedCycle, setSelectedCycle] = useState(cycle?.id || '');
@@ -69,6 +72,9 @@ export default function AdminExport({ cycle }) {
       r.count?.status || '',
     ])];
     downloadCsv(csvRows, 'MedEx_Counts_' + cycleLabel.replace(/\s/g, '_') + (selectedRegion ? '_' + selectedRegion : ''));
+    await logAudit(profile, 'EXPORT_COUNT_HISTORY', 'export', {
+      details: { count: rows.length, cycle: selectedCycle, region: selectedRegion || 'all' }
+    });
     toast.success('Exported ' + rows.length + ' line items');
     setExporting(false);
   }
@@ -93,6 +99,7 @@ export default function AdminExport({ cycle }) {
       a.flagged_closed ? 'YES' : 'NO',
     ]);
     downloadCsv([header, ...rows], 'MedEx_Accounts');
+    await logAudit(profile, 'EXPORT_ACCOUNTS', 'export', { details: { count: rows.length } });
     toast.success('Exported ' + rows.length + ' accounts');
     setExportingRef(null);
   }
@@ -104,6 +111,7 @@ export default function AdminExport({ cycle }) {
     const header = ['Full Name', 'Email', 'Role', 'Region', 'Active'];
     const rows = (data || []).map(u => [u.full_name || '', u.email || '', u.role || '', u.region || '', u.is_active ? 'YES' : 'NO']);
     downloadCsv([header, ...rows], 'MedEx_Users');
+    await logAudit(profile, 'EXPORT_USERS', 'export', { details: { count: rows.length } });
     toast.success('Exported ' + rows.length + ' users');
     setExportingRef(null);
   }
@@ -130,6 +138,7 @@ export default function AdminExport({ cycle }) {
         if (error) { toast.error('Export error: ' + error.message); continue; }
         const rows = (data || []).map(i => [i.item_number || '', i.description || '', i.primary_vendor || '', label]);
         downloadCsv([header, ...rows], 'MedEx_' + (cat === 'claimsoft' ? 'ClaimsoftCatalog' : 'AccountEdgeCatalog'));
+        await logAudit(profile, 'EXPORT_CATALOG', 'export', { target_name: label, details: { count: rows.length, catalog: cat } });
         toast.success('Exported ' + rows.length + ' ' + label + ' items');
       }
     } else {
@@ -143,6 +152,7 @@ export default function AdminExport({ cycle }) {
       if (error) { toast.error('Export error: ' + error.message); setExportingRef(null); return; }
       const rows = (data || []).map(i => [i.item_number || '', i.description || '', i.primary_vendor || '', label]);
       downloadCsv([header, ...rows], 'MedEx_' + (cat === 'claimsoft' ? 'ClaimsoftCatalog' : 'AccountEdgeCatalog'));
+      await logAudit(profile, 'EXPORT_CATALOG', 'export', { target_name: label, details: { count: rows.length, catalog: cat } });
       toast.success('Exported ' + rows.length + ' ' + label + ' items');
     }
     setExportingRef(null);
