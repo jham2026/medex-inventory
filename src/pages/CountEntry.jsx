@@ -170,8 +170,15 @@ export default function CountEntry() {
       title: 'Account flagged for closure: ' + count?.account?.name,
       description: 'Rep ' + (profile?.full_name || '') + ' flagged ' + count?.account?.name + ' for closure. Reason: ' + closureForm.reason,
       priority: 'high', todo_type: 'account_closure',
-      account_id: count?.account?.id, count_id: countId, is_complete: false,
-      metadata: JSON.stringify(closureForm),
+      account_id: count?.account?.id,
+      rep_id: profile?.id || null,
+      count_id: countId, is_complete: false,
+      metadata: JSON.stringify({
+        ...closureForm,
+        rep_name: profile?.full_name || '',
+        account_name: count?.account?.name || '',
+        region: count?.account?.region?.name || '',
+      }),
     });
     await supabase.from('alerts').insert({ alert_type: 'account_closure_flagged', message: count?.account?.name + ' has been flagged for closure by ' + (profile?.full_name || 'a rep'), is_read: false });
     setShowClosureModal(false);
