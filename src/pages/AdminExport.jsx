@@ -258,7 +258,7 @@ function ExportCard({ icon, iconBg, title, sub, loading, onExport }) {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{icon}</div>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: "var(--blue)", flexShrink: 0 }}>{icon}</div>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700 }}>{title}</div>
           <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{sub}</div>
