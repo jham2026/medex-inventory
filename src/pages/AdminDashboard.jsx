@@ -131,9 +131,9 @@ function MyCounts({ cycle, profile, navigate }) {
 function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCount, onRejectCount }) {
   const [reviewModal, setReviewModal] = useState(null);
   const [denyReason, setDenyReason]   = useState('');
-  const [denyingId, setDenyingId]     = useState(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [rejectingId, setRejectingId]   = useState(null);
+  
+  const [showRejectBox, setShowRejectBox] = useState(false);
+  const [showDenyBox, setShowDenyBox]     = useState(false);
   const [countItems, setCountItems]     = useState([]);
   const [countLoading, setCountLoading] = useState(false);
 
@@ -146,8 +146,8 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
   async function openReview(todo) {
     setReviewModal(todo);
-    setDenyReason(''); setDenyingId(null);
-    setRejectReason(''); setRejectingId(null);
+    setDenyReason(''); setShowDenyBox(false);
+    setRejectReason(''); setShowRejectBox(false);
     setCountItems([]);
     if (todo.todo_type === 'count_approval' && todo.count_id) {
       setCountLoading(true);
@@ -175,7 +175,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
       setCountLoading(false);
     }
   }
-  function closeModal() { setReviewModal(null); setDenyReason(''); setDenyingId(null); setRejectReason(''); setRejectingId(null); setCountItems([]); }
+  function closeModal() { setReviewModal(null); setDenyReason(''); setShowDenyBox(false); setRejectReason(''); setShowRejectBox(false); setCountItems([]); }
 
   function TodoCard({ title, count, children, emptyMsg }) {
     return (
@@ -263,7 +263,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
       {reviewModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
-          <div className="modal" style={{ maxWidth: reviewModal.todo_type === 'count_approval' ? 640 : 520, width: '95vw' }}>
+          <div className="modal" style={{ maxWidth: reviewModal.todo_type === 'count_approval' ? 780 : 520, width: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
             <div style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', padding: '22px 24px' }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
                 {reviewModal.todo_type === 'edit_request'    && 'Edit Request'}
@@ -282,9 +282,9 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
               {/* For count_approval, parse rep info from description since it's not in metadata */}
               {reviewModal.todo_type === 'count_approval'
                 ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
-                    Submitted by {reviewModal._repName || 'â€”'}{reviewModal._region ? ' \u00b7 ' + reviewModal._region : ''}{reviewModal._submittedAt ? ' \u00b7 ' + new Date(reviewModal._submittedAt).toLocaleDateString() : ''}
+                    {'Submitted by ' + (reviewModal._repName || '--') + (reviewModal._region ? ' | ' + reviewModal._region : '') + (reviewModal._submittedAt ? ' | ' + new Date(reviewModal._submittedAt).toLocaleDateString() : '')}
                   </div>
-                : meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Submitted by {meta.rep_name}{meta.region ? ' \u00b7 ' + meta.region : ''}</div>
+                : meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{'Submitted by ' + meta.rep_name + (meta.region ? ' | ' + meta.region : '')}</div>
               }
             </div>
 
@@ -292,10 +292,10 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
               <>
                 <div style={{ display: 'flex', gap: 0, background: '#F7F9FC', borderBottom: '1px solid var(--border)' }}>
                   {[
-                    { label: 'Total Items', value: countLoading ? 'â€¦' : countItems.length },
-                    { label: 'Items Counted', value: countLoading ? 'â€¦' : countItems.filter(i => (i.quantity || 0) > 0).length },
-                    { label: 'Zero Qty', value: countLoading ? 'â€¦' : zeroQty, red: zeroQty > 0 },
-                    { label: 'Submitted', value: reviewModal._submittedAt ? new Date(reviewModal._submittedAt).toLocaleDateString() : 'â€¦' },
+                    { label: 'Total Items', value: countLoading ? '...' : String(countItems.length) },
+                    { label: 'Items Counted', value: countLoading ? '...' : String(countItems.filter(i => (i.quantity || 0) > 0).length) },
+                    { label: 'Zero Qty', value: countLoading ? '...' : String(zeroQty), red: zeroQty > 0 },
+                    { label: 'Submitted', value: reviewModal._submittedAt ? new Date(reviewModal._submittedAt).toLocaleDateString() : '...' },
                   ].map(s => (
                     <div key={s.label} style={{ flex: 1, padding: '14px 20px', borderRight: '1px solid var(--border)' }}>
                       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)' }}>{s.label}</div>
@@ -303,7 +303,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     </div>
                   ))}
                 </div>
-                <div style={{ padding: '16px 24px', maxHeight: 280, overflowY: 'auto' }}>
+                <div style={{ padding: '16px 24px', flex: 1, overflowY: 'auto', minHeight: 200, maxHeight: 420 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 10 }}>Count Details</div>
                   {countLoading ? (
                     <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>Loading count data...</div>
@@ -324,7 +324,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                           <tr key={item.id} style={{ background: idx % 2 === 0 ? 'white' : '#F7F9FC' }}>
                             <td style={{ padding: '9px 10px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: 'var(--blue-action)', borderBottom: '1px solid #F1F5F9' }}>{item.item_number_raw}</td>
                             <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.description_raw}</td>
-                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text-mid)', borderBottom: '1px solid #F1F5F9' }}>{item.vendor_raw || '\u2014'}</td>
+                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text-mid)', borderBottom: '1px solid #F1F5F9' }}>{item.vendor_raw || <span>&mdash;</span>}</td>
                             <td style={{ padding: '9px 10px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: (item.quantity || 0) === 0 ? 'var(--red)' : 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.quantity ?? 0}</td>
                           </tr>
                         ))}
@@ -332,11 +332,10 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     </table>
                   )}
                 </div>
-                {/* Reject reason â€” outside scroll area so it's always visible */}
-                {rejectingId === reviewModal.id && (
+                {showRejectBox && (
                   <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', background: '#FFF8F8' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#991B1B', marginBottom: 8 }}>Reason for Rejection â€” Rep will be notified</div>
-                    <textarea className="form-ta" value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Explain what needs to be corrected before resubmitting..." style={{ borderColor: '#FCA5A5' }} />
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#991B1B', marginBottom: 8 }}>Reason for Rejection -- Rep will be notified</div>
+                    <textarea className="form-ta" value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Explain what needs to be corrected before resubmitting..." style={{ borderColor: '#FCA5A5', width: '100%', boxSizing: 'border-box' }} />
                   </div>
                 )}
               </>
@@ -347,7 +346,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                 {meta.reason && <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div><div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div></div>}
                 {meta.urgency && <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Urgency</div><div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.urgency}</div></div>}
                 {meta.details && <div style={{ marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Rep's Explanation</div><div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{meta.details}</div></div>}
-                {denyingId === reviewModal.id && <div style={{ marginTop: 12 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Reason for Denial</div><textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)} placeholder="Explain why this request is being denied..." /></div>}
+                {showDenyBox && <div style={{ marginTop: 12 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Reason for Denial</div><textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)} placeholder="Explain why this request is being denied..." /></div>}
               </div>
             )}
 
@@ -367,17 +366,17 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
             <div className="modal-actions">
               <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
               {reviewModal.todo_type === 'edit_request' && (
-                denyingId === reviewModal.id ? (
-                  <><button className="btn btn-outline" onClick={() => setDenyingId(null)}>Back</button><button className="btn btn-danger" onClick={() => { onDenyEdit(reviewModal, denyReason); closeModal(); }}>Confirm Denial</button></>
+                showDenyBox ? (
+                  <><button className="btn btn-outline" onClick={() => setShowDenyBox(false)}>Back</button><button className="btn btn-danger" onClick={() => { onDenyEdit(reviewModal, denyReason); closeModal(); }}>Confirm Denial</button></>
                 ) : (
-                  <><button className="btn btn-danger" onClick={() => setDenyingId(reviewModal.id)}>Deny Request</button><button className="btn btn-primary" onClick={() => { onApproveEdit(reviewModal); closeModal(); }}>Approve &amp; Reopen</button></>
+                  <><button className="btn btn-danger" onClick={() => setShowDenyBox(true)}>Deny Request</button><button className="btn btn-primary" onClick={() => { onApproveEdit(reviewModal); closeModal(); }}>Approve &amp; Reopen</button></>
                 )
               )}
               {reviewModal.todo_type === 'count_approval' && (
-                rejectingId === reviewModal.id ? (
-                  <><button className="btn btn-outline" onClick={() => setRejectingId(null)}>Back</button><button className="btn btn-danger" onClick={() => { onRejectCount(reviewModal, rejectReason); closeModal(); }}>Confirm Rejection</button></>
+                showRejectBox ? (
+                  <><button className="btn btn-outline" onClick={() => setShowRejectBox(false)}>Back</button><button className="btn btn-danger" onClick={() => { onRejectCount(reviewModal, rejectReason); closeModal(); }}>Confirm Rejection</button></>
                 ) : (
-                  <><button className="btn btn-danger" onClick={() => setRejectingId(reviewModal.id)}>Reject Count</button><button className="btn btn-primary" style={{ background: '#16A34A' }} onClick={() => { onApproveCount(reviewModal.count_id); onComplete(reviewModal.id); closeModal(); }}>Approve Count</button></>
+                  <><button className="btn btn-danger" onClick={() => setShowRejectBox(true)}>Reject Count</button><button className="btn btn-primary" style={{ background: '#16A34A' }} onClick={() => { onApproveCount(reviewModal.count_id); onComplete(reviewModal.id); closeModal(); }}>Approve Count</button></>
                 )
               )}
               {reviewModal.todo_type === 'account_closure' && <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Reviewed</button>}
@@ -450,7 +449,7 @@ export default function AdminDashboard() {
       status: 'open', opened_at: new Date().toISOString(),
     }).select().single();
     if (error) { toast.error('Error: ' + error.message); return; }
-    toast.info('Cycle "' + cycleForm.name + '" created â€” populating counts...');
+    toast.info('Cycle "' + cycleForm.name + '" created -- populating counts...');
     const { data: accounts } = await supabase.from('accounts').select('id, name, assigned_rep_id').eq('is_active', true);
     if (!accounts?.length) { toast.warning('No active accounts found.'); loadData(); return; }
     for (let i = 0; i < accounts.length; i += 100) {
@@ -485,7 +484,7 @@ export default function AdminDashboard() {
     await supabase.from('inventory_counts').update({ status: 'in_progress' }).eq('id', countId);
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
     if (repId) {
-      // Alert â€” shows as a notification on the rep's dashboard
+      // Alert -- shows as a notification on the rep's dashboard
       await supabase.from('alerts').insert({
         alert_type: 'count_rejected',
         title: 'Count Rejected \u2014 Action Required',
