@@ -237,24 +237,31 @@ export default function AdminDataManagement() {
               const isActive  = status.toLowerCase() === 'active' || status.toLowerCase() === 'open';
               if (!email) { errors++; errorDetails.push('Row skipped: missing EmailAddress'); continue; }
 
-              // Check if user already exists in profiles
-              const { data: existing } = await supabase
-                .from('profiles')
-                .select('id')
-                .eq('email', email)
-                .maybeSingle();
+              try {
+                // Step 1: Check Auth for existing user by email
+                const listRes = await fetch(
+                  SUPABASE_URL + '/auth/v1/admin/users?email=' + encodeURIComponent(email),
+                  { headers: { 'apikey': SERVICE_KEY, 'Authorization': 'Bearer ' + SERVICE_KEY } }
+                );
+                const listJson = await listRes.json();
+                const authUsers = listJson.users || [];
+                const existingAuth = authUsers.find(u => u.email?.toLowerCase() === email.toLowerCase());
 
-              if (existing) {
-                // User exists â€” update profile only
-                const { error } = await supabase.from('profiles')
-                  .update({ full_name: fullName || null, role, region: region || null, is_active: isActive })
-                  .eq('id', existing.id);
-                if (error) { errors++; errorDetails.push(email + ' (update): ' + error.message); }
-                else updated++;
-              } else {
-                // User does not exist â€” create in Supabase Auth first, then insert profile
-                try {
-                  const authRes = await fetch(SUPABASE_URL + '/auth/v1/admin/users', {
+                if (existingAuth) {
+                  // Auth user exists â€” upsert profile
+                  const { error: upErr } = await supabase.from('profiles').upsert({
+                    id:        existingAuth.id,
+                    full_name: fullName || null,
+                    email,
+                    role,
+                    region:    region || null,
+                    is_active: isActive,
+                  }, { onConflict: 'id' });
+                  if (upErr) { errors++; errorDetails.push(email + ' (profile upsert): ' + upErr.message); }
+                  else updated++;
+                } else {
+                  // Brand new user â€” create in Auth
+                  const createRes = await fetch(SUPABASE_URL + '/auth/v1/admin/users', {
                     method: 'POST',
                     headers: {
                       'Content-Type': 'application/json',
@@ -268,31 +275,31 @@ export default function AdminDataManagement() {
                       user_metadata: { full_name: fullName },
                     }),
                   });
-                  const authResult = await authRes.json();
-                  if (!authRes.ok) {
+                  const createJson = await createRes.json();
+                  if (!createRes.ok) {
                     errors++;
-                    errorDetails.push(email + ' (auth create): ' + (authResult.msg || authResult.message || 'Unknown error'));
+                    errorDetails.push(email + ' (auth create): ' + (createJson.msg || createJson.message || JSON.stringify(createJson)));
                     continue;
                   }
-                  // Insert profile row
-                  const { error: profError } = await supabase.from('profiles').insert({
-                    id:        authResult.id,
+                  // Insert profile row using new auth ID
+                  const { error: profErr } = await supabase.from('profiles').insert({
+                    id:        createJson.id,
                     full_name: fullName || null,
                     email,
                     role,
                     region:    region || null,
                     is_active: isActive,
                   });
-                  if (profError) {
+                  if (profErr) {
                     errors++;
-                    errorDetails.push(email + ' (profile insert): ' + profError.message);
+                    errorDetails.push(email + ' (profile insert): ' + profErr.message);
                   } else {
                     inserted++;
                   }
-                } catch (authErr) {
-                  errors++;
-                  errorDetails.push(email + ' (auth error): ' + authErr.message);
                 }
+              } catch (err) {
+                errors++;
+                errorDetails.push(email + ' (unexpected): ' + err.message);
               }
             }
           }
