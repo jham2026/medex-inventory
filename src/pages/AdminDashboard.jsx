@@ -283,9 +283,14 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
               {/* For count_approval, parse rep info from description since it's not in metadata */}
               {reviewModal.todo_type === 'count_approval'
                 ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
-                    {'Submitted by ' + (reviewModal._repName || '--') + (reviewModal._region ? ' | ' + reviewModal._region : '') + (reviewModal._submittedAt ? ' | ' + new Date(reviewModal._submittedAt).toLocaleDateString() : '')}
+                    {(function() {
+                      const repName = reviewModal._repName || (reviewModal.description || '').replace(/^Rep /, '').split(' submitted')[0] || '';
+                      const region = reviewModal._region || '';
+                      const dateStr = reviewModal._submittedAt ? new Date(reviewModal._submittedAt).toLocaleDateString() : '';
+                      return 'Submitted by ' + repName + (region ? '  |  ' + region : '') + (dateStr ? '  |  ' + dateStr : '');
+                    })()}
                   </div>
-                : meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{'Submitted by ' + meta.rep_name + (meta.region ? ' | ' + meta.region : '')}</div>
+                : meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{'Submitted by ' + meta.rep_name + (meta.region ? '  |  ' + meta.region : '')}</div>
               }
             </div>
 
@@ -304,7 +309,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     </div>
                   ))}
                 </div>
-                <div style={{ padding: '16px 24px', flex: 1, overflowY: 'auto', minHeight: 200, maxHeight: 420 }}>
+                <div style={{ padding: '16px 24px', overflowY: 'auto', maxHeight: 360 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 10 }}>Count Details</div>
                   {countLoading ? (
                     <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>Loading count data...</div>
@@ -322,7 +327,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                       </thead>
                       <tbody>
                         {countItems.map((item, idx) => {
-                          const isManual = item.not_in_catalog || item.is_new_item;
+                          const isManual = item.not_in_catalog === true;
                           return (
                           <tr key={item.id} style={{ background: isManual ? '#FFF5F5' : idx % 2 === 0 ? 'white' : '#F7F9FC' }}>
                             <td style={{ padding: '9px 10px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: isManual ? '#DC2626' : 'var(--blue-action)', borderBottom: '1px solid #F1F5F9', whiteSpace: 'nowrap' }}>
@@ -338,20 +343,22 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                       </tbody>
                     </table>
                   )}
-                  {!countLoading && countItems.some(i => i.not_in_catalog || i.is_new_item) && (
+                  {!countLoading && countItems.some(i => i.not_in_catalog === true) && (
                     <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 9, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', padding: '1px 5px', borderRadius: 4, letterSpacing: 0.5, whiteSpace: 'nowrap' }}>MANUAL</span>
                       <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Item was manually entered and does not match a catalog item number.</span>
                     </div>
                   )}
                 </div>
-                {showRejectBox && (
-                  <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', background: '#FFF8F8' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#991B1B', marginBottom: 8 }}>Reason for Rejection -- Rep will be notified</div>
-                    <textarea className="form-ta" value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Explain what needs to be corrected before resubmitting..." style={{ borderColor: '#FCA5A5', width: '100%', boxSizing: 'border-box' }} />
-                  </div>
-                )}
               </>
+            )}
+
+            {/* Reject reason box â€” rendered outside all fragments, directly above action bar */}
+            {reviewModal.todo_type === 'count_approval' && showRejectBox && (
+              <div style={{ padding: '16px 24px', borderTop: '1px solid #FECACA', background: '#FFF8F8', flexShrink: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#991B1B', marginBottom: 8 }}>Reason for Rejection -- Rep will be notified</div>
+                <textarea className="form-ta" value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Explain what needs to be corrected before resubmitting..." style={{ borderColor: '#FCA5A5', width: '100%', boxSizing: 'border-box', minHeight: 80 }} />
+              </div>
             )}
 
             {reviewModal.todo_type === 'edit_request' && (
