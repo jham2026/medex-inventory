@@ -10,6 +10,8 @@ export default function AdminExport({ cycle }) {
   const [selectedRegion, setSelectedRegion] = useState('');
   const [exporting, setExporting]       = useState(false);
   const [exportingRef, setExportingRef] = useState(null);
+  const [catalogSelection, setCatalogSelection] = useState({ claimsoft: true, edge: true });
+  const [showCatalogDrop, setShowCatalogDrop]   = useState(false);
 
   useEffect(() => {
     supabase.from('count_cycles').select('*').order('created_at', { ascending: false })
@@ -107,13 +109,42 @@ export default function AdminExport({ cycle }) {
   }
 
   async function runCatalogExport() {
+    const selected = Object.entries(catalogSelection).filter(([,v]) => v).map(([k]) => k);
+    if (selected.length === 0) { toast.error('Select at least one catalog to export'); return; }
     setExportingRef('catalog');
-    const { data, error } = await supabase.from('item_catalog').select('item_number, description, primary_vendor, catalog_source').order('item_number');
-    if (error) { toast.error('Export error: ' + error.message); setExportingRef(null); return; }
-    const header = ['Item Number', 'Description', 'Primary Vendor', 'Catalog Source'];
-    const rows = (data || []).map(i => [i.item_number || '', i.description || '', i.primary_vendor || '', i.catalog_source || '']);
-    downloadCsv([header, ...rows], 'MedEx_ItemCatalog');
-    toast.success('Exported ' + rows.length + ' items');
+
+    const header = ['Item Number', 'Description', 'Primary Vendor', 'Catalog'];
+
+    // If both selected and user wants combined, export as one file
+    // If single catalog selected, export as one file labeled accordingly
+    // If both selected, export as two separate files
+    if (selected.length === 2) {
+      // Export both as separate files
+      for (const cat of selected) {
+        const label = cat === 'claimsoft' ? 'Claimsoft Catalog' : 'Account Edge';
+        const { data, error } = await supabase
+          .from('item_catalog')
+          .select('item_number, description, primary_vendor, catalog_source')
+          .eq('catalog_source', cat)
+          .order('item_number');
+        if (error) { toast.error('Export error: ' + error.message); continue; }
+        const rows = (data || []).map(i => [i.item_number || '', i.description || '', i.primary_vendor || '', label]);
+        downloadCsv([header, ...rows], 'MedEx_' + (cat === 'claimsoft' ? 'ClaimsoftCatalog' : 'AccountEdgeCatalog'));
+        toast.success('Exported ' + rows.length + ' ' + label + ' items');
+      }
+    } else {
+      const cat   = selected[0];
+      const label = cat === 'claimsoft' ? 'Claimsoft Catalog' : 'Account Edge';
+      const { data, error } = await supabase
+        .from('item_catalog')
+        .select('item_number, description, primary_vendor, catalog_source')
+        .eq('catalog_source', cat)
+        .order('item_number');
+      if (error) { toast.error('Export error: ' + error.message); setExportingRef(null); return; }
+      const rows = (data || []).map(i => [i.item_number || '', i.description || '', i.primary_vendor || '', label]);
+      downloadCsv([header, ...rows], 'MedEx_' + (cat === 'claimsoft' ? 'ClaimsoftCatalog' : 'AccountEdgeCatalog'));
+      toast.success('Exported ' + rows.length + ' ' + label + ' items');
+    }
     setExportingRef(null);
   }
 
@@ -166,13 +197,98 @@ export default function AdminExport({ cycle }) {
         loading={exportingRef === 'users'}
         onExport={runUsersExport}
       />
-      <ExportCard
-        label="IC" iconBg="var(--amber-light)"
-        title="Item Catalog"
-        sub="Item numbers, descriptions and vendor info"
-        loading={exportingRef === 'catalog'}
-        onExport={runCatalogExport}
-      />
+      {/* Item Catalog - with catalog selector */}
+      <div style={{
+        background: 'var(--white)', border: '1px solid var(--border)',
+        borderRadius: 12, padding: '16px 20px', marginBottom: 10,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        flexWrap: 'wrap',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--amber-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'var(--blue)', flexShrink: 0 }}>IC</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>Item Catalog</div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>Item numbers, descriptions and vendor info</div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+
+          {/* Catalog selector dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowCatalogDrop(p => !p)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8,
+                background: 'var(--bg)', border: '1.5px solid var(--border)',
+                borderRadius: 8, padding: '7px 12px', fontSize: 12,
+                fontWeight: 600, color: 'var(--text)', cursor: 'pointer',
+                fontFamily: 'inherit', whiteSpace: 'nowrap',
+              }}
+            >
+              <span>
+                {catalogSelection.claimsoft && catalogSelection.edge
+                  ? 'Both Catalogs'
+                  : catalogSelection.claimsoft ? 'Claimsoft Catalog'
+                  : catalogSelection.edge      ? 'Account Edge'
+                  : 'None Selected'}
+              </span>
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M2 3.5l3 3 3-3" stroke="#64748B" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+
+            {showCatalogDrop && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setShowCatalogDrop(false)} />
+                <div style={{
+                  position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 100,
+                  background: 'white', border: '1px solid var(--border)',
+                  borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                  minWidth: 200, overflow: 'hidden',
+                }}>
+                  <div style={{ padding: '8px 4px' }}>
+                    {[
+                      { key: 'claimsoft', label: 'Claimsoft Catalog' },
+                      { key: 'edge',      label: 'Account Edge' },
+                    ].map(({ key, label }) => (
+                      <label key={key} style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 14px', cursor: 'pointer', borderRadius: 6,
+                        margin: '0 4px',
+                      }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={catalogSelection[key]}
+                          onChange={e => setCatalogSelection(p => ({ ...p, [key]: e.target.checked }))}
+                          style={{ width: 15, height: 15, accentColor: 'var(--blue)', cursor: 'pointer' }}
+                        />
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{label}</span>
+                      </label>
+                    ))}
+                    <div style={{ margin: '6px 14px 4px', fontSize: 11, color: 'var(--text-dim)' }}>
+                      {catalogSelection.claimsoft && catalogSelection.edge
+                        ? 'Will export as 2 separate files'
+                        : 'Will export as 1 file'}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          <button
+            className="btn btn-primary"
+            onClick={runCatalogExport}
+            disabled={exportingRef === 'catalog' || (!catalogSelection.claimsoft && !catalogSelection.edge)}
+            style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+          >
+            {exportingRef === 'catalog' ? 'Exporting...' : 'Export CSV'}
+          </button>
+        </div>
+      </div>
 
       {/* Section: Count Data */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '24px 0 14px' }}>
