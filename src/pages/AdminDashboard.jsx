@@ -165,6 +165,8 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
           .eq('id', todo.count_id)
           .single(),
       ]);
+      console.log('COUNT DATA:', JSON.stringify(countData, null, 2));
+      console.log('ITEMS:', JSON.stringify(items?.slice(0,2), null, 2));
       setCountItems(items || []);
       setCountMeta({
         submittedAt: countData?.submitted_at || null,
