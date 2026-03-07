@@ -745,7 +745,7 @@ export default function AdminDashboard() {
           );
           return (
             <div key={item.key} style={{ padding: '0 12px 2px' }}>
-              <div className={'nav-item' + (tab === item.key ? ' active' : '')} onClick={() => setTab(item.key)}>
+              <div className={'nav-item' + (tab === item.key ? ' active' : '')} onClick={() => navigate(item.key)}>
                 <div className="nav-dot" />
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {item.key === 'todos' && todos.length > 0 && (
