@@ -137,6 +137,8 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
   const [showDenyBox, setShowDenyBox]     = useState(false);
   const [countItems, setCountItems]     = useState([]);
   const [countMeta, setCountMeta] = useState({});
+  const [closureMeta, setClosureMeta] = useState({});
+  const [closureNotes, setClosureNotes] = useState('');
   const [countLoading, setCountLoading] = useState(false);
 
   const editRequests   = todos.filter(t => t.todo_type === 'edit_request');
@@ -150,60 +152,62 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
     setReviewModal(todo);
     setDenyReason(''); setShowDenyBox(false);
     setRejectReason(''); setShowRejectBox(false);
-    setCountItems([]); setCountMeta({});
+    setCountItems([]); setCountMeta({}); setClosureMeta({}); setClosureNotes('');
+
     if (todo.todo_type === 'count_approval' && todo.count_id) {
       setCountLoading(true);
-      const [{ data: items }, { data: countData }, ] = await Promise.all([
-        supabase
-          .from('count_line_items')
-          .select('id, item_number_raw, description_raw, vendor_raw, quantity, not_in_catalog, is_new_item')
-          .eq('inventory_count_id', todo.count_id)
-          .order('item_number_raw'),
-        supabase
-          .from('inventory_counts')
-          .select('submitted_at, rep_id, account_id')
-          .eq('id', todo.count_id)
-          .single(),
+      const [{ data: items }, { data: countData }] = await Promise.all([
+        supabase.from('count_line_items').select('id, item_number_raw, description_raw, vendor_raw, quantity, not_in_catalog, is_new_item').eq('inventory_count_id', todo.count_id).order('item_number_raw'),
+        supabase.from('inventory_counts').select('submitted_at, rep_id, account_id').eq('id', todo.count_id).single(),
       ]);
-
-      console.log('COUNT DATA:', JSON.stringify(countData, null, 2));
-      console.log('ITEMS:', JSON.stringify(items?.slice(0,2), null, 2));
-
-      // Now fetch account and rep separately using the IDs we got
       let accountName = null, regionName = null, repName = null;
       if (countData?.account_id) {
-        const { data: acct } = await supabase
-          .from('accounts')
-          .select('name, region:regions(name)')
-          .eq('id', countData.account_id)
-          .single();
-        console.log('ACCOUNT:', JSON.stringify(acct, null, 2));
+        const { data: acct } = await supabase.from('accounts').select('name, region:regions(name)').eq('id', countData.account_id).single();
         accountName = acct?.name || null;
         regionName = acct?.region?.name || null;
       }
       if (countData?.rep_id) {
-        const { data: rep } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', countData.rep_id)
-          .single();
-        console.log('REP:', JSON.stringify(rep, null, 2));
+        const { data: rep } = await supabase.from('profiles').select('full_name').eq('id', countData.rep_id).single();
         repName = rep?.full_name || null;
       }
-
       setCountItems(items || []);
-      setCountMeta({
-        submittedAt: countData?.submitted_at || null,
-        accountName: accountName,
-        repName: repName,
-        region: regionName,
-        repId: countData?.rep_id || null,
-      });
+      setCountMeta({ submittedAt: countData?.submitted_at || null, accountName, repName, region: regionName, repId: countData?.rep_id || null });
       setCountLoading(false);
+    }
+
+    if (todo.todo_type === 'account_closure') {
+      let meta = {}; try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
+      let accountName = null, regionName = null, repName = null, flaggedAt = null;
+      if (todo.account_id) {
+        const { data: acct } = await supabase.from('accounts').select('name, region:regions(name)').eq('id', todo.account_id).single();
+        accountName = acct?.name || null;
+        regionName = acct?.region?.name || null;
+      }
+      if (todo.rep_id) {
+        const { data: rep } = await supabase.from('profiles').select('full_name').eq('id', todo.rep_id).single();
+        repName = rep?.full_name || null;
+      }
+      if (todo.count_id) {
+        const { data: ic } = await supabase.from('inventory_counts').select('closure_flagged_at').eq('id', todo.count_id).single();
+        flaggedAt = ic?.closure_flagged_at || null;
+      }
+      setClosureMeta({
+        accountName: accountName || meta.account_name || todo.title?.replace('Account flagged for closure: ', '') || '',
+        repName: repName || meta.rep_name || '',
+        region: regionName || meta.region || '',
+        flaggedAt: flaggedAt || todo.created_at || null,
+        reason: meta.reason || '',
+        lastCountDate: meta.last_count_date || '',
+        finalCountPerformed: meta.final_count_performed || '',
+        inventoryReturned: meta.inventory_retrieved || '',
+        notes: meta.notes || '',
+        accountId: todo.account_id || null,
+        repId: todo.rep_id || null,
+      });
     }
   }
   function closeModal() {
-    setReviewModal(null); setCountMeta({});
+    setReviewModal(null); setCountMeta({}); setClosureMeta({}); setClosureNotes('');
     setDenyReason(''); setShowDenyBox(false);
     setRejectReason(''); setShowRejectBox(false);
     setCountItems([]);
@@ -306,7 +310,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
           }}>
 
             {/* HEADER â€” fixed, never scrolls */}
-            <div style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', padding: '22px 24px', flexShrink: 0 }}>
+            <div style={{ background: reviewModal.todo_type === 'account_closure' ? 'linear-gradient(135deg, #7C3AED, #5B21B6)' : 'linear-gradient(135deg, #1565C0, #0D47A1)', padding: '22px 24px', flexShrink: 0 }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
                 {reviewModal.todo_type === 'edit_request'    && 'Edit Request'}
                 {reviewModal.todo_type === 'count_approval'  && 'Count Review'}
@@ -320,10 +324,17 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                 {reviewModal.todo_type === 'count_approval' && (
                   <span style={{ fontSize: 10, fontWeight: 700, background: '#DCFCE7', color: '#15803D', padding: '3px 8px', borderRadius: 6 }}>Submitted</span>
                 )}
+                {reviewModal.todo_type === 'account_closure' && (
+                  <span style={{ fontSize: 10, fontWeight: 700, background: '#FEF3C7', color: '#92400E', padding: '3px 8px', borderRadius: 6 }}>Flagged for Closure</span>
+                )}
               </div>
               {reviewModal.todo_type === 'count_approval'
                 ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
                     {'Submitted by ' + (countMeta.repName || (reviewModal.description || '').replace(/^Rep /, '').split(' submitted')[0] || 'Unknown') + (countMeta.region ? '  |  ' + countMeta.region : '') + (countMeta.submittedAt ? '  |  ' + new Date(countMeta.submittedAt).toLocaleDateString() : '')}
+                  </div>
+                : reviewModal.todo_type === 'account_closure'
+                ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
+                    {'Flagged by ' + (closureMeta.repName || '--') + (closureMeta.region ? '  |  ' + closureMeta.region : '') + (closureMeta.flaggedAt ? '  |  ' + new Date(closureMeta.flaggedAt).toLocaleDateString() : '')}
                   </div>
                 : meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{'Submitted by ' + meta.rep_name + (meta.region ? '  |  ' + meta.region : '')}</div>
               }
@@ -421,10 +432,59 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
               </div>
             )}
             {reviewModal.todo_type === 'account_closure' && (
-              <div className="modal-body">
-                {meta.reason && <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div><div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div></div>}
-                {meta.notes && <div><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Notes</div><div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{meta.notes}</div></div>}
-              </div>
+              <>
+                {/* STAT BAR */}
+                <div style={{ display: 'flex', background: '#F7F9FC', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+                  {[
+                    { label: 'Reason', value: (closureMeta.reason || '--').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), color: '#D97706' },
+                    { label: 'Last Count Date', value: closureMeta.lastCountDate ? new Date(closureMeta.lastCountDate).toLocaleDateString() : '--' },
+                    { label: 'Final Count Done', value: closureMeta.finalCountPerformed ? closureMeta.finalCountPerformed.charAt(0).toUpperCase() + closureMeta.finalCountPerformed.slice(1) : '--', color: closureMeta.finalCountPerformed === 'yes' ? '#16A34A' : closureMeta.finalCountPerformed === 'no' ? '#EF4444' : undefined },
+                    { label: 'Inventory Returned', value: closureMeta.inventoryReturned ? closureMeta.inventoryReturned.charAt(0).toUpperCase() + closureMeta.inventoryReturned.slice(1) : '--', color: closureMeta.inventoryReturned === 'yes' ? '#16A34A' : closureMeta.inventoryReturned === 'partial' ? '#D97706' : closureMeta.inventoryReturned === 'no' ? '#EF4444' : undefined },
+                  ].map(s => (
+                    <div key={s.label} style={{ flex: 1, padding: '12px 14px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{s.label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: s.color || 'var(--text)', whiteSpace: 'nowrap' }}>{s.value}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* DETAILS GRID */}
+                <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 14 }}>Closure Details</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
+                    {[
+                      { label: 'Account', value: closureMeta.accountName },
+                      { label: 'Region', value: closureMeta.region },
+                      { label: 'Rep', value: closureMeta.repName },
+                      { label: 'Flagged On', value: closureMeta.flaggedAt ? new Date(closureMeta.flaggedAt).toLocaleDateString() + ' ' + new Date(closureMeta.flaggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--' },
+                    ].map(d => (
+                      <div key={d.label} style={{ background: '#F8FAFC', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 4 }}>{d.label}</div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{d.value || '--'}</div>
+                      </div>
+                    ))}
+                  </div>
+                  {closureMeta.notes && (
+                    <>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 10 }}>Rep Notes</div>
+                      <div style={{ background: '#F8FAFC', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{closureMeta.notes}</div>
+                    </>
+                  )}
+                </div>
+
+                {/* ADMIN NOTES â€” always visible */}
+                <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', background: '#F8FAFC', flexShrink: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Admin Notes (optional) â€” sent to rep</div>
+                  <textarea className="form-ta" value={closureNotes} onChange={e => setClosureNotes(e.target.value)} placeholder="Add any notes for the rep before confirming or denying this closure..." style={{ width: '100%', boxSizing: 'border-box', minHeight: 70, resize: 'vertical' }} />
+                </div>
+
+                {/* ACTIONS */}
+                <div className="modal-actions" style={{ flexShrink: 0 }}>
+                  <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
+                  <button className="btn btn-danger" onClick={() => { denyClosure(reviewModal, closureMeta, closureNotes); closeModal(); }}>Deny Closure</button>
+                  <button className="btn btn-primary" style={{ background: '#7C3AED' }} onClick={() => { confirmClosure(reviewModal, closureMeta, closureNotes); closeModal(); }}>Confirm Closure</button>
+                </div>
+              </>
             )}
             {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && (
               <div className="modal-body">
@@ -433,7 +493,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
             )}
 
             {/* Actions for non-count modals */}
-            {reviewModal.todo_type !== 'count_approval' && (
+            {reviewModal.todo_type !== 'count_approval' && reviewModal.todo_type !== 'account_closure' && (
               <div className="modal-actions">
                 <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
                 {reviewModal.todo_type === 'edit_request' && (
@@ -599,6 +659,53 @@ export default function AdminDashboard() {
     await supabase.from('alerts').insert({ alert_type: 'edit_denied', title: 'Edit Request Denied', message: 'Your request to reopen ' + (meta.account_name || '') + ' was denied.' + (reason ? ' Reason: ' + reason : ''), is_read: false, rep_id: countData?.rep_id, inventory_count_id: todo.count_id });
     setTodos(prev => prev.filter(t => t.id !== todo.id));
     toast.info('Edit request denied.');
+  }
+
+  async function confirmClosure(todo, cm, adminNotes) {
+    const accountId = cm.accountId;
+    const repId = cm.repId;
+    const accountName = cm.accountName;
+    // 1. Mark account as inactive/closed in database
+    await supabase.from('accounts').update({
+      is_active: false,
+      flagged_closed: true,
+      closed_at: new Date().toISOString(),
+      closed_by: 'admin',
+    }).eq('id', accountId);
+    // 2. Close the todo task
+    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
+    // 3. Notify the rep
+    if (repId) {
+      await supabase.from('alerts').insert({
+        alert_type: 'account_closed',
+        title: 'Account Closure Confirmed',
+        message: accountName + ' has been officially closed.' + (adminNotes ? ' Admin notes: ' + adminNotes : ''),
+        is_read: false,
+        rep_id: repId,
+      });
+    }
+    setTodos(prev => prev.filter(t => t.id !== todo.id));
+    toast.success(accountName + ' has been closed and marked inactive.');
+    loadData();
+  }
+
+  async function denyClosure(todo, cm, adminNotes) {
+    const repId = cm.repId;
+    const accountName = cm.accountName;
+    // Close the todo task
+    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
+    // Notify the rep the closure was denied
+    if (repId) {
+      await supabase.from('alerts').insert({
+        alert_type: 'closure_denied',
+        title: 'Account Closure Denied',
+        message: 'The closure request for ' + accountName + ' has been denied. The account remains open.' + (adminNotes ? ' Admin notes: ' + adminNotes : ''),
+        is_read: false,
+        rep_id: repId,
+      });
+    }
+    setTodos(prev => prev.filter(t => t.id !== todo.id));
+    toast.info('Closure denied - rep has been notified.');
   }
 
   function toggleRegion(rName) {
