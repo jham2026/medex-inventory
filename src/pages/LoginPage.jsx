@@ -1,64 +1,72 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
+import { useAuth } from '../components/AuthContext';
 
 export default function LoginPage() {
+  const { signIn } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail]       = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  async function handleLogin(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
-    setLoading(true); setError('');
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) { setError(error.message); setLoading(false); return; }
-    navigate('/');
+    setError(''); setLoading(true);
+    try {
+      await signIn(email, password);
+      navigate('/');
+    } catch (err) {
+      setError('Invalid email or password. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
     <div className="login-page">
       <div className="login-card">
-        <div style={{ marginBottom: 6 }}>
-          <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 4 }}>
-            <span style={{ color: '#1565C0' }}>Med</span><span style={{ color: '#F0A500' }}>Ex</span>
-          </div>
-          <div style={{ fontSize: 10, letterSpacing: 3, color: '#8FA3BF', textTransform: 'uppercase' }}>Inventory Counts</div>
-          <div style={{ width: 32, height: 2, background: '#F0A500', margin: '12px auto 20px' }} />
+        <div style={{ fontSize: 36, fontWeight: 800, lineHeight: 1, marginBottom: 4 }}>
+          <span style={{ color: '#FFD040' }}>Med</span><span style={{ color: '#FFD040' }}>Ex</span>
         </div>
-        <div className="login-title">Welcome Back</div>
-        <div className="login-sub">Sign in to access your inventory dashboard</div>
+        <div style={{ fontSize: 10, letterSpacing: 3, color: '#1565C0', textTransform: 'uppercase', marginBottom: 6, fontWeight: 800 }}>
+          Inventory Counts
+        </div>
+        <div style={{ width: 32, height: 2, background: '#FFD040', margin: '12px auto 20px' }} />
+        <div style={{ fontSize: 20, fontWeight: 700, color: '#1a1a2e', marginBottom: 4 }}>Welcome Back</div>
+        <div style={{ fontSize: 13, color: '#8FA3BF', marginBottom: 24 }}>Sign in to access your inventory dashboard</div>
 
-        {error && <div className="alert-banner error">{error}</div>}
+        {error && (
+          <div style={{ background: '#FEE2E2', color: '#DC2626', border: '1px solid #FECACA', borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16, textAlign: 'left' }}>
+            {error}
+          </div>
+        )}
 
-        <form onSubmit={handleLogin}>
-          <label className="login-label">Email Address</label>
+        <form onSubmit={handleSubmit}>
+          <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: '#6B7A8D', textAlign: 'left', marginBottom: 6, fontWeight: 600 }}>Email Address</div>
           <input
             className="login-input"
             type="email"
+            placeholder="you@medexpsi.com"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            placeholder="you@medexpsi.com"
             required
-            autoComplete="email"
           />
-          <label className="login-label">Password</label>
+          <div style={{ fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: '#6B7A8D', textAlign: 'left', marginBottom: 6, fontWeight: 600 }}>Password</div>
           <input
             className="login-input"
             type="password"
+            placeholder="Enter your password"
             value={password}
             onChange={e => setPassword(e.target.value)}
-            placeholder="Enter your password"
-            style={{ letterSpacing: 0 }}
             required
-            autoComplete="current-password"
           />
           <button className="login-btn" type="submit" disabled={loading}>
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-        <div className="login-help">Need access? Contact your administrator.</div>
+
+        <div style={{ fontSize: 12, color: '#9BA6B4', marginTop: 14 }}>Need access? Contact your administrator.</div>
       </div>
     </div>
   );
