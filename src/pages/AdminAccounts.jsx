@@ -180,7 +180,7 @@ export default function AdminAccounts() {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,31,50,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
             onClick={e => e.target === e.currentTarget && setSelectedClosed(null)}>
             <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 520, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
-              <div style={{ background: '#7f1d1d', padding: '20px 24px', borderBottom: '3px solid #EF4444', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ background: 'linear-gradient(180deg,#EF4444 0%,#DC2626 30%,#B91C1C 65%,#991B1B 100%)', padding: '20px 24px', borderBottom: '3px solid #FF6B6B', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>Closure Review</div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{selectedClosed.name}</div>
@@ -215,8 +215,8 @@ export default function AdminAccounts() {
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-                  <button onClick={() => setSelectedClosed(null)} style={{ flex: 1, padding: '12px', background: '#F2F5F8', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#3D5466', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
-                  <button onClick={() => reactivateClosed(selectedClosed)} style={{ flex: 1, padding: '12px', background: '#0076BB', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>Reactivate</button>
+                  <button onClick={() => setSelectedClosed(null)} style={{ flex: 1, padding: '12px', background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: 14, fontWeight: 700, color: 'var(--text-mid)', cursor: 'pointer', fontFamily: 'var(--font)' }}>Cancel</button>
+                  <button onClick={() => reactivateClosed(selectedClosed)} style={{ flex: 1, padding: '12px', background: 'var(--blue)', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' }}>Reactivate</button>
                   <button onClick={() => approveClosure(selectedClosed)} style={{ flex: 1, padding: '12px', background: '#EF4444', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>Approve Closure</button>
                 </div>
               </div>
@@ -235,7 +235,7 @@ export default function AdminAccounts() {
           <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,31,50,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
             onClick={e => e.target === e.currentTarget && setEditingReps(null)}>
             <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 480, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-              <div style={{ background: '#003f63', padding: '20px 24px', borderBottom: '3px solid #EEAF24', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ background: 'linear-gradient(180deg,#2E88E8 0%,#1565C0 50%,#0D47A1 100%)', padding: '20px 24px', borderBottom: '3px solid #FFD040', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>Assign Reps</div>
                   <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{acct?.name} &middot; {acct?.region?.name}</div>
@@ -258,7 +258,7 @@ export default function AdminAccounts() {
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {acct?.assigned_rep_id === r.id && (
-                          <span style={{ fontSize: 10, fontWeight: 600, color: '#0076BB', background: 'white', padding: '2px 8px', borderRadius: 10, border: '1px solid #0076BB' }}>Primary</span>
+                          <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--blue)', background: 'white', padding: '2px 8px', borderRadius: 10, border: '1px solid var(--blue)' }}>Primary</span>
                         )}
                         <button onClick={() => removeRepFromAccount(editingReps, r.id)}
                           style={{ background: '#EF4444', color: 'white', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>
@@ -282,7 +282,7 @@ export default function AdminAccounts() {
                         const sel = document.getElementById('addRepSelect');
                         if (sel.value) { addRepToAccount(editingReps, sel.value); sel.value = ''; }
                       }}
-                        style={{ padding: '8px 16px', background: '#0076BB', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                        style={{ padding: '8px 16px', background: 'var(--blue)', color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'var(--font)' }}
                         disabled={saving === editingReps}>
                         {saving === editingReps ? 'Adding...' : 'Add'}
                       </button>
@@ -296,22 +296,24 @@ export default function AdminAccounts() {
       })()}
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 14, marginBottom: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         {[
-          { key: 'all',        label: 'Active Accounts', val: activeCount,     color: '#0076BB' },
-          { key: 'unassigned', label: 'Unassigned',       val: unassignedCount, color: unassignedCount > 0 ? '#EF4444' : '#22C55E' },
-          { key: 'assigned',   label: 'Assigned',         val: assignedCount,   color: '#22C55E' },
-          { key: 'closed',     label: 'Flagged Closed',   val: closedCount,     color: closedCount > 0 ? '#EF4444' : '#7A909F' },
+          { key: 'all',        label: 'Active Accounts', val: activeCount,     bg: 'linear-gradient(135deg,#B8D8FF 0%,#60A8FF 100%)', tc: '#063B8A' },
+          { key: 'unassigned', label: 'Unassigned',       val: unassignedCount, bg: unassignedCount > 0 ? 'linear-gradient(135deg,#FFAAAA 0%,#FF4848 100%)' : 'linear-gradient(135deg,#8EEFD4 0%,#28D09A 100%)', tc: unassignedCount > 0 ? '#7A0000' : '#064D28' },
+          { key: 'assigned',   label: 'Assigned',         val: assignedCount,   bg: 'linear-gradient(135deg,#8EEFD4 0%,#28D09A 100%)', tc: '#064D28' },
+          { key: 'closed',     label: 'Flagged Closed',   val: closedCount,     bg: closedCount > 0 ? 'linear-gradient(135deg,#FFAAAA 0%,#FF4848 100%)' : 'linear-gradient(135deg,#FFE180 0%,#FFC010 100%)', tc: closedCount > 0 ? '#7A0000' : '#6B3C00' },
         ].map(s => (
           <div key={s.key} onClick={() => handleCardClick(s.key)}
             style={{
-              background: 'white', borderRadius: 12, padding: '18px 20px', cursor: 'pointer',
-              border: activeCard === s.key ? `1.5px solid ${s.color}` : '1.5px solid #E1E8EE',
-              boxShadow: activeCard === s.key ? `0 0 0 3px ${s.color}22` : '0 1px 4px rgba(0,118,187,0.08)',
+              background: s.bg, borderRadius: 12, padding: '18px 20px', cursor: 'pointer',
+              position: 'relative', overflow: 'hidden',
+              outline: activeCard === s.key ? '2.5px solid rgba(0,0,0,0.2)' : 'none',
+              outlineOffset: 2, transition: 'all 0.15s',
+              boxShadow: activeCard === s.key ? '0 4px 16px rgba(0,0,0,0.15)' : '0 2px 8px rgba(0,0,0,0.08)',
             }}>
-            <div style={{ fontSize: 30, fontWeight: 700, letterSpacing: '-1px', lineHeight: 1, marginBottom: 4, color: s.color }}>{s.val}</div>
-            <div style={{ fontSize: 12, color: '#7A909F', fontWeight: 500 }}>{s.label}</div>
-            {activeCard === s.key && <div style={{ fontSize: 11, color: s.color, marginTop: 4 }}>click to clear</div>}
+            <div style={{ position: 'absolute', bottom: -14, right: -14, width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.2)' }} />
+            <div style={{ fontSize: 32, fontWeight: 800, letterSpacing: '-1px', lineHeight: 1, marginBottom: 4, color: s.tc, position: 'relative', zIndex: 1 }}>{s.val}</div>
+            <div style={{ fontSize: 11, color: s.tc, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', position: 'relative', zIndex: 1 }}>{s.label}</div>
           </div>
         ))}
       </div>
@@ -381,14 +383,14 @@ export default function AdminAccounts() {
                       ) : assignedRepObjects.map(r => (
                         <span key={r.id} style={{
                           fontSize: 12, whiteSpace: 'nowrap', overflow: 'visible', background: acct.assigned_rep_id === r.id ? '#e8f4fb' : '#F2F5F8',
-                          color: acct.assigned_rep_id === r.id ? '#0076BB' : '#3D5466',
+                          color: acct.assigned_rep_id === r.id ? 'var(--blue)' : 'var(--text-mid)',
                           padding: '3px 8px', borderRadius: 6, fontWeight: 500,
                           border: acct.assigned_rep_id === r.id ? '1px solid #cce6f5' : '1px solid #E1E8EE',
                         }}>
                           {r.full_name}</span>
                       ))}
                       <button onClick={() => setEditingReps(acct.id)}
-                        style={{ fontSize: 11, color: '#0076BB', background: 'none', border: '1px dashed #0076BB', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                        style={{ fontSize: 11, color: 'var(--blue)', background: 'none', border: '1px dashed var(--blue)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontFamily: 'inherit' }}>
                         + Edit
                       </button>
                     </div>
