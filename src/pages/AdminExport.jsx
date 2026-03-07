@@ -4,12 +4,12 @@ import { useToast } from '../components/ToastContext';
 
 export default function AdminExport({ cycle }) {
   const toast = useToast();
-  const [cycles, setCycles]           = useState([]);
-  const [regions, setRegions]         = useState([]);
+  const [cycles, setCycles]             = useState([]);
+  const [regions, setRegions]           = useState([]);
   const [selectedCycle, setSelectedCycle] = useState(cycle?.id || '');
   const [selectedRegion, setSelectedRegion] = useState('');
-  const [exporting, setExporting]     = useState(false);
-  const [exportingRef, setExportingRef] = useState(null); // 'accounts'|'users'|'catalog'
+  const [exporting, setExporting]       = useState(false);
+  const [exportingRef, setExportingRef] = useState(null);
 
   useEffect(() => {
     supabase.from('count_cycles').select('*').order('created_at', { ascending: false })
@@ -20,11 +20,9 @@ export default function AdminExport({ cycle }) {
     supabase.from('regions').select('*').order('name').then(({ data }) => setRegions(data || []));
   }, []);
 
-  // â”€â”€ Count Data Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function runCountExport() {
     if (!selectedCycle) { toast.error('Select a count cycle'); return; }
     setExporting(true);
-
     let query = supabase
       .from('count_line_items')
       .select(`
@@ -38,17 +36,11 @@ export default function AdminExport({ cycle }) {
         )
       `)
       .eq('count.cycle_id', selectedCycle);
-
-    if (selectedRegion) {
-      query = query.eq('count.account.region.name', selectedRegion);
-    }
-
+    if (selectedRegion) query = query.eq('count.account.region.name', selectedRegion);
     const { data, error } = await query;
     if (error) { toast.error('Export error: ' + error.message); setExporting(false); return; }
-
     const rows = (data || []).filter(d => d.count);
     const cycleLabel = cycles.find(c => c.id === selectedCycle)?.name || 'export';
-
     const header = [
       'Region', 'Account', 'Rep', 'Rep Email',
       'Item Number', 'Description', 'Vendor',
@@ -56,7 +48,6 @@ export default function AdminExport({ cycle }) {
       'New Item', 'Not In Catalog', 'Edited After Submit', 'Scanned',
       'Submitted Date', 'Approved Date', 'Status'
     ];
-
     const csvRows = [header, ...rows.map(r => [
       r.count?.account?.region?.name || '',
       r.count?.account?.name || '',
@@ -75,26 +66,21 @@ export default function AdminExport({ cycle }) {
       r.count?.approved_at  ? new Date(r.count.approved_at).toLocaleDateString()  : '',
       r.count?.status || '',
     ])];
-
-    downloadCsv(csvRows, `MedEx_Counts_${cycleLabel.replace(/\s/g, '_')}${selectedRegion ? '_' + selectedRegion : ''}`);
-    toast.success(`Exported ${rows.length} line items`);
+    downloadCsv(csvRows, 'MedEx_Counts_' + cycleLabel.replace(/\s/g, '_') + (selectedRegion ? '_' + selectedRegion : ''));
+    toast.success('Exported ' + rows.length + ' line items');
     setExporting(false);
   }
 
-  // â”€â”€ Reference Data Exports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   async function runAccountsExport() {
     setExportingRef('accounts');
-    const { data: accts, error: e1 } = await supabase.from('accounts').select('name, is_active, flagged_closed, catalog_source, region:regions(name)').order('name');
+    const { data: accts, error: e1 } = await supabase.from('accounts').select('id, name, is_active, flagged_closed, catalog_source, region:regions(name)').order('name');
     const { data: arData } = await supabase.from('account_reps').select('account_id, rep:profiles(full_name)');
     if (e1) { toast.error('Export error: ' + e1.message); setExportingRef(null); return; }
-
-    // Build rep map
     const repMap = {};
     for (const ar of arData || []) {
       if (!repMap[ar.account_id]) repMap[ar.account_id] = [];
       if (ar.rep?.full_name) repMap[ar.account_id].push(ar.rep.full_name);
     }
-
     const header = ['Account Name', 'Region', 'Catalog', 'Assigned Reps', 'Active', 'Flagged Closed'];
     const rows = (accts || []).map(a => [
       a.name || '',
@@ -105,7 +91,7 @@ export default function AdminExport({ cycle }) {
       a.flagged_closed ? 'YES' : 'NO',
     ]);
     downloadCsv([header, ...rows], 'MedEx_Accounts');
-    toast.success(`Exported ${rows.length} accounts`);
+    toast.success('Exported ' + rows.length + ' accounts');
     setExportingRef(null);
   }
 
@@ -116,7 +102,7 @@ export default function AdminExport({ cycle }) {
     const header = ['Full Name', 'Email', 'Role', 'Region', 'Active'];
     const rows = (data || []).map(u => [u.full_name || '', u.email || '', u.role || '', u.region || '', u.is_active ? 'YES' : 'NO']);
     downloadCsv([header, ...rows], 'MedEx_Users');
-    toast.success(`Exported ${rows.length} users`);
+    toast.success('Exported ' + rows.length + ' users');
     setExportingRef(null);
   }
 
@@ -127,12 +113,12 @@ export default function AdminExport({ cycle }) {
     const header = ['Item Number', 'Description', 'Primary Vendor', 'Catalog Source'];
     const rows = (data || []).map(i => [i.item_number || '', i.description || '', i.primary_vendor || '', i.catalog_source || '']);
     downloadCsv([header, ...rows], 'MedEx_ItemCatalog');
-    toast.success(`Exported ${rows.length} items`);
+    toast.success('Exported ' + rows.length + ' items');
     setExportingRef(null);
   }
 
   function downloadCsv(rows, filename) {
-    const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const csv = rows.map(r => r.map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement('a');
@@ -145,53 +131,50 @@ export default function AdminExport({ cycle }) {
   return (
     <div>
 
-      {/* â”€â”€ Intro note â”€â”€ */}
+      {/* Intro note */}
       <div style={{
         background: 'var(--blue-light)', border: '1px solid #C7DCFF',
         borderRadius: 12, padding: '14px 18px', marginBottom: 24,
         display: 'flex', alignItems: 'center', gap: 12,
       }}>
-        <span style={{ fontSize: 20 }}>ðŸ“¤</span>
+        <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 1v9M4 7l4 4 4-4M1 13h14" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
         <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5 }}>
           All exports download as <strong style={{ color: 'var(--blue)' }}>standard CSV files</strong> compatible with Excel and Google Sheets.
           To <strong style={{ color: 'var(--blue)' }}>import data</strong> or download a blank CSV template, go to the relevant Settings page (Accounts, Users, or Item Catalog).
         </div>
       </div>
 
-      {/* â”€â”€ Section: Reference Data â”€â”€ */}
+      {/* Section: Reference Data */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--text-dim)' }}>Reference Data</span>
         <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
       </div>
 
-      {/* Accounts */}
       <ExportCard
-        icon="--" iconBg="var(--blue-light)"
+        label="AC" iconBg="var(--blue-light)"
         title="Accounts"
         sub="Account names, regions, assigned reps, catalog and status"
         loading={exportingRef === 'accounts'}
         onExport={runAccountsExport}
       />
-
-      {/* Users */}
       <ExportCard
-        icon="--" iconBg="var(--gold-light)"
+        label="US" iconBg="var(--gold-light)"
         title="Users"
         sub="User names, emails, roles and regions"
         loading={exportingRef === 'users'}
         onExport={runUsersExport}
       />
-
-      {/* Item Catalog */}
       <ExportCard
-        icon="--" iconBg="var(--amber-light)"
+        label="IC" iconBg="var(--amber-light)"
         title="Item Catalog"
         sub="Item numbers, descriptions and vendor info"
         loading={exportingRef === 'catalog'}
         onExport={runCatalogExport}
       />
 
-      {/* â”€â”€ Section: Count Data â”€â”€ */}
+      {/* Section: Count Data */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '24px 0 14px' }}>
         <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--text-dim)' }}>Count Data</span>
         <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
@@ -205,16 +188,15 @@ export default function AdminExport({ cycle }) {
         flexWrap: 'wrap', gap: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--green-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>CH</div>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--green-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'var(--green)', flexShrink: 0 }}>CH</div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>Count History</div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
-              Full count results â€” all statuses (not started, in progress, submitted) â€” every line item detail
+              Full count results - all statuses (not started, in progress, submitted) - every line item detail
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {/* Cycle filter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '6px 12px' }}>
             <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Cycle:</span>
             <select
@@ -224,7 +206,6 @@ export default function AdminExport({ cycle }) {
               {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-          {/* Region filter */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '6px 12px' }}>
             <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Region:</span>
             <select
@@ -241,7 +222,7 @@ export default function AdminExport({ cycle }) {
             disabled={exporting || !selectedCycle}
             style={{ whiteSpace: 'nowrap' }}
           >
-            {exporting ? 'Exporting...' : 'â†“ Export CSV'}
+            {exporting ? 'Exporting...' : 'Export CSV'}
           </button>
         </div>
       </div>
@@ -250,7 +231,7 @@ export default function AdminExport({ cycle }) {
   );
 }
 
-function ExportCard({ icon, iconBg, title, sub, loading, onExport }) {
+function ExportCard({ label, iconBg, title, sub, loading, onExport }) {
   return (
     <div style={{
       background: 'var(--white)', border: '1px solid var(--border)',
@@ -258,14 +239,14 @@ function ExportCard({ icon, iconBg, title, sub, loading, onExport }) {
       display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{ width: 40, height: 40, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: "var(--blue)", flexShrink: 0 }}>{icon}</div>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, color: 'var(--blue)', flexShrink: 0 }}>{label}</div>
         <div>
           <div style={{ fontSize: 14, fontWeight: 700 }}>{title}</div>
           <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{sub}</div>
         </div>
       </div>
       <button className="btn btn-primary" onClick={onExport} disabled={loading} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
-        {loading ? 'Exporting...' : 'â†“ Export CSV'}
+        {loading ? 'Exporting...' : 'Export CSV'}
       </button>
     </div>
   );
