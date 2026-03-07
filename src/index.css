@@ -1,631 +1,310 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { supabase } from '../lib/supabase';
-import { useAuth } from '../components/AuthContext';
-import { useToast } from '../components/ToastContext';
-import AdminUsers from './AdminUsers';
-import AdminDataManagement from './AdminDataManagement';
-import AdminAccounts from './AdminAccounts';
-import AdminItemCatalog from './AdminItemCatalog';
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
-const NAV = [
-  { section: 'DASHBOARD' },
-  { key: 'overview',  label: 'Count Cycle Details' },
-  { key: 'todos',     label: 'To Do' },
-  { key: 'mycounts',  label: 'My Counts' },
-  { key: 'reports',   label: 'Reports' },
-  { section: 'SETTINGS' },
-  { key: 'accounts',  label: 'Accounts' },
-  { key: 'users',     label: 'Users' },
-  { key: 'catalog',   label: 'Item Catalog' },
-];
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Plus Jakarta Sans', sans-serif; background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
 
-const STAT_CARDS = [
-  { key: 'not_started', label: 'Not Started', cls: 'sc-red',   tc: 'c-red',   soft: 'sc-red-soft',   stc: 'c-red-soft'   },
-  { key: 'in_progress', label: 'In Progress',  cls: 'sc-gold',  tc: 'c-gold',  soft: 'sc-gold-soft',  stc: 'c-gold-soft'  },
-  { key: 'submitted',   label: 'Submitted',    cls: 'sc-blue',  tc: 'c-blue',  soft: 'sc-blue-soft',  stc: 'c-blue-soft'  },
-  { key: 'approved',    label: 'Approved',     cls: 'sc-green', tc: 'c-green', soft: 'sc-green-soft', stc: 'c-green-soft' },
-];
-
-function Pill({ status }) {
-  const map    = { not_started: 'pill-ns', in_progress: 'pill-ip', submitted: 'pill-sub', approved: 'pill-app' };
-  const labels = { not_started: 'Not Started', in_progress: 'In Progress', submitted: 'Submitted', approved: 'Approved' };
-  return <span className={'pill ' + (map[status] || 'pill-ns')}>{labels[status] || status}</span>;
+:root {
+  --bg:          #F7F9FC;
+  --white:       #FFFFFF;
+  --blue:        #1565C0;
+  --blue-action: #1565C0;
+  --blue-bright: #2E88E8;
+  --blue-light:  #EBF3FF;
+  --gold:        #FFD040;
+  --gold-light:  #FFF8E6;
+  --green:       #16A34A;
+  --green-light: #DCFCE7;
+  --amber:       #D97706;
+  --amber-light: #FEF3C7;
+  --red:         #DC2626;
+  --red-light:   #FEE2E2;
+  --text:        #0F172A;
+  --text-mid:    #475569;
+  --text-dim:    #94A3B8;
+  --border:      #E2E8F0;
+  --grad-blue:   linear-gradient(150deg, #B8D8FF 0%, #85BEFF 45%, #60A8FF 100%);
+  --grad-gold:   linear-gradient(150deg, #FFE180 0%, #FFD040 45%, #FFC010 100%);
+  --grad-green:  linear-gradient(150deg, #8EEFD4 0%, #52DDB0 45%, #28D09A 100%);
+  --grad-red:    linear-gradient(150deg, #FFAAAA 0%, #FF7070 45%, #FF4848 100%);
+  --hero-bg:     linear-gradient(140deg, #C8D6EC 0%, #B8C8E0 45%, #A8BCDA 100%);
+  --sidebar-grad: linear-gradient(180deg, #2E88E8 0%, #2076D4 20%, #1565C0 50%, #1254A8 75%, #0D47A1 100%);
 }
 
-function MyCounts({ cycle, profile, navigate }) {
-  const [counts, setCounts] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!cycle || !profile?.id) { setLoading(false); return; }
-    supabase
-      .from('inventory_counts')
-      .select('id, status, account:accounts(id, name, region:regions(name))')
-      .eq('cycle_id', cycle.id)
-      .eq('rep_id', profile.id)
-      .then(({ data }) => { setCounts(data || []); setLoading(false); });
-  }, [cycle, profile]);
-
-  if (loading) return <div className="loading-center"><div className="spinner" /></div>;
-
-  const total     = counts.length;
-  const stats = {
-    not_started: counts.filter(c => c.status === 'not_started').length,
-    in_progress:  counts.filter(c => c.status === 'in_progress').length,
-    submitted:    counts.filter(c => c.status === 'submitted').length,
-    approved:     counts.filter(c => c.status === 'approved').length,
-  };
-  const pct = total > 0 ? Math.round((stats.submitted + stats.approved) / total * 100) : 0;
-  const firstName = profile?.full_name?.split(' ')[0] || 'there';
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-  const needAttention = counts.filter(c => c.status === 'not_started' || c.status === 'in_progress').length;
-
-  const statusColor = { not_started: 'var(--red)', in_progress: 'var(--amber)', submitted: 'var(--blue)', approved: 'var(--green)' };
-  const statusLabel = { not_started: 'Not Started', in_progress: 'In Progress', submitted: 'Submitted', approved: 'Approved' };
-
-  return (
-    <div>
-      <div style={{ marginBottom: 24 }}>
-        <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>{greeting}, {firstName}</div>
-        <div style={{ fontSize: 14, color: 'var(--text-dim)' }}>
-          {needAttention > 0 ? needAttention + ' account' + (needAttention !== 1 ? 's' : '') + ' still need your attention' : 'All counts are up to date!'}
-        </div>
-      </div>
-
-      {cycle ? (
-        <div className="cycle-hero" style={{ marginBottom: 24 }}>
-          <div className="hero-top">
-            <div>
-              <div className="hero-title">{cycle.name}</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div className="hero-pct">{pct}%</div>
-              <div className="hero-pct-lbl">COMPLETE</div>
-            </div>
-          </div>
-          <div className="hero-stats">
-            {STAT_CARDS.map(s => (
-              <div key={s.key} className={'stat-card hero-stat-card ' + s.cls}>
-                <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', position:'relative', zIndex:1 }}>
-                  <div>
-                    <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
-                    <div className={'sc-lbl ' + s.tc}>{s.label}</div>
-                  </div>
-                  <div className={'sc-sub ' + s.tc} style={{ fontSize:22, fontWeight:800, lineHeight:1, opacity:0.85 }}>{total > 0 ? Math.round(stats[s.key] / total * 100) : 0}%</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="card" style={{ padding: 24, marginBottom: 24, color: 'var(--text-dim)', fontStyle: 'italic' }}>No active count cycle.</div>
-      )}
-
-      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>Your Accounts</div>
-      {counts.length === 0 ? (
-        <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--text-dim)' }}>No accounts assigned to you for this cycle.</div>
-      ) : counts.map(c => (
-        <div key={c.id} className="card" style={{ marginBottom: 10, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: '4px solid ' + (statusColor[c.status] || 'var(--border)') }}>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{c.account?.name}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{c.account?.region?.name}</div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: statusColor[c.status], marginTop: 3 }}>{statusLabel[c.status]}</div>
-          </div>
-          {(c.status === 'not_started' || c.status === 'in_progress') && (
-            <button className="btn btn-primary" onClick={() => navigate('/count/' + c.id)}>Enter Count</button>
-          )}
-          {c.status === 'submitted' && (
-            <button className="btn btn-outline" onClick={() => navigate('/count/' + c.id)}>View Count</button>
-          )}
-          {c.status === 'approved' && (
-            <button className="btn btn-outline" onClick={() => navigate('/count/' + c.id)}>View Count</button>
-          )}
-        </div>
-      ))}
-    </div>
-  );
+/* ── SIDEBAR ── */
+.sidebar {
+  width: 238px; flex-shrink: 0;
+  background: var(--sidebar-grad);
+  display: flex; flex-direction: column;
+  position: relative; overflow: hidden; height: 100vh;
 }
-
-function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCount }) {
-  const [denyModal, setDenyModal] = useState(null);
-  const [denyReason, setDenyReason] = useState('');
-  const [expanded, setExpanded] = useState({});
-
-  const editRequests   = todos.filter(t => t.todo_type === 'edit_request');
-  const countApprovals = todos.filter(t => t.todo_type === 'count_approval');
-  const closureFlags   = todos.filter(t => t.todo_type === 'account_closure');
-  const general        = todos.filter(t => !t.todo_type || t.todo_type === 'general');
-
-  function parseMeta(t) { try { return JSON.parse(t.metadata || '{}'); } catch { return {}; } }
-
-  function TodoCard({ title, count, children, emptyMsg }) {
-    return (
-      <div className="todo-section">
-        <div className="todo-head">
-          <div className="todo-head-title">{title}</div>
-          <div className="todo-badge">{count}</div>
-        </div>
-        {count === 0
-          ? <div className="todo-empty">{emptyMsg || 'No items pending.'}</div>
-          : children}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <TodoCard title="Count Edit Requests" count={editRequests.length} emptyMsg="No edit requests pending.">
-        {editRequests.map(t => {
-          const meta = parseMeta(t);
-          return (
-            <div key={t.id} style={{ borderBottom: '1px solid var(--border)' }}>
-              <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 2 }}>{meta.account_name || t.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{meta.rep_name} &middot; {meta.region}</div>
-                  {meta.reason && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 4 }}>Reason: <strong>{meta.reason.replace(/_/g,' ')}</strong></div>}
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button className="tbl-btn" onClick={() => onApproveEdit(t)}>Approve</button>
-                  <button className="tbl-btn-danger" onClick={() => setDenyModal(t)}>Deny</button>
-                  <button className="tbl-btn-sm" onClick={() => setExpanded(p => ({ ...p, [t.id]: !p[t.id] }))}>{expanded[t.id] ? 'Less' : 'Details'}</button>
-                </div>
-              </div>
-              {expanded[t.id] && meta.details && (
-                <div style={{ padding: '0 20px 16px', background: 'var(--bg)' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Rep's Explanation</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>{meta.details}</div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </TodoCard>
-
-      <TodoCard title="Counts to Approve" count={countApprovals.length} emptyMsg="No counts awaiting approval.">
-        {countApprovals.map(t => (
-          <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title?.replace('Count to approve: ', '')}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{t.description}</div>
-            </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button className="tbl-btn" onClick={() => onApproveCount(t.count_id)}>Approve Count</button>
-              <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Dismiss</button>
-            </div>
-          </div>
-        ))}
-      </TodoCard>
-
-      <TodoCard title="Accounts Flagged for Closure" count={closureFlags.length} emptyMsg="No accounts flagged for closure.">
-        {closureFlags.map(t => {
-          const meta = parseMeta(t);
-          return (
-            <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{meta.account_name || t.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>Rep: {meta.rep_name} &middot; Reason: {meta.reason?.replace(/_/g,' ')}</div>
-                {meta.notes && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 3 }}>{meta.notes}</div>}
-              </div>
-              <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Mark Reviewed</button>
-            </div>
-          );
-        })}
-      </TodoCard>
-
-      <TodoCard title="General Tasks" count={general.length} emptyMsg="No general tasks pending.">
-        {general.map(t => (
-          <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title}</div>
-              {t.description && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{t.description}</div>}
-            </div>
-            <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Mark Complete</button>
-          </div>
-        ))}
-      </TodoCard>
-
-      {denyModal && (
-        <div className="modal-overlay">
-          <div className="modal">
-            <div className="modal-head-red">
-              <div className="modal-head-title">Deny Edit Request</div>
-              <div className="modal-head-sub">{parseMeta(denyModal).account_name}</div>
-            </div>
-            <div className="modal-body">
-              <p style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 12 }}>Please provide a reason for denying this request. The rep will be notified.</p>
-              <textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)} placeholder="Explain why the edit request is being denied..." />
-            </div>
-            <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => { setDenyModal(null); setDenyReason(''); }}>Cancel</button>
-              <button className="btn btn-danger" onClick={() => { onDenyEdit(denyModal, denyReason); setDenyModal(null); setDenyReason(''); }}>Deny Request</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+.sidebar::before {
+  content: ''; position: absolute; inset: 0;
+  background: repeating-linear-gradient(-45deg, transparent, transparent 18px, rgba(255,255,255,0.028) 18px, rgba(255,255,255,0.028) 19px);
+  pointer-events: none; z-index: 0;
 }
-
-export default function AdminDashboard() {
-  const { profile } = useAuth();
-  const toast = useToast();
-  const navigate = useNavigate();
-  const [tab, setTab]               = useState('overview');
-  const [cycle, setCycle]           = useState(null);
-  const [progress, setProgress]     = useState([]);
-  const [todos, setTodos]           = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [progressFilter, setProgressFilter] = useState('all');
-  const [cycleForm, setCycleForm]   = useState({ name: '', quarter: 'Q1', year: new Date().getFullYear() });
-  const [collapsedRegions, setCollapsedRegions] = useState({});
-
-  useEffect(() => { loadData(); }, []);
-
-  async function signOut() {
-    await supabase.auth.signOut();
-    navigate('/login');
-  }
-
-  async function loadData() {
-    setLoading(true);
-    const [{ data: cycleData }, { data: todoData }] = await Promise.all([
-      supabase.from('count_cycles').select('*').eq('status', 'open').single(),
-      supabase.from('todos').select('*').eq('is_complete', false).order('created_at', { ascending: false }),
-    ]);
-    setCycle(cycleData);
-    setTodos(todoData || []);
-
-    if (cycleData) {
-      const { data: counts } = await supabase
-        .from('inventory_counts')
-        .select('id, status, submitted_at, approved_at, rep_id, account:accounts(id, name, region:regions(name))')
-        .eq('cycle_id', cycleData.id)
-        .order('status').limit(500);
-      const { data: reps } = await supabase.from('profiles').select('id, full_name');
-      const { data: acctReps } = await supabase.from('account_reps').select('account_id, rep_id');
-      const repMap = {};
-      for (const r of reps || []) repMap[r.id] = r;
-      const acctRepsMap = {};
-      for (const ar of acctReps || []) {
-        if (!acctRepsMap[ar.account_id]) acctRepsMap[ar.account_id] = [];
-        acctRepsMap[ar.account_id].push(repMap[ar.rep_id]);
-      }
-      setProgress((counts || []).map(c => ({ ...c, rep: c.rep_id ? repMap[c.rep_id] : null, allReps: acctRepsMap[c.account?.id] || [] })));
-      // Default all regions to collapsed
-      const regionNames = [...new Set((counts || []).map(c => c.account?.region?.name || 'Unassigned'))];
-      setCollapsedRegions(Object.fromEntries(regionNames.map(r => [r, true])));
-    }
-    setLoading(false);
-  }
-
-  async function openCycle() {
-    if (!cycleForm.name) { toast.error('Enter a cycle name'); return; }
-    const { data: newCycle, error } = await supabase.from('count_cycles').insert({
-      name: cycleForm.name, quarter: cycleForm.quarter, year: cycleForm.year,
-      status: 'open', opened_at: new Date().toISOString(),
-    }).select().single();
-    if (error) { toast.error('Error: ' + error.message); return; }
-    toast.info('Cycle "' + cycleForm.name + '" created â€” populating counts...');
-    const { data: accounts } = await supabase.from('accounts').select('id, name, assigned_rep_id').eq('is_active', true);
-    if (!accounts?.length) { toast.warning('No active accounts found.'); loadData(); return; }
-    for (let i = 0; i < accounts.length; i += 100) {
-      const batch = accounts.slice(i, i + 100).map(a => ({ cycle_id: newCycle.id, account_id: a.id, rep_id: a.assigned_rep_id || null, status: 'not_started' }));
-      await supabase.from('inventory_counts').insert(batch);
-    }
-    toast.success('Cycle "' + cycleForm.name + '" opened!');
-    loadData();
-  }
-
-  async function closeCycle() {
-    if (!window.confirm('Close cycle "' + cycle?.name + '"? Reps will no longer be able to submit.')) return;
-    await supabase.from('count_cycles').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', cycle.id);
-    toast.success('Count cycle closed.');
-    setCycle(null); setProgress([]); loadData();
-  }
-
-  async function approveCount(countId) {
-    const { data: countData } = await supabase.from('inventory_counts').select('rep_id, account:accounts(name)').eq('id', countId).single();
-    await supabase.from('inventory_counts').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', countId);
-    setProgress(prev => prev.map(p => p.id === countId ? { ...p, status: 'approved' } : p));
-    if (countData?.rep_id) {
-      await supabase.from('alerts').insert({ alert_type: 'count_approved', title: 'Count Approved', message: 'Your count for ' + (countData.account?.name || '') + ' has been approved!', is_read: false, rep_id: countData.rep_id, inventory_count_id: countId });
-    }
-    toast.success('Count approved!');
-  }
-
-  async function completeTodo(todoId) {
-    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todoId);
-    setTodos(prev => prev.filter(t => t.id !== todoId));
-    toast.success('Task marked complete!');
-  }
-
-  async function approveEditRequest(todo) {
-    let meta = {}; try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
-    if (todo.count_id) await supabase.from('inventory_counts').update({ status: 'in_progress' }).eq('id', todo.count_id);
-    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
-    const { data: countData } = await supabase.from('inventory_counts').select('rep_id').eq('id', todo.count_id).single();
-    await supabase.from('alerts').insert({ alert_type: 'edit_approved', title: 'Edit Request Approved', message: 'Your request to reopen ' + (meta.account_name || '') + ' has been approved.', is_read: false, rep_id: countData?.rep_id, inventory_count_id: todo.count_id });
-    setTodos(prev => prev.filter(t => t.id !== todo.id));
-    toast.success('Edit request approved!');
-    loadData();
-  }
-
-  async function denyEditRequest(todo, reason) {
-    let meta = {}; try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
-    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
-    const { data: countData } = await supabase.from('inventory_counts').select('rep_id').eq('id', todo.count_id).single();
-    await supabase.from('alerts').insert({ alert_type: 'edit_denied', title: 'Edit Request Denied', message: 'Your request to reopen ' + (meta.account_name || '') + ' was denied.' + (reason ? ' Reason: ' + reason : ''), is_read: false, rep_id: countData?.rep_id, inventory_count_id: todo.count_id });
-    setTodos(prev => prev.filter(t => t.id !== todo.id));
-    toast.info('Edit request denied.');
-  }
-
-  function toggleRegion(rName) {
-    setCollapsedRegions(prev => ({ ...prev, [rName]: !prev[rName] }));
-  }
-
-  const stats = {
-    not_started: progress.filter(p => p.status === 'not_started').length,
-    in_progress:  progress.filter(p => p.status === 'in_progress').length,
-    submitted:    progress.filter(p => p.status === 'submitted').length,
-    approved:     progress.filter(p => p.status === 'approved').length,
-  };
-  const total = progress.length;
-  const pct   = total > 0 ? Math.round((stats.submitted + stats.approved) / total * 100) : 0;
-
-  const filteredProgress = progressFilter === 'all' ? progress : progress.filter(p => p.status === progressFilter);
-  const regionMap = {};
-  filteredProgress.forEach(p => {
-    const rName = p.account?.region?.name || 'Unassigned';
-    if (!regionMap[rName]) regionMap[rName] = [];
-    regionMap[rName].push(p);
-  });
-
-  const pageTitle = NAV.find(n => n.key === tab)?.label || 'Dashboard';
-
-  if (loading) return (
-    <div className="app-shell">
-      <div className="sidebar" />
-      <div className="main-col" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <div className="loading-center"><div className="spinner" /><span>Loading...</span></div>
-      </div>
-    </div>
-  );
-
-  return (
-    <div className="app-shell">
-      {/* SIDEBAR */}
-      <nav className="sidebar">
-        <div className="sidebar-logo">
-          <div className="logo-text"><span>Med</span><span>Ex</span></div>
-          <div className="logo-sub">Inventory Count System</div>
-        </div>
-
-        {NAV.map((item, i) => {
-          if (item.section) return (
-            <div key={i} className="nav-section">
-              <div className="nav-section-label">{item.section}</div>
-            </div>
-          );
-          return (
-            <div key={item.key} style={{ padding: '0 12px 2px' }}>
-              <div className={'nav-item' + (tab === item.key ? ' active' : '')} onClick={() => setTab(item.key)}>
-                <div className="nav-dot" />
-                <span style={{ flex: 1 }}>{item.label}</span>
-                {item.key === 'todos' && todos.length > 0 && (
-                  <span style={{ background: '#EF4444', color: 'white', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 10 }}>{todos.length}</span>
-                )}
-              </div>
-            </div>
-          );
-        })}
-
-        <div className="sidebar-bottom">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div>
-              <div className="user-name">{profile?.full_name}</div>
-              <div className="user-role">Administrator</div>
-            </div>
-            <button onClick={signOut} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit' }}>
-              Sign Out
-            </button>
-          </div>
-        </div>
-        <div className="sidebar-accent-bar" />
-      </nav>
-
-      {/* MAIN */}
-      <div className="main-col">
-        <div className="topbar">
-          <div>
-            <h1>{pageTitle}</h1>
-            <p>
-              {tab === 'overview'  && (cycle ? cycle.name + ' \u2014 ' + total + ' accounts' : 'No active cycle')}
-              {tab === 'todos'     && todos.length + ' pending task' + (todos.length !== 1 ? 's' : '')}
-              {tab === 'mycounts'  && 'Your assigned accounts for the active cycle'}
-              {tab === 'reports'   && 'Export count data'}
-              {tab === 'accounts'  && 'Manage account assignments'}
-              {tab === 'users'     && 'Manage rep accounts'}
-              {tab === 'catalog'   && 'Manage inventory items'}
-            </p>
-          </div>
-          {tab === 'overview' && cycle && (
-            <button className="btn btn-danger" onClick={closeCycle}>Close Cycle</button>
-          )}
-        </div>
-
-        <div className="content-area">
-
-          {/* OVERVIEW */}
-          {tab === 'overview' && (
-            <>
-              {!cycle ? (
-                <div className="card" style={{ maxWidth: 560 }}>
-                  <div className="card-head">
-                    <div>
-                      <div className="card-head-title">Open a Count Cycle</div>
-                      <div className="card-head-sub">No active cycle \u2014 create one to begin</div>
-                    </div>
-                  </div>
-                  <div className="card-body">
-                    <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                      <div>
-                        <label className="input-label">Cycle Name</label>
-                        <input className="input" style={{ width: 180 }} value={cycleForm.name} onChange={e => setCycleForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Q1 2026" />
-                      </div>
-                      <div>
-                        <label className="input-label">Quarter</label>
-                        <select className="select" value={cycleForm.quarter} onChange={e => setCycleForm(p => ({ ...p, quarter: e.target.value }))}>
-                          <option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="input-label">Year</label>
-                        <input className="input" type="number" style={{ width: 100 }} value={cycleForm.year} onChange={e => setCycleForm(p => ({ ...p, year: parseInt(e.target.value) }))} />
-                      </div>
-                      <button className="btn btn-primary" onClick={openCycle}>Open Cycle</button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* Hero card */}
-                  <div className="cycle-hero">
-                    <div className="hero-top">
-                      <div>
-                        <div className="hero-title">{cycle.name} Count Cycle</div>
-                        <div className="hero-meta">Opened {new Date(cycle.opened_at).toLocaleDateString()} &middot; {total} accounts total</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div className="hero-pct">{pct}%</div>
-                        <div className="hero-pct-lbl">COMPLETE</div>
-                      </div>
-                    </div>
-                    <div className="hero-stats">
-                      {STAT_CARDS.map(s => (
-                        <div key={s.key}
-                          className={'stat-card hero-stat-card ' + s.cls}
-                          style={{ outline: progressFilter === s.key ? '2.5px solid white' : 'none', outlineOffset: 2 }}
-                          onClick={() => setProgressFilter(f => f === s.key ? 'all' : s.key)}>
-                          <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', position:'relative', zIndex:1 }}>
-                            <div>
-                              <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
-                              <div className={'sc-lbl ' + s.tc}>{s.label}</div>
-                            </div>
-                            <div className={'sc-sub ' + s.tc} style={{ fontSize:22, fontWeight:800, lineHeight:1, opacity:0.85 }}>{total > 0 ? Math.round(stats[s.key] / total * 100) : 0}%</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Region blocks */}
-                  {Object.keys(regionMap).sort().map(rName => {
-                    const counts = regionMap[rName];
-                    const allForRegion = progress.filter(p => (p.account?.region?.name || 'Unassigned') === rName);
-                    const rTotal     = allForRegion.length;
-                    const rApproved  = allForRegion.filter(p => p.status === 'approved').length;
-                    const rSubmitted = allForRegion.filter(p => p.status === 'submitted').length;
-                    const rPct       = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
-                    const progColor  = rPct === 100 ? '#16A34A' : '#1565C0';
-                    const isCollapsed = collapsedRegions[rName];
-                    const rStats = {
-                      not_started: allForRegion.filter(p => p.status === 'not_started').length,
-                      in_progress:  allForRegion.filter(p => p.status === 'in_progress').length,
-                      submitted:    allForRegion.filter(p => p.status === 'submitted').length,
-                      approved:     allForRegion.filter(p => p.status === 'approved').length,
-                    };
-
-                    return (
-                      <div key={rName} className="region-block">
-                        {/* Clickable region header */}
-                        <div className="region-header" onClick={() => toggleRegion(rName)} style={{ cursor: 'pointer' }}>
-                          {/* Top row: region name | centered stats | pct + chevron */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                            {/* Left: region name + account count */}
-                            <div style={{ minWidth: 140 }}>
-                              <div className="region-name" style={{ fontSize: 22 }}>{rName}</div>
-                              <div style={{ fontSize: 12, color: '#4a6a8a', marginTop: 3, fontWeight: 500 }}>{rTotal} account{rTotal !== 1 ? 's' : ''}</div>
-                            </div>
-                            {/* Center: stat cards fill all available space equally */}
-                            <div style={{ display: 'flex', gap: 8, flex: 1, margin: '0 16px' }}>
-                              {STAT_CARDS.map(s => (
-                                <div key={s.key} className={'stat-card ' + s.soft} style={{ padding: '8px 10px', flex: '1 1 0' }}>
-                                  <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', position:'relative', zIndex:1 }}>
-                                    <div>
-                                      <div className={'sc-num ' + s.stc} style={{ fontSize:22, letterSpacing:'-0.5px' }}>{rStats[s.key]}</div>
-                                      <div className={'sc-lbl ' + s.stc} style={{ fontSize:9 }}>{s.label}</div>
-                                    </div>
-                                    <div className={'sc-sub ' + s.stc} style={{ fontSize:16, fontWeight:800, lineHeight:1, opacity:0.85 }}>{rTotal > 0 ? Math.round(rStats[s.key] / rTotal * 100) : 0}%</div>
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                            {/* Right: pct + chevron */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 90, justifyContent: 'flex-end' }}>
-                              <div style={{ textAlign: 'right' }}>
-                                <div className="region-pct-num">{rPct}%</div>
-                                <div className="region-pct-lbl">Complete</div>
-                              </div>
-                              <div style={{ fontSize: 16, color: '#1a3a5c', transition: 'transform 0.2s', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>&#9660;</div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Collapsible table */}
-                        {!isCollapsed && (
-                          <div className="region-detail">
-                            <table>
-                              <thead>
-                                <tr><th>Account</th><th>Rep(s)</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
-                              </thead>
-                              <tbody>
-                                {counts.map(p => (
-                                  <tr key={p.id}>
-                                    <td style={{ fontWeight: 700 }}>{p.account?.name}</td>
-                                    <td>
-                                      {p.allReps?.length > 0
-                                        ? p.allReps.filter(Boolean).map(r => <span key={r.id} className="rep-tag">{r.full_name}</span>)
-                                        : <span style={{ color: 'var(--red)', fontSize: 12 }}>Unassigned</span>}
-                                    </td>
-                                    <td><Pill status={p.status} /></td>
-                                    <td style={{ color: 'var(--text-dim)' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : '\u2014'}</td>
-                                    <td>
-                                      {p.status === 'submitted'    && <button className="tbl-btn" onClick={e => { e.stopPropagation(); approveCount(p.id); }}>Approve</button>}
-                                      {(p.status === 'not_started' || p.status === 'in_progress') && <button className="tbl-btn" onClick={e => { e.stopPropagation(); navigate('/count/' + p.id); }}>Enter Count</button>}
-                                      {p.status === 'approved'     && <button className="tbl-btn" onClick={e => { e.stopPropagation(); navigate('/count/' + p.id); }}>View Count</button>}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {progressFilter !== 'all' && (
-                    <div style={{ textAlign: 'center', marginTop: 12 }}>
-                      <button className="btn btn-outline" onClick={() => setProgressFilter('all')}>Clear Filter \u2014 Show All</button>
-                    </div>
-                  )}
-                </>
-              )}
-            </>
-          )}
-
-          {tab === 'todos'    && <TodoSection todos={todos} onComplete={completeTodo} onApproveEdit={approveEditRequest} onDenyEdit={denyEditRequest} onApproveCount={approveCount} />}
-          {tab === 'mycounts' && <MyCounts cycle={cycle} profile={profile} navigate={navigate} />}
-          {tab === 'accounts' && <AdminAccounts />}
-          {tab === 'users'    && <AdminUsers />}
-          {tab === 'catalog'  && <AdminItemCatalog />}
-          {tab === 'reports'  && <AdminDataManagement cycle={cycle} />}
-
-        </div>
-      </div>
-    </div>
-  );
+.sidebar::after {
+  content: ''; position: absolute; top: 60px; right: -70px;
+  width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(255,255,255,0.13) 0%, transparent 70%);
+  pointer-events: none; z-index: 0;
 }
+.sidebar-accent-bar {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, transparent, rgba(255,208,64,0.6), transparent); z-index: 2;
+}
+.sidebar-logo { padding: 22px 20px 18px; position: relative; z-index: 1; }
+.logo-text { font-size: 34px; font-weight: 800; line-height: 1; }
+.logo-text span { color: var(--gold) !important; }
+.logo-sub { font-size: 9px; letter-spacing: 2px; color: rgba(255,255,255,0.45); text-transform: uppercase; margin-top: 3px; font-weight: 600; }
+.nav-section { padding: 16px 12px 4px; position: relative; z-index: 1; }
+.nav-section-label { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.28); padding: 0 8px; margin-bottom: 5px; font-weight: 700; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; font-size: 13px; font-weight: 500; color: rgba(255,255,255,0.52); cursor: pointer; margin-bottom: 2px; transition: all 0.15s; position: relative; z-index: 1; }
+.nav-item:hover { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.9); }
+.nav-item.active { background: rgba(255,255,255,0.2); color: #fff; font-weight: 600; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.18); }
+.nav-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(255,255,255,0.2); flex-shrink: 0; }
+.nav-item.active .nav-dot { background: var(--gold); box-shadow: 0 0 8px rgba(255,208,64,0.7); }
+.sidebar-bottom { margin-top: auto; padding: 14px; border-top: 1px solid rgba(255,255,255,0.1); position: relative; z-index: 1; }
+.user-name { font-size: 13px; font-weight: 600; color: #fff; }
+.user-role { font-size: 11px; color: rgba(255,255,255,0.52); }
+.user-av { width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,0.18); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.28); }
+
+/* ── LAYOUT ── */
+.app-shell { display: flex; height: 100vh; overflow: hidden; width: 100vw; }
+.main-col { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); min-width: 0; }
+.topbar { padding: 16px 28px; border-bottom: 1px solid var(--border); background: var(--white); display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.topbar h1 { font-size: 20px; font-weight: 800; }
+.topbar p { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.content-area { padding: 24px 28px; overflow-y: auto; flex: 1; }
+
+/* ── BUTTONS ── */
+.btn { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; transition: all 0.15s; }
+.btn-primary { background: var(--blue-action); color: #fff; }
+.btn-primary:hover { background: #0D47A1; }
+.btn-outline { background: var(--white); border: 1.5px solid var(--border); color: var(--text-mid); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-row { display: flex; gap: 10px; }
+.tbl-btn { padding: 5px 14px; border-radius: 7px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--white); color: var(--blue-action); font-family: inherit; }
+.tbl-btn-sm { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1.5px solid var(--border); background: var(--white); color: var(--text-mid); font-family: inherit; margin-right: 4px; }
+.tbl-btn-danger { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1.5px solid #FECACA; background: var(--red-light); color: var(--red); font-family: inherit; }
+
+/* ── STAT CARDS ── */
+.stat-card { border-radius: 14px; padding: 18px 18px 14px; position: relative; overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.7); cursor: pointer; }
+.stat-card::before { content: ''; position: absolute; bottom: -32px; right: -32px; width: 120px; height: 120px; border-radius: 50%; background: rgba(255,255,255,0.22); }
+.stat-card::after  { content: ''; position: absolute; top: -24px; left: -24px; width: 80px; height: 80px; border-radius: 50%; background: rgba(255,255,255,0.14); }
+.sc-blue  { background: var(--grad-blue); }
+.sc-gold  { background: var(--grad-gold); }
+.sc-green { background: var(--grad-green); }
+.sc-red   { background: var(--grad-red); }
+.sc-red-soft   { background: linear-gradient(150deg,#FFE8E8,#FFCECE,#FFB8B8); }
+.sc-gold-soft  { background: linear-gradient(150deg,#FFF5CC,#FFEEA0,#FFE570); }
+.sc-blue-soft  { background: linear-gradient(150deg,#EBF4FF,#D6EAFF,#BDD9FF); }
+.sc-green-soft { background: linear-gradient(150deg,#E0FAF2,#C2F2E2,#9AE8CE); }
+.c-red-soft   { color: #9B0000; }
+.c-gold-soft  { color: #7A4500; }
+.c-blue-soft  { color: #0A3FA0; }
+.c-green-soft { color: #075C30; }
+.stat-card .sc-num { font-size: 38px; font-weight: 800; line-height: 1; position: relative; z-index: 1; }
+.stat-card .sc-lbl { font-size: 11px; font-weight: 700; margin-top: 6px; position: relative; z-index: 1; }
+.stat-card .sc-sub { font-size: 11px; margin-top: 7px; font-weight: 600; position: relative; z-index: 1; }
+.hero-stat-card .sc-num { font-size: 32px !important; }
+.hero-stat-card .sc-lbl { font-size: 10px !important; letter-spacing: 1px; text-transform: uppercase; }
+.c-blue  { color: #063B8A; }
+.c-gold  { color: #6B3C00; }
+.c-green { color: #064D28; }
+.c-red   { color: #7A0000; }
+.c-blue-sub { color: var(--blue-action); }
+.summary-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+
+/* ── HERO ── */
+.cycle-hero { background: var(--hero-bg); border: 1px solid rgba(168,188,218,0.6); border-radius: 16px; padding: 26px 28px; margin-bottom: 20px; position: relative; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.cycle-hero::before { content: ''; position: absolute; right: -60px; top: -60px; width: 280px; height: 280px; border-radius: 50%; background: radial-gradient(circle,rgba(255,255,255,0.3) 0%,transparent 70%); }
+.cycle-hero::after  { content: ''; position: absolute; left: 35%; bottom: -50px; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle,rgba(255,255,255,0.15) 0%,transparent 70%); }
+.hero-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; position: relative; z-index: 1; }
+.hero-title { font-size: 22px; font-weight: 800; color: #1E3A5A; }
+.hero-meta  { font-size: 12px; color: #5A7A9A; margin-top: 3px; }
+.hero-pct   { font-size: 46px; font-weight: 800; color: #0D47A1; line-height: 1; }
+.hero-pct-lbl { font-size: 10px; color: #7A9ABE; letter-spacing: 2px; text-align: right; }
+.progress-bar  { height: 5px; background: rgba(255,255,255,0.5); border-radius: 99px; margin-bottom: 20px; position: relative; z-index: 1; }
+.progress-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #60A8FF, #28D09A); }
+.hero-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; position: relative; z-index: 1; }
+
+/* ── REGION BLOCKS ── */
+.region-block { margin-bottom: 12px; border-radius: 14px; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+.region-header { background: var(--hero-bg); padding: 16px 20px; cursor: pointer; user-select: none; }
+.region-header-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+.region-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #5A7A9A; margin-bottom: 4px; }
+.region-name { font-size: 18px; font-weight: 800; color: #1a3a5c; }
+.region-pct-num { font-size: 22px; font-weight: 800; color: #1565C0; line-height: 1; }
+.region-pct-lbl { font-size: 8px; font-weight: 700; letter-spacing: 1.5px; color: #5A7A9A; text-transform: uppercase; }
+.region-progress { background: rgba(255,255,255,0.3); border-radius: 99px; height: 5px; margin-bottom: 12px; }
+.region-progress-fill { height: 5px; border-radius: 99px; }
+.region-mini-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; }
+.region-detail { background: var(--white); }
+
+/* ── TABLES ── */
+table { width: 100%; border-collapse: collapse; background: var(--white); }
+th { padding: 9px 18px; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); font-weight: 700; text-align: left; background: var(--bg); border-bottom: 1px solid var(--border); }
+td { padding: 12px 18px; font-size: 13px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #FAFBFD; }
+
+/* ── PILLS ── */
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 99px; font-size: 11px; font-weight: 600; }
+.pill::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+.pill-ns  { background: var(--bg); color: var(--text-dim); border: 1px solid var(--border); }
+.pill-ip  { background: var(--blue-light); color: var(--blue); }
+.pill-sub { background: var(--amber-light); color: var(--amber); }
+.pill-app { background: var(--green-light); color: var(--green); }
+.role-tag   { display: inline-block; padding: 2px 9px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+.role-rep   { background: #F1F5F9; color: #475569; }
+.role-mgr   { background: var(--blue-light); color: var(--blue); }
+.role-admin { background: var(--gold-light); color: #92660A; }
+.rep-tag    { display: inline-flex; align-items: center; background: var(--blue-light); color: var(--blue); border-radius: 99px; padding: 3px 10px; font-size: 11px; font-weight: 600; margin-right: 4px; }
+
+/* ── FILTERS / FORMS ── */
+.filter-row { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+.filter-label { font-size: 13px; color: var(--text-mid); font-weight: 500; }
+.filter-select { padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--white); font-size: 13px; font-family: inherit; }
+.search-input { padding: 8px 14px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--white); font-size: 13px; font-family: inherit; min-width: 200px; outline: none; }
+.ml-auto { margin-left: auto; }
+.count-lbl { font-size: 12px; color: var(--text-dim); align-self: center; }
+.section-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; }
+.input { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 14px; font-family: inherit; background: var(--bg); color: var(--text); outline: none; }
+.input:focus { border-color: var(--blue-action); background: var(--white); }
+.input-label { display: block; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); font-weight: 700; margin-bottom: 6px; margin-top: 14px; }
+.select { padding: 8px 12px; border-radius: 8px; border: 1.5px solid var(--border); background: var(--white); font-size: 13px; font-family: inherit; color: var(--text); outline: none; }
+.cat-select { padding: 5px 10px; border-radius: 7px; border: 1.5px solid var(--border); font-size: 12px; font-family: inherit; background: var(--white); }
+
+/* ── CARDS ── */
+.card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.card-head { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.card-head-title { font-size: 14px; font-weight: 700; }
+.card-head-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.card-body { padding: 20px; }
+
+/* ── TODO ── */
+.todo-section { background: var(--white); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+.todo-head { padding: 14px 20px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); }
+.todo-head-title { font-size: 15px; font-weight: 700; }
+.todo-badge { width: 22px; height: 22px; border-radius: 50%; background: var(--bg); border: 1.5px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; color: var(--text-dim); }
+.todo-empty { padding: 28px; text-align: center; color: var(--text-dim); font-size: 13px; font-style: italic; }
+
+/* ── TABS ── */
+.tab-row { display: flex; gap: 2px; padding: 4px; background: var(--bg); border-radius: 10px; margin-bottom: 20px; width: fit-content; }
+.tab { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-mid); border: none; background: transparent; font-family: inherit; }
+.tab.active { background: var(--white); color: var(--blue-action); box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+
+/* ── IMPORT/EXPORT ── */
+.import-grid { display: grid; grid-template-columns: 1fr 340px; gap: 20px; }
+.import-opt { border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; }
+.import-opt.sel { border-color: var(--blue-action); background: var(--blue-light); }
+.import-opt-title { font-size: 14px; font-weight: 700; }
+.import-opt-sub { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.import-opt.sel .import-opt-title { color: var(--blue-action); }
+.field-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); font-weight: 700; margin: 16px 0 8px; }
+.file-drop { border: 2px dashed var(--border); border-radius: 10px; padding: 28px; text-align: center; color: var(--text-dim); font-size: 13px; cursor: pointer; }
+
+/* ── MODALS ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(5,15,38,0.45); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.modal { background: var(--white); border-radius: 16px; width: 100%; max-width: 460px; overflow: hidden; box-shadow: 0 24px 60px rgba(0,0,0,0.28); }
+.modal-head-blue { background: var(--sidebar-grad); padding: 20px 24px; position: relative; overflow: hidden; }
+.modal-head-blue::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0px,rgba(255,255,255,0.03) 1px,transparent 1px,transparent 12px); pointer-events: none; }
+.modal-head-blue::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #FFD040, #FFC010); }
+.modal-head-red { background: linear-gradient(180deg, #EF4444 0%, #DC2626 30%, #B91C1C 65%, #991B1B 100%); padding: 20px 24px; position: relative; overflow: hidden; }
+.modal-head-red::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0px,rgba(255,255,255,0.03) 1px,transparent 1px,transparent 12px); pointer-events: none; }
+.modal-head-red::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #FFD040, #FFC010); }
+.modal-head-title { font-size: 18px; font-weight: 800; color: #fff; position: relative; z-index: 1; text-align: center; }
+.modal-head-sub { font-size: 16px; font-weight: 800; color: #fff; margin-top: 4px; position: relative; z-index: 1; text-align: center; }
+.modal-body { padding: 24px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid var(--border); }
+.form-lbl { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-dim); font-weight: 700; margin: 16px 0 6px; }
+.form-lbl:first-child { margin-top: 0; }
+.form-sel { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 14px; font-family: inherit; background: var(--bg); }
+.form-inp { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 14px; font-family: inherit; background: var(--bg); }
+.form-ta  { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1.5px solid var(--border); font-size: 14px; font-family: inherit; background: var(--bg); height: 90px; resize: none; }
+.warn-box { background: var(--amber-light); border: 1px solid #FDE68A; border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #92660A; margin: 16px 0; line-height: 1.5; }
+.modal-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; padding: 10px 12px; }
+.ms-card { border-radius: 10px; padding: 10px 12px; position: relative; overflow: hidden; }
+.ms-card::before { content: ''; position: absolute; bottom: -14px; right: -14px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+
+/* ── LOGIN ── */
+.login-page { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; background: #EEF1F6; }
+.login-card { background: #fff; border-radius: 16px; border: 1.5px solid #D8E2EF; padding: 40px 44px; width: 100%; max-width: 360px; box-shadow: 0 8px 40px rgba(0,0,0,0.08); text-align: center; }
+.login-btn { width: 100%; padding: 13px; border-radius: 8px; background: #1565C0; color: #fff; font-weight: 700; font-size: 15px; border: none; cursor: pointer; font-family: inherit; margin-top: 4px; }
+.login-btn:hover { background: #0D47A1; }
+.login-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.login-input { width: 100%; padding: 11px 14px; border-radius: 8px; border: 1.5px solid #E0E8F0; background: #F4F7FB; font-size: 14px; font-family: inherit; display: block; margin-bottom: 16px; outline: none; color: var(--text); }
+.login-input:focus { border-color: #1565C0; }
+
+/* ── MOBILE COUNT ENTRY ── */
+.mob-header { background: var(--sidebar-grad); padding: 16px 18px 14px; position: relative; overflow: hidden; }
+.mob-header::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0px,rgba(255,255,255,0.03) 1px,transparent 1px,transparent 12px); pointer-events: none; }
+.mob-header::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #FFD040, #FFC010); }
+.mob-title { font-size: 22px; font-weight: 800; color: #fff; position: relative; z-index: 1; }
+.mob-btn { padding: 6px 13px; border-radius: 7px; font-size: 12px; font-weight: 600; border: 1.5px solid rgba(255,255,255,0.4); background: rgba(255,255,255,0.12); color: #fff; font-family: inherit; cursor: pointer; }
+.mob-btn-red { border-color: #EF4444; background: #EF4444; }
+.mob-badge { background: rgba(255,255,255,0.2); color: #fff; border-radius: 5px; padding: 2px 8px; font-size: 10px; font-weight: 700; }
+.mob-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; padding: 10px 12px; background: var(--bg); border-bottom: 1px solid var(--border); }
+.mob-stat { border-radius: 10px; padding: 10px 12px; position: relative; overflow: hidden; }
+.mob-stat::before { content: ''; position: absolute; bottom: -14px; right: -14px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+.mob-stat-num { font-size: 22px; font-weight: 800; line-height: 1; position: relative; z-index: 1; }
+.mob-stat-lbl { font-size: 8px; letter-spacing: 1.5px; text-transform: uppercase; margin-top: 4px; font-weight: 700; position: relative; z-index: 1; }
+.mob-search { padding: 12px 16px; border-bottom: 1px solid var(--border); background: var(--white); display: flex; gap: 8px; align-items: center; }
+.mob-search input { flex: 1; padding: 10px 14px; border: 1.5px solid var(--border); border-radius: 9px; font-size: 14px; font-family: inherit; background: var(--bg); outline: none; }
+.mob-search input.active-input { border-color: var(--blue-action); background: var(--blue-light); }
+.cat-header { padding: 10px 16px; background: var(--bg); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+.cat-item { padding: 13px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; background: var(--white); }
+.cat-item:last-child { border-bottom: none; }
+.item-id { font-size: 13px; font-weight: 700; color: var(--blue-action); }
+.item-vendor { font-size: 11px; color: var(--text-dim); margin-left: 6px; }
+.item-desc { font-size: 12px; color: var(--text-mid); margin-top: 2px; }
+.add-btn { padding: 6px 14px; border-radius: 7px; font-size: 13px; font-weight: 700; background: var(--blue-action); color: #fff; border: none; cursor: pointer; font-family: inherit; }
+.mob-footer { padding: 14px 16px 28px; border-top: 1px solid var(--border); display: flex; gap: 10px; background: var(--white); }
+.mob-foot-btn { flex: 1; padding: 12px; border-radius: 9px; font-size: 14px; font-weight: 700; text-align: center; cursor: pointer; font-family: inherit; border: none; }
+.mob-foot-outline { background: var(--bg); border: 1.5px solid var(--border); color: var(--text-mid); }
+.mob-foot-primary { background: var(--blue-action); color: #fff; flex: 2; }
+
+/* ── REP DASHBOARD ── */
+.rep-topbar { background: var(--sidebar-grad); padding: 16px 20px 18px; position: relative; overflow: hidden; }
+.rep-topbar::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0px,rgba(255,255,255,0.03) 1px,transparent 1px,transparent 12px); pointer-events: none; }
+.rep-topbar::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #FFD040, #FFC010); pointer-events: none; }
+.rep-logo { font-size: 24px; font-weight: 800; position: relative; z-index: 1; }
+.rep-logo span { color: var(--gold); }
+.rep-cycle-card { margin: 16px; background: var(--hero-bg); border: 1px solid rgba(168,188,218,0.6); border-radius: 14px; padding: 18px 18px 16px; position: relative; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.rep-cycle-card::before { content: ''; position: absolute; right: -40px; top: -40px; width: 180px; height: 180px; border-radius: 50%; background: radial-gradient(circle,rgba(255,255,255,0.28) 0%,transparent 70%); }
+.rep-cycle-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: #5A7A9A; margin-bottom: 4px; position: relative; z-index: 1; }
+.rep-cycle-name { font-size: 22px; font-weight: 800; color: #1E3A5A; position: relative; z-index: 1; margin-bottom: 14px; }
+.rep-cycle-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; position: relative; z-index: 1; }
+.rep-cycle-stat { border-radius: 11px; padding: 12px 10px 10px; position: relative; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.65); }
+.rep-cycle-stat::before { content: ''; position: absolute; bottom: -20px; right: -20px; width: 70px; height: 70px; border-radius: 50%; background: rgba(255,255,255,0.2); }
+.rep-stat-num { font-size: 24px; font-weight: 800; position: relative; z-index: 1; }
+.rep-stat-lbl { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; margin-top: 3px; position: relative; z-index: 1; }
+.rep-account-card { background: var(--white); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; position: relative; margin-bottom: 10px; }
+.rep-account-card::before { content: ''; position: absolute; left: 0; top: 12px; bottom: 12px; width: 3px; border-radius: 0 3px 3px 0; }
+.acc-ns::before  { background: #FF4848; }
+.acc-ip::before  { background: var(--blue-action); }
+.acc-sub::before { background: var(--amber); }
+.acc-app::before { background: #28D09A; }
+.rep-acc-name { font-size: 15px; font-weight: 700; color: var(--text); }
+.rep-acc-sub  { font-size: 12px; color: var(--text-dim); margin-top: 2px; }
+.rep-acc-status { font-size: 12px; font-weight: 700; margin-top: 3px; }
+.status-ns  { color: #FF4848; }
+.status-ip  { color: var(--blue-action); }
+.status-sub { color: var(--amber); }
+.status-app { color: #28D09A; }
+.rep-bottom-nav { background: var(--sidebar-grad); display: flex; padding: 10px 0 16px; flex-shrink: 0; position: relative; overflow: hidden; }
+.rep-bottom-nav::before { content: ''; position: absolute; inset: 0; background: repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0px,rgba(255,255,255,0.03) 1px,transparent 1px,transparent 12px); pointer-events: none; }
+.rep-bottom-nav::after { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #FFD040, #FFC010); pointer-events: none; }
+.rep-nav-item { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; position: relative; z-index: 1; padding-top: 4px; }
+.rep-nav-item.active::before { content: ''; position: absolute; top: -4px; left: 20%; right: 20%; height: 3px; background: #FFD040; border-radius: 0 0 4px 4px; }
+.rep-nav-label { font-size: 12px; font-weight: 800; letter-spacing: 0.5px; }
+.rep-nav-label.active { color: #FFD040; }
+.rep-nav-label.inactive { color: rgba(255,255,255,0.6); }
+
+/* ── MISC ── */
+.loading-center { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; gap: 12px; color: var(--text-dim); }
+.spinner { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--blue-action); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.alert-banner { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+.alert-error { background: var(--red-light); color: var(--red); border: 1px solid #FECACA; }
+.edit-link { font-size: 11px; color: var(--blue); text-decoration: underline; cursor: pointer; }
