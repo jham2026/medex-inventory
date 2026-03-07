@@ -4,7 +4,7 @@ import { logAudit } from '../hooks/useAudit';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastContext';
 
-const BLANK_FORM = { full_name: '', email: '', role: 'rep', region: '', is_active: true };
+const BLANK_FORM = { full_name: '', email: '', role: 'rep', regions: [], is_active: true };
 const SERVICE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzY2p5cWdmbmNxb3FxZWdyY2p3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjY2OTgxNSwiZXhwIjoyMDg4MjQ1ODE1fQ.OCe9Kx7CJkdgukE_7-dBmMpF24Tqmmz0Vo7OjmdSQ6k';
 const SUPABASE_URL = 'https://uscjyqgfncqoqqegrcjw.supabase.co';
 
@@ -20,20 +20,65 @@ function parseVersionStamp(text) {
   return { valid: true };
 }
 
-const roleTag = role => {
-  const cls = role === 'admin' ? 'role-admin' : role === 'manager' ? 'role-mgr' : 'role-rep';
-  return <span className={'role-tag ' + cls}>{role}</span>;
-};
+// Multi-select list component
+function MultiSelectList({ items, selected, onChange, placeholder }) {
+  return (
+    <div style={{
+      border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden',
+      maxHeight: 160, overflowY: 'auto', background: 'var(--bg)',
+    }}>
+      {items.length === 0 && (
+        <div style={{ padding: '10px 14px', fontSize: 12, color: 'var(--text-dim)', fontStyle: 'italic' }}>{placeholder || 'None available'}</div>
+      )}
+      {items.map(item => {
+        const isSelected = selected.includes(item.value);
+        return (
+          <div
+            key={item.value}
+            onClick={() => {
+              if (isSelected) onChange(selected.filter(v => v !== item.value));
+              else onChange([...selected, item.value]);
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '9px 14px', cursor: 'pointer', fontSize: 13,
+              borderBottom: '1px solid var(--border)',
+              background: isSelected ? 'var(--blue-light)' : 'transparent',
+              color: isSelected ? 'var(--blue-action)' : 'var(--text)',
+              transition: 'background 0.1s',
+            }}
+          >
+            <div style={{
+              width: 16, height: 16, borderRadius: 4, flexShrink: 0,
+              border: '1.5px solid ' + (isSelected ? 'var(--blue-action)' : 'var(--border)'),
+              background: isSelected ? 'var(--blue-action)' : 'white',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              {isSelected && (
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M2 5l2.5 2.5 3.5-4" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+            </div>
+            <span style={{ fontWeight: isSelected ? 700 : 400 }}>{item.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd, onAddHandled }) {
   const toast               = useToast();
   const { profile }         = useAuth();
   const [users, setUsers]   = useState([]);
   const [regions, setRegions] = useState([]);
+  const [accounts, setAccounts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editUser, setEditUser] = useState(null);
   const [form, setForm]     = useState(BLANK_FORM);
+  const [formAccounts, setFormAccounts] = useState([]); // selected account IDs
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState('');
   const [filterRole, setFilterRole] = useState('all');
@@ -48,52 +93,78 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
 
   useEffect(() => { loadData(); }, []);
 
-  // Respond to topbar controls from AdminDashboard
-  useEffect(() => {
-    if (showImportPanel) setShowImport(true);
-  }, [showImportPanel]);
-
-  useEffect(() => {
-    if (!showImport && onImportClose) onImportClose();
-  }, [showImport]);
-
-  useEffect(() => {
-    if (triggerAdd) { openAdd(); if (onAddHandled) onAddHandled(); }
-  }, [triggerAdd]);
+  useEffect(() => { if (showImportPanel) setShowImport(true); }, [showImportPanel]);
+  useEffect(() => { if (!showImport && onImportClose) onImportClose(); }, [showImport]);
+  useEffect(() => { if (triggerAdd) { openAdd(); if (onAddHandled) onAddHandled(); } }, [triggerAdd]);
 
   async function loadData() {
     setLoading(true);
-    const [{ data: u }, { data: r }] = await Promise.all([
+    const [{ data: u }, { data: r }, { data: a }] = await Promise.all([
       supabase.from('profiles').select('*').order('full_name'),
       supabase.from('regions').select('*').order('name'),
+      supabase.from('accounts').select('id, name, is_active').eq('is_active', true).order('name'),
     ]);
     setUsers(u || []);
     setRegions(r || []);
+    setAccounts(a || []);
     setLoading(false);
   }
 
-  function openAdd()  { setEditUser(null); setForm(BLANK_FORM); setShowForm(true); }
-  function openEdit(user) {
+  function openAdd() {
+    setEditUser(null);
+    setForm(BLANK_FORM);
+    setFormAccounts([]);
+    setShowForm(true);
+  }
+
+  async function openEdit(user) {
     setEditUser(user);
-    setForm({ full_name: user.full_name || '', email: user.email || '', role: user.role || 'rep', region: user.region || '', is_active: user.is_active });
+    // Parse regions from comma-separated string
+    const userRegions = user.region
+      ? user.region.split(',').map(r => r.trim()).filter(Boolean)
+      : [];
+    setForm({
+      full_name: user.full_name || '',
+      email: user.email || '',
+      role: user.role || 'rep',
+      regions: userRegions,
+      is_active: user.is_active,
+    });
+    // Load assigned accounts for this user
+    const { data: repAccts } = await supabase
+      .from('account_reps')
+      .select('account_id')
+      .eq('rep_id', user.id);
+    setFormAccounts((repAccts || []).map(r => r.account_id));
     setShowForm(true);
   }
 
   async function handleSave() {
     if (!form.full_name || !form.email) { toast.error('Name and email are required'); return; }
     setSaving(true);
+
+    const regionString = form.regions.join(',') || null;
+
     if (editUser) {
+      // Update profile
       const { error } = await supabase.from('profiles')
-        .update({ full_name: form.full_name, role: form.role, region: form.region || null, is_active: form.is_active })
+        .update({ full_name: form.full_name, role: form.role, region: regionString, is_active: form.is_active })
         .eq('id', editUser.id);
-      if (error) toast.error('Update failed: ' + error.message);
-      else {
-        setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...form } : u));
-        await logAudit(profile, 'USER_UPDATED', 'user', { target_name: form.full_name, details: { role: form.role, region: form.region } });
-        toast.success(form.full_name + ' updated!');
-        setShowForm(false);
+      if (error) { toast.error('Update failed: ' + error.message); setSaving(false); return; }
+
+      // Sync account_reps â€” delete all then re-insert selected
+      await supabase.from('account_reps').delete().eq('rep_id', editUser.id);
+      if (formAccounts.length > 0) {
+        const inserts = formAccounts.map(account_id => ({ account_id, rep_id: editUser.id }));
+        await supabase.from('account_reps').insert(inserts);
       }
+
+      setUsers(prev => prev.map(u => u.id === editUser.id ? { ...u, ...form, region: regionString } : u));
+      await logAudit(profile, 'USER_UPDATED', 'user', { target_name: form.full_name, details: { role: form.role, regions: form.regions, accounts: formAccounts.length } });
+      toast.success(form.full_name + ' updated!');
+      setShowForm(false);
     } else {
+      // Create new user
       const authRes = await fetch(SUPABASE_URL + '/auth/v1/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'apikey': SERVICE_KEY, 'Authorization': 'Bearer ' + SERVICE_KEY },
@@ -101,13 +172,19 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
       });
       const authResult = await authRes.json();
       if (!authRes.ok) { toast.error('Error: ' + (authResult.msg || authResult.message || 'Unknown')); setSaving(false); return; }
-      const { error: profError } = await supabase.from('profiles').insert({ id: authResult.id, full_name: form.full_name, email: form.email, role: form.role, region: form.region || null, is_active: true });
-      if (profError) toast.error('Profile error: ' + profError.message);
-      else {
-        await logAudit(profile, 'USER_CREATED', 'user', { target_name: form.full_name, details: { email: form.email, role: form.role } });
-        toast.success('User Created | ' + form.full_name + ' â€” default password: MedEx1234!');
-        loadData(); setShowForm(false);
+      const { error: profError } = await supabase.from('profiles').insert({
+        id: authResult.id, full_name: form.full_name, email: form.email,
+        role: form.role, region: regionString, is_active: true,
+      });
+      if (profError) { toast.error('Profile error: ' + profError.message); setSaving(false); return; }
+      // Assign accounts if any selected
+      if (formAccounts.length > 0) {
+        const inserts = formAccounts.map(account_id => ({ account_id, rep_id: authResult.id }));
+        await supabase.from('account_reps').insert(inserts);
       }
+      await logAudit(profile, 'USER_CREATED', 'user', { target_name: form.full_name, details: { email: form.email, role: form.role } });
+      toast.success('User Created | ' + form.full_name + ' â€” default password: MedEx1234!');
+      loadData(); setShowForm(false);
     }
     setSaving(false);
   }
@@ -260,35 +337,74 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
       {/* â”€â”€ Edit / Add modal â”€â”€ */}
       {showForm && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
-          <div className="modal">
+          <div className="modal" style={{ width: 520, maxWidth: '95vw' }}>
             <div className="modal-head-blue">
               <div className="modal-head-title">{editUser ? 'Edit User' : 'Add New User'}</div>
               <div className="modal-head-sub">{editUser ? editUser.email : 'New account'}</div>
             </div>
-            <div className="modal-body">
+            <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
+              {/* Name */}
               <div className="form-lbl" style={{ marginTop: 0 }}>Full Name *</div>
               <input className="form-inp" value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} autoFocus />
+
+              {/* Email */}
               <div className="form-lbl">Email Address *</div>
               <input className="form-inp" type="email" value={form.email} disabled={!!editUser} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
               {editUser && <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>Email cannot be changed after creation.</div>}
+
+              {/* Role */}
               <div className="form-lbl">Role</div>
               <select className="form-sel" value={form.role} onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
                 <option value="rep">Rep</option>
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
               </select>
-              <div className="form-lbl">Region</div>
-              <select className="form-sel" value={form.region} onChange={e => setForm(p => ({ ...p, region: e.target.value }))}>
-                <option value="">All Regions (Admin/Manager)</option>
-                {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-              </select>
+
+              {/* Regions â€” multi-select */}
+              <div className="form-lbl" style={{ marginTop: 16 }}>
+                Regions
+                <span style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 400, marginLeft: 8 }}>
+                  {form.regions.length > 0 ? form.regions.length + ' selected' : 'none selected'}
+                </span>
+              </div>
+              <MultiSelectList
+                items={regions.map(r => ({ value: r.name, label: r.name }))}
+                selected={form.regions}
+                onChange={val => setForm(p => ({ ...p, regions: val }))}
+                placeholder="No regions available"
+              />
+              {form.regions.length > 0 && (
+                <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                  {form.regions.map(r => (
+                    <span key={r} style={{ background: 'var(--blue-light)', color: 'var(--blue-action)', borderRadius: 99, padding: '2px 10px', fontSize: 11, fontWeight: 700 }}>
+                      {r}
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Accounts â€” multi-select */}
+              <div className="form-lbl" style={{ marginTop: 16 }}>
+                Account Assignments
+                <span style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 400, marginLeft: 8 }}>
+                  {formAccounts.length > 0 ? formAccounts.length + ' assigned' : 'none assigned'}
+                </span>
+              </div>
+              <MultiSelectList
+                items={accounts.map(a => ({ value: a.id, label: a.name }))}
+                selected={formAccounts}
+                onChange={setFormAccounts}
+                placeholder="No active accounts available"
+              />
+
               {!editUser && (
                 <div className="warn-box" style={{ marginTop: 16 }}>Default password: <strong>MedEx1234!</strong> - ask the rep to change it on first login.</div>
               )}
             </div>
+
             {/* Extra actions for existing users */}
             {editUser && (
-              <div style={{ padding: '12px 24px', background: 'var(--bg)', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ padding: '12px 24px', background: 'var(--bg)', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, alignItems: 'center' }}>
                 <button className="btn btn-outline" style={{ fontSize: 12 }} onClick={handleResetPassword}>
                   Reset Password
                 </button>
@@ -299,10 +415,6 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
                 >
                   {form.is_active ? 'Deactivate User' : 'Activate User'}
                 </button>
-                <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {roleTag(form.role)}
-                  <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>{form.region || 'All regions'}</span>
-                </div>
               </div>
             )}
             <div className="modal-actions">
@@ -381,7 +493,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
         <button className="btn btn-primary" onClick={openAdd}>+ Add User</button>
       </div>
 
-      {/* â”€â”€ Table â€” matches design file: Name, Email, Status, Actions â”€â”€ */}
+      {/* â”€â”€ Table â”€â”€ */}
       <div className="region-block">
         <table>
           <thead>
@@ -412,23 +524,6 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
           </tbody>
         </table>
       </div>
-
-      {/* â”€â”€ Topbar buttons exposed via ref callbacks â€” handled by AdminDashboard topbar â”€â”€ */}
-      <div id="users-actions" style={{ display: 'none' }}
-        data-download-template="true"
-        data-toggle-import="true"
-      />
     </div>
   );
-}
-
-// Export helpers so AdminDashboard topbar can call them
-export function downloadUsersTemplate() {
-  const blob = new Blob([
-    '#MedEx_Template,users,v1\nFirstName,LastName,FullName,EmailAddress,Role,Region,Status\nJane,Smith,Jane Smith,jsmith@example.com,rep,Austin,Active'
-  ], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'MedEx_Users_Template_v1.csv'; a.click();
-  URL.revokeObjectURL(url);
 }
