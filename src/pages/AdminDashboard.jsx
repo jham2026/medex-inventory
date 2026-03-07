@@ -507,7 +507,8 @@ export default function AdminDashboard() {
   const { profile } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const [tab, setTab]               = useState('overview');
+  const [tab, setTabRaw]            = useState(() => sessionStorage.getItem('adminTab') || 'overview');
+  function setTab(t) { sessionStorage.setItem('adminTab', t); setTabRaw(t); }
   const [cycle, setCycle]           = useState(null);
   const [progress, setProgress]     = useState([]);
   const [todos, setTodos]           = useState([]);
@@ -745,7 +746,7 @@ export default function AdminDashboard() {
           );
           return (
             <div key={item.key} style={{ padding: '0 12px 2px' }}>
-              <div className={'nav-item' + (tab === item.key ? ' active' : '')} onClick={() => navigate(item.key)}>
+              <div className={'nav-item' + (tab === item.key ? ' active' : '')} onClick={() => setTab(item.key)}>
                 <div className="nav-dot" />
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {item.key === 'todos' && todos.length > 0 && (
