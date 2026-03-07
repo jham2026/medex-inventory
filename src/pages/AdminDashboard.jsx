@@ -151,12 +151,21 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
     setCountItems([]);
     if (todo.todo_type === 'count_approval' && todo.count_id) {
       setCountLoading(true);
-      const { data } = await supabase
-        .from('inventory_count_items')
-        .select('*, item:item_catalog(item_number, description, primary_vendor)')
-        .eq('count_id', todo.count_id)
-        .order('created_at');
-      setCountItems(data || []);
+      const [{ data: items }, { data: countData }] = await Promise.all([
+        supabase
+          .from('count_line_items')
+          .select('id, item_number_raw, description_raw, vendor_raw, quantity')
+          .eq('inventory_count_id', todo.count_id)
+          .order('item_number_raw'),
+        supabase
+          .from('inventory_counts')
+          .select('submitted_at, account:accounts(name)')
+          .eq('id', todo.count_id)
+          .single(),
+      ]);
+      setCountItems(items || []);
+      // Store submitted_at on the modal todo for display
+      setReviewModal(prev => ({ ...prev, _submittedAt: countData?.submitted_at, _accountName: countData?.account?.name }));
       setCountLoading(false);
     }
   }
@@ -257,19 +266,34 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                 {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && 'General Task'}
               </div>
               <div style={{ fontSize: 20, fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
-                {meta.account_name || reviewModal.title}
+                {reviewModal.todo_type === 'count_approval'
+                  ? (reviewModal._accountName || meta.account_name || reviewModal.title?.replace('Count to approve: ', ''))
+                  : (meta.account_name || reviewModal.title)}
                 {reviewModal.todo_type === 'count_approval' && (
                   <span style={{ fontSize: 10, fontWeight: 700, background: '#DCFCE7', color: '#15803D', padding: '3px 8px', borderRadius: 6 }}>Submitted</span>
                 )}
               </div>
-              {meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Submitted by {meta.rep_name}{meta.region ? ' \u00b7 ' + meta.region : ''}</div>}
+              {/* For count_approval, parse rep info from description since it's not in metadata */}
+              {reviewModal.todo_type === 'count_approval'
+                ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{reviewModal.description}</div>
+                : meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Submitted by {meta.rep_name}{meta.region ? ' \u00b7 ' + meta.region : ''}</div>
+              }
             </div>
 
             {reviewModal.todo_type === 'count_approval' && (
               <>
-                <div style={{ display: 'flex', gap: 24, padding: '14px 24px', background: '#F7F9FC', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
-                  <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)' }}>Total Items</div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>{countItems.length}</div></div>
-                  <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)' }}>Zero Qty Items</div><div style={{ fontSize: 14, fontWeight: 700, color: zeroQty > 0 ? 'var(--red)' : 'var(--text)', marginTop: 2 }}>{zeroQty}</div></div>
+                <div style={{ display: 'flex', gap: 0, background: '#F7F9FC', borderBottom: '1px solid var(--border)' }}>
+                  {[
+                    { label: 'Total Items', value: countLoading ? 'â€¦' : countItems.length },
+                    { label: 'Items Counted', value: countLoading ? 'â€¦' : countItems.filter(i => (i.quantity || 0) > 0).length },
+                    { label: 'Zero Qty', value: countLoading ? 'â€¦' : zeroQty, red: zeroQty > 0 },
+                    { label: 'Submitted', value: reviewModal._submittedAt ? new Date(reviewModal._submittedAt).toLocaleDateString() : 'â€¦' },
+                  ].map(s => (
+                    <div key={s.label} style={{ flex: 1, padding: '14px 20px', borderRight: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)' }}>{s.label}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: s.red ? 'var(--red)' : 'var(--text)', marginTop: 3 }}>{s.value}</div>
+                    </div>
+                  ))}
                 </div>
                 <div style={{ padding: '16px 24px', maxHeight: 300, overflowY: 'auto' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 10 }}>Count Details</div>
@@ -290,9 +314,9 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                       <tbody>
                         {countItems.map((item, idx) => (
                           <tr key={item.id} style={{ background: idx % 2 === 0 ? 'white' : '#F7F9FC' }}>
-                            <td style={{ padding: '9px 10px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: 'var(--blue-action)', borderBottom: '1px solid #F1F5F9' }}>{item.item?.item_number || item.item_number}</td>
-                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.item?.description || item.description}</td>
-                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text-mid)', borderBottom: '1px solid #F1F5F9' }}>{item.item?.primary_vendor || item.vendor || '\u2014'}</td>
+                            <td style={{ padding: '9px 10px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: 'var(--blue-action)', borderBottom: '1px solid #F1F5F9' }}>{item.item_number_raw}</td>
+                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.description_raw}</td>
+                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text-mid)', borderBottom: '1px solid #F1F5F9' }}>{item.vendor_raw || '\u2014'}</td>
                             <td style={{ padding: '9px 10px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: (item.quantity || 0) === 0 ? 'var(--red)' : 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.quantity ?? 0}</td>
                           </tr>
                         ))}
