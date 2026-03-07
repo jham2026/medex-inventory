@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
+import { logAudit } from '../hooks/useAudit';
 
 const AuthContext = createContext(null);
 
@@ -14,9 +15,13 @@ export function AuthProvider({ children }) {
   const [profile, setProfile]     = useState(null);
   const [loading, setLoading]     = useState(true);
   const [showWarning, setShowWarning] = useState(false);
+
+  // Keep a ref to profile so signOut callback can always access latest value
+  useEffect(() => { profileRef.current = profile; }, [profile]);
   const [countdown, setCountdown] = useState(120); // seconds remaining shown in warning
 
   const idleTimer    = useRef(null);
+  const profileRef   = useRef(null);
   const warnTimer    = useRef(null);
   const countdownRef = useRef(null);
 
@@ -27,11 +32,17 @@ export function AuthProvider({ children }) {
       .eq('id', userId)
       .single();
     setProfile(data);
+    return data;
   }
 
-  const signOut = useCallback(async () => {
+  const signOut = useCallback(async (reason = 'USER_LOGOUT') => {
     clearTimers();
     setShowWarning(false);
+    // Log before clearing profile
+    const currentProfile = profileRef.current;
+    if (currentProfile) {
+      await logAudit(currentProfile, reason, 'auth', { target_name: currentProfile.full_name });
+    }
     await supabase.auth.signOut();
     setUser(null);
     setProfile(null);
@@ -67,7 +78,7 @@ export function AuthProvider({ children }) {
 
     // Sign out at 60 minutes
     idleTimer.current = setTimeout(() => {
-      signOut();
+      signOut('SESSION_TIMEOUT');
     }, IDLE_TIMEOUT_MS);
   }, [user, signOut]);
 
@@ -99,7 +110,8 @@ export function AuthProvider({ children }) {
   async function signIn(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    await loadProfile(data.user.id);
+    const prof = await loadProfile(data.user.id);
+    await logAudit(prof, 'USER_LOGIN', 'auth', { target_name: data.user.email });
     window.history.replaceState(null, '', '/');
     return data;
   }
