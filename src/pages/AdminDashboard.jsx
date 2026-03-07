@@ -161,7 +161,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
           .order('item_number_raw'),
         supabase
           .from('inventory_counts')
-          .select('submitted_at, rep_id, account:accounts(name, region:regions(name)), rep:profiles(full_name)')
+          .select('submitted_at, rep_id, account:accounts(name), rep:profiles(full_name, region)')
           .eq('id', todo.count_id)
           .single(),
       ]);
@@ -170,7 +170,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
         submittedAt: countData?.submitted_at || null,
         accountName: countData?.account?.name || null,
         repName: countData?.rep?.full_name || null,
-        region: countData?.account?.region?.name || null,
+        region: countData?.rep?.region || null,
         repId: countData?.rep_id || null,
       });
       setCountLoading(false);
@@ -312,7 +312,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     { label: 'Total Items',    value: countLoading ? '...' : String(countItems.length) },
                     { label: 'Items Counted',  value: countLoading ? '...' : String(countItems.filter(i => (i.quantity || 0) > 0).length) },
                     { label: 'Zero Qty',       value: countLoading ? '...' : String(zeroQty), red: zeroQty > 0 },
-                    { label: 'Submitted',      value: countMeta.submittedAt ? new Date(countMeta.submittedAt).toLocaleDateString() : (countLoading ? '...' : '--') },
+                    { label: 'Submitted', value: countMeta.submittedAt ? new Date(countMeta.submittedAt).toLocaleDateString() + ' ' + new Date(countMeta.submittedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : (countLoading ? '...' : '--') },
                   ].map(s => (
                     <div key={s.label} style={{ flex: 1, padding: '12px 16px', borderRight: '1px solid var(--border)' }}>
                       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)' }}>{s.label}</div>
