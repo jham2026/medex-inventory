@@ -129,9 +129,9 @@ function MyCounts({ cycle, profile, navigate }) {
 }
 
 function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCount }) {
-  const [denyModal, setDenyModal] = useState(null);
-  const [denyReason, setDenyReason] = useState('');
-  const [expanded, setExpanded] = useState({});
+  const [reviewModal, setReviewModal] = useState(null);
+  const [denyReason, setDenyReason]   = useState('');
+  const [denyingId, setDenyingId]     = useState(null);
 
   const editRequests   = todos.filter(t => t.todo_type === 'edit_request');
   const countApprovals = todos.filter(t => t.todo_type === 'count_approval');
@@ -140,45 +140,47 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
   function parseMeta(t) { try { return JSON.parse(t.metadata || '{}'); } catch { return {}; } }
 
+  function openReview(todo) { setReviewModal(todo); setDenyReason(''); setDenyingId(null); }
+  function closeModal() { setReviewModal(null); setDenyReason(''); setDenyingId(null); }
+
   function TodoCard({ title, count, children, emptyMsg }) {
     return (
-      <div className="todo-section">
-        <div className="todo-head">
-          <div className="todo-head-title">{title}</div>
-          <div className="todo-badge">{count}</div>
+      <div style={{ background: 'white', borderRadius: 12, border: '1px solid var(--border)', marginBottom: 16, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: count > 0 ? '1px solid var(--border)' : 'none' }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{title}</div>
+          <span style={{ background: count > 0 ? '#EF4444' : '#E2E8F0', color: count > 0 ? 'white' : 'var(--text-dim)', fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 10 }}>{count}</span>
         </div>
         {count === 0
-          ? <div className="todo-empty">{emptyMsg || 'No items pending.'}</div>
+          ? <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-dim)', fontStyle: 'italic', fontSize: 13 }}>{emptyMsg || 'No items pending.'}</div>
           : children}
       </div>
     );
   }
 
+  function ReviewBtn({ todo }) {
+    return (
+      <button onClick={() => openReview(todo)}
+        style={{ background: 'var(--blue-action)', color: 'white', border: 'none', borderRadius: 8, padding: '8px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        Review
+      </button>
+    );
+  }
+
+  const meta = reviewModal ? parseMeta(reviewModal) : {};
+
   return (
     <div>
       <TodoCard title="Count Edit Requests" count={editRequests.length} emptyMsg="No edit requests pending.">
         {editRequests.map(t => {
-          const meta = parseMeta(t);
+          const m = parseMeta(t);
           return (
-            <div key={t.id} style={{ borderBottom: '1px solid var(--border)' }}>
-              <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 2 }}>{meta.account_name || t.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{meta.rep_name} &middot; {meta.region}</div>
-                  {meta.reason && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 4 }}>Reason: <strong>{meta.reason.replace(/_/g,' ')}</strong></div>}
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                  <button className="tbl-btn" onClick={() => onApproveEdit(t)}>Approve</button>
-                  <button className="tbl-btn-danger" onClick={() => setDenyModal(t)}>Deny</button>
-                  <button className="tbl-btn-sm" onClick={() => setExpanded(p => ({ ...p, [t.id]: !p[t.id] }))}>{expanded[t.id] ? 'Less' : 'Details'}</button>
-                </div>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{m.account_name || t.title}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 3 }}>{m.rep_name} &middot; {m.region}</div>
+                {m.reason && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 3 }}>Reason: <strong>{m.reason.replace(/_/g,' ')}</strong></div>}
               </div>
-              {expanded[t.id] && meta.details && (
-                <div style={{ padding: '0 20px 16px', background: 'var(--bg)' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Rep's Explanation</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>{meta.details}</div>
-                </div>
-              )}
+              <ReviewBtn todo={t} />
             </div>
           );
         })}
@@ -186,30 +188,27 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
       <TodoCard title="Counts to Approve" count={countApprovals.length} emptyMsg="No counts awaiting approval.">
         {countApprovals.map(t => (
-          <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title?.replace('Count to approve: ', '')}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{t.description}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 3 }}>{t.description}</div>
             </div>
-            <div style={{ display: 'flex', gap: 6 }}>
-              <button className="tbl-btn" onClick={() => onApproveCount(t.count_id)}>Approve Count</button>
-              <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Dismiss</button>
-            </div>
+            <ReviewBtn todo={t} />
           </div>
         ))}
       </TodoCard>
 
       <TodoCard title="Accounts Flagged for Closure" count={closureFlags.length} emptyMsg="No accounts flagged for closure.">
         {closureFlags.map(t => {
-          const meta = parseMeta(t);
+          const m = parseMeta(t);
           return (
-            <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{meta.account_name || t.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>Rep: {meta.rep_name} &middot; Reason: {meta.reason?.replace(/_/g,' ')}</div>
-                {meta.notes && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 3 }}>{meta.notes}</div>}
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{m.account_name || t.title}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 3 }}>Rep: {m.rep_name} &middot; Reason: {m.reason?.replace(/_/g,' ')}</div>
+                {m.notes && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 3 }}>{m.notes}</div>}
               </div>
-              <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Mark Reviewed</button>
+              <ReviewBtn todo={t} />
             </div>
           );
         })}
@@ -217,30 +216,131 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
       <TodoCard title="General Tasks" count={general.length} emptyMsg="No general tasks pending.">
         {general.map(t => (
-          <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title}</div>
-              {t.description && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{t.description}</div>}
+              {t.description && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 3 }}>{t.description}</div>}
             </div>
-            <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Mark Complete</button>
+            <ReviewBtn todo={t} />
           </div>
         ))}
       </TodoCard>
 
-      {denyModal && (
-        <div className="modal-overlay">
+      {/* REVIEW MODAL */}
+      {reviewModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="modal">
-            <div className="modal-head-red">
-              <div className="modal-head-title">Deny Edit Request</div>
-              <div className="modal-head-sub">{parseMeta(denyModal).account_name}</div>
+
+            {/* Header */}
+            <div style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', padding: '22px 24px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
+                {reviewModal.todo_type === 'edit_request'   && 'Count Edit Request'}
+                {reviewModal.todo_type === 'count_approval' && 'Count Approval'}
+                {reviewModal.todo_type === 'account_closure'&& 'Account Flagged for Closure'}
+                {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && 'General Task'}
+              </div>
+              <div style={{ fontSize: 20, fontWeight: 800, color: 'white' }}>{meta.account_name || reviewModal.title}</div>
+              {meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Submitted by {meta.rep_name}{meta.region ? ' Â· ' + meta.region : ''}</div>}
             </div>
+
+            {/* Body */}
             <div className="modal-body">
-              <p style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 12 }}>Please provide a reason for denying this request. The rep will be notified.</p>
-              <textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)} placeholder="Explain why the edit request is being denied..." />
+
+              {/* Edit Request details */}
+              {reviewModal.todo_type === 'edit_request' && (
+                <>
+                  {meta.reason && (
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div>
+                    </div>
+                  )}
+                  {meta.urgency && (
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Urgency</div>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.urgency}</div>
+                    </div>
+                  )}
+                  {meta.details && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Rep's Explanation</div>
+                      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{meta.details}</div>
+                    </div>
+                  )}
+                  {denyingId === reviewModal.id && (
+                    <div style={{ marginTop: 12 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Reason for Denial</div>
+                      <textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)} placeholder="Explain why this request is being denied..." />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Count Approval details */}
+              {reviewModal.todo_type === 'count_approval' && (
+                <div style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.7 }}>
+                  {reviewModal.description || 'A rep has submitted this count and it is ready for your review and approval.'}
+                </div>
+              )}
+
+              {/* Closure Flag details */}
+              {reviewModal.todo_type === 'account_closure' && (
+                <>
+                  {meta.reason && (
+                    <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div>
+                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div>
+                    </div>
+                  )}
+                  {meta.notes && (
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Notes</div>
+                      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{meta.notes}</div>
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* General task details */}
+              {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && (
+                <div style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.7 }}>
+                  {reviewModal.description || 'No additional details provided.'}
+                </div>
+              )}
             </div>
+
+            {/* Actions */}
             <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => { setDenyModal(null); setDenyReason(''); }}>Cancel</button>
-              <button className="btn btn-danger" onClick={() => { onDenyEdit(denyModal, denyReason); setDenyModal(null); setDenyReason(''); }}>Deny Request</button>
+              <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
+
+              {reviewModal.todo_type === 'edit_request' && (
+                denyingId === reviewModal.id ? (
+                  <>
+                    <button className="btn btn-outline" onClick={() => setDenyingId(null)}>Back</button>
+                    <button className="btn btn-danger" onClick={() => { onDenyEdit(reviewModal, denyReason); closeModal(); }}>Confirm Denial</button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-danger" onClick={() => setDenyingId(reviewModal.id)}>Deny Request</button>
+                    <button className="btn btn-primary" onClick={() => { onApproveEdit(reviewModal); closeModal(); }}>Approve &amp; Reopen</button>
+                  </>
+                )
+              )}
+
+              {reviewModal.todo_type === 'count_approval' && (
+                <>
+                  <button className="btn btn-outline" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Dismiss</button>
+                  <button className="btn btn-primary" onClick={() => { onApproveCount(reviewModal.count_id); closeModal(); }}>Approve Count</button>
+                </>
+              )}
+
+              {reviewModal.todo_type === 'account_closure' && (
+                <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Reviewed</button>
+              )}
+
+              {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && (
+                <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Complete</button>
+              )}
             </div>
           </div>
         </div>
