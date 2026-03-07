@@ -5,6 +5,9 @@ import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastContext';
 import Papa from 'papaparse';
 
+const SERVICE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVzY2p5cWdmbmNxb3FxZWdyY2p3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjY2OTgxNSwiZXhwIjoyMDg4MjQ1ODE1fQ.OCe9Kx7CJkdgukE_7-dBmMpF24Tqmmz0Vo7OjmdSQ6k';
+const SUPABASE_URL = 'https://uscjyqgfncqoqqegrcjw.supabase.co';
+
 // â”€â”€ Template definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const TEMPLATES = {
   accounts: {
@@ -231,12 +234,66 @@ export default function AdminDataManagement() {
               const role      = (row['Role']         || 'rep').trim().toLowerCase();
               const region    = (row['Region']       || '').trim();
               const status    = (row['Status']       || 'Active').trim();
+              const isActive  = status.toLowerCase() === 'active' || status.toLowerCase() === 'open';
               if (!email) { errors++; errorDetails.push('Row skipped: missing EmailAddress'); continue; }
-              const { error } = await supabase.from('profiles')
-                .update({ full_name: fullName || null, role, region: region || null, is_active: status.toLowerCase() === 'active' })
-                .eq('email', email);
-              if (error) { errors++; errorDetails.push(email + ': ' + error.message); }
-              else updated++;
+
+              // Check if user already exists in profiles
+              const { data: existing } = await supabase
+                .from('profiles')
+                .select('id')
+                .eq('email', email)
+                .maybeSingle();
+
+              if (existing) {
+                // User exists â€” update profile only
+                const { error } = await supabase.from('profiles')
+                  .update({ full_name: fullName || null, role, region: region || null, is_active: isActive })
+                  .eq('id', existing.id);
+                if (error) { errors++; errorDetails.push(email + ' (update): ' + error.message); }
+                else updated++;
+              } else {
+                // User does not exist â€” create in Supabase Auth first, then insert profile
+                try {
+                  const authRes = await fetch(SUPABASE_URL + '/auth/v1/admin/users', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      'apikey': SERVICE_KEY,
+                      'Authorization': 'Bearer ' + SERVICE_KEY,
+                    },
+                    body: JSON.stringify({
+                      email,
+                      password: 'MedEx1234!',
+                      email_confirm: true,
+                      user_metadata: { full_name: fullName },
+                    }),
+                  });
+                  const authResult = await authRes.json();
+                  if (!authRes.ok) {
+                    errors++;
+                    errorDetails.push(email + ' (auth create): ' + (authResult.msg || authResult.message || 'Unknown error'));
+                    continue;
+                  }
+                  // Insert profile row
+                  const { error: profError } = await supabase.from('profiles').insert({
+                    id:        authResult.id,
+                    full_name: fullName || null,
+                    email,
+                    role,
+                    region:    region || null,
+                    is_active: isActive,
+                  });
+                  if (profError) {
+                    errors++;
+                    errorDetails.push(email + ' (profile insert): ' + profError.message);
+                  } else {
+                    inserted++;
+                  }
+                } catch (authErr) {
+                  errors++;
+                  errorDetails.push(email + ' (auth error): ' + authErr.message);
+                }
+              }
             }
           }
 
