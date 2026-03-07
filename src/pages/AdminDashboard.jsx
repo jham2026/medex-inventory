@@ -153,7 +153,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
     setCountItems([]); setCountMeta({});
     if (todo.todo_type === 'count_approval' && todo.count_id) {
       setCountLoading(true);
-      const [{ data: items }, { data: countData }] = await Promise.all([
+      const [{ data: items }, { data: countData }, ] = await Promise.all([
         supabase
           .from('count_line_items')
           .select('id, item_number_raw, description_raw, vendor_raw, quantity, not_in_catalog, is_new_item')
@@ -161,18 +161,42 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
           .order('item_number_raw'),
         supabase
           .from('inventory_counts')
-          .select('submitted_at, rep_id, account:accounts(name, region:regions(name)), rep:profiles(full_name)')
+          .select('submitted_at, rep_id, account_id')
           .eq('id', todo.count_id)
           .single(),
       ]);
+
       console.log('COUNT DATA:', JSON.stringify(countData, null, 2));
       console.log('ITEMS:', JSON.stringify(items?.slice(0,2), null, 2));
+
+      // Now fetch account and rep separately using the IDs we got
+      let accountName = null, regionName = null, repName = null;
+      if (countData?.account_id) {
+        const { data: acct } = await supabase
+          .from('accounts')
+          .select('name, region:regions(name)')
+          .eq('id', countData.account_id)
+          .single();
+        console.log('ACCOUNT:', JSON.stringify(acct, null, 2));
+        accountName = acct?.name || null;
+        regionName = acct?.region?.name || null;
+      }
+      if (countData?.rep_id) {
+        const { data: rep } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', countData.rep_id)
+          .single();
+        console.log('REP:', JSON.stringify(rep, null, 2));
+        repName = rep?.full_name || null;
+      }
+
       setCountItems(items || []);
       setCountMeta({
         submittedAt: countData?.submitted_at || null,
-        accountName: countData?.account?.name || null,
-        repName: countData?.rep?.full_name || null,
-        region: countData?.account?.region?.name || null,
+        accountName: accountName,
+        repName: repName,
+        region: regionName,
         repId: countData?.rep_id || null,
       });
       setCountLoading(false);
