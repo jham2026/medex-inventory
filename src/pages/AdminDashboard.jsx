@@ -161,7 +161,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
           .order('item_number_raw'),
         supabase
           .from('inventory_counts')
-          .select('submitted_at, rep_id, account:accounts(name), rep:profiles(full_name, region)')
+          .select('submitted_at, rep_id, account:accounts(name, region:regions(name)), rep:profiles(full_name)')
           .eq('id', todo.count_id)
           .single(),
       ]);
@@ -170,7 +170,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
         submittedAt: countData?.submitted_at || null,
         accountName: countData?.account?.name || null,
         repName: countData?.rep?.full_name || null,
-        region: countData?.rep?.region || null,
+        region: countData?.account?.region?.name || null,
         repId: countData?.rep_id || null,
       });
       setCountLoading(false);
