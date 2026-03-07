@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '../components/AuthContext';
+import { logAudit } from '../hooks/useAudit';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastContext';
 
@@ -45,6 +47,7 @@ function downloadTemplate(type) {
 
 export default function AdminAccounts() {
   const toast = useToast();
+  const { profile } = useAuth();
   const [accounts, setAccounts]     = useState([]);
   const [reps, setReps]             = useState([]);
   const [regions, setRegions]       = useState([]);
@@ -92,6 +95,9 @@ export default function AdminAccounts() {
       await supabase.from('accounts').update({ assigned_rep_id: repId }).eq('id', accountId);
       setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, assigned_rep_id: repId } : a));
     }
+    const repName = reps.find(r => r.id === repId)?.full_name || repId;
+    const acctName = accounts.find(a => a.id === accountId)?.name || accountId;
+    await logAudit(profile, 'ACCOUNT_REP_ADDED', 'account', { target_name: acctName, details: { rep: repName } });
     setAccountReps(prev => ({ ...prev, [accountId]: [...(prev[accountId] || []), repId] }));
     toast.success('Rep added!');
     setSaving(null);
@@ -104,6 +110,9 @@ export default function AdminAccounts() {
     const newPrimary = remaining[0] || null;
     await supabase.from('accounts').update({ assigned_rep_id: newPrimary }).eq('id', accountId);
     setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, assigned_rep_id: newPrimary } : a));
+    const repName2 = reps.find(r => r.id === repId)?.full_name || repId;
+    const acctName2 = accounts.find(a => a.id === accountId)?.name || accountId;
+    await logAudit(profile, 'ACCOUNT_REP_REMOVED', 'account', { target_name: acctName2, details: { rep: repName2 } });
     setAccountReps(prev => ({ ...prev, [accountId]: remaining }));
     toast.success('Rep removed.');
     setSaving(null);
@@ -112,12 +121,15 @@ export default function AdminAccounts() {
   async function assignCatalog(accountId, catalogSource) {
     await supabase.from('accounts').update({ catalog_source: catalogSource }).eq('id', accountId);
     setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, catalog_source: catalogSource } : a));
+    const acctNameC = accounts.find(a => a.id === accountId)?.name || accountId;
+    await logAudit(profile, 'ACCOUNT_CATALOG_CHANGED', 'account', { target_name: acctNameC, details: { catalog: catalogSource } });
     toast.success('Catalog assigned!');
   }
 
   async function toggleActive(account) {
     await supabase.from('accounts').update({ is_active: !account.is_active }).eq('id', account.id);
     setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, is_active: !a.is_active } : a));
+    await logAudit(profile, account.is_active ? 'ACCOUNT_DEACTIVATED' : 'ACCOUNT_ACTIVATED', 'account', { target_name: account.name });
     toast.success(account.name + (account.is_active ? ' deactivated' : ' activated'));
   }
 
@@ -126,6 +138,7 @@ export default function AdminAccounts() {
     await supabase.from('accounts').update({ flagged_closed: true, is_active: false }).eq('id', account.id);
     setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, is_active: false } : a));
     setSelectedClosed(null);
+    await logAudit(profile, 'ACCOUNT_CLOSURE_APPROVED', 'account', { target_name: account.name });
     toast.success('Closure of ' + account.name + ' approved.');
   }
 
@@ -134,6 +147,7 @@ export default function AdminAccounts() {
     await supabase.from('accounts').update({ flagged_closed: false, closed_date: null, closed_notes: null, closed_by: null, closed_at: null, is_active: true }).eq('id', account.id);
     setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, flagged_closed: false, is_active: true } : a));
     setSelectedClosed(null);
+    await logAudit(profile, 'ACCOUNT_REACTIVATED', 'account', { target_name: account.name });
     toast.success(account.name + ' reactivated.');
   }
 
