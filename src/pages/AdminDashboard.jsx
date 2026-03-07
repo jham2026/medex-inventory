@@ -136,6 +136,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [showDenyBox, setShowDenyBox]     = useState(false);
   const [countItems, setCountItems]     = useState([]);
+  const [countMeta, setCountMeta] = useState({});
   const [countLoading, setCountLoading] = useState(false);
 
   const editRequests   = todos.filter(t => t.todo_type === 'edit_request');
@@ -149,7 +150,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
     setReviewModal(todo);
     setDenyReason(''); setShowDenyBox(false);
     setRejectReason(''); setShowRejectBox(false);
-    setCountItems([]);
+    setCountItems([]); setCountMeta({});
     if (todo.todo_type === 'count_approval' && todo.count_id) {
       setCountLoading(true);
       const [{ data: items }, { data: countData }] = await Promise.all([
@@ -160,23 +161,27 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
           .order('item_number_raw'),
         supabase
           .from('inventory_counts')
-          .select('submitted_at, rep_id, account:accounts(name), region:regions(name), rep:profiles(full_name)')
+          .select('submitted_at, rep_id, account:accounts(name, region:regions(name)), rep:profiles(full_name)')
           .eq('id', todo.count_id)
           .single(),
       ]);
       setCountItems(items || []);
-      setReviewModal(prev => ({
-        ...prev,
-        _submittedAt: countData?.submitted_at,
-        _accountName: countData?.account?.name,
-        _repName: countData?.rep?.full_name,
-        _region: countData?.region?.name,
-        _repId: countData?.rep_id,
-      }));
+      setCountMeta({
+        submittedAt: countData?.submitted_at || null,
+        accountName: countData?.account?.name || null,
+        repName: countData?.rep?.full_name || null,
+        region: countData?.account?.region?.name || null,
+        repId: countData?.rep_id || null,
+      });
       setCountLoading(false);
     }
   }
-  function closeModal() { setReviewModal(null); setDenyReason(''); setShowDenyBox(false); setRejectReason(''); setShowRejectBox(false); setCountItems([]); }
+  function closeModal() {
+    setReviewModal(null); setCountMeta({});
+    setDenyReason(''); setShowDenyBox(false);
+    setRejectReason(''); setShowRejectBox(false);
+    setCountItems([]);
+  }
 
   function TodoCard({ title, count, children, emptyMsg }) {
     return (
@@ -264,8 +269,18 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
       {reviewModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
-          <div className="modal" style={{ maxWidth: reviewModal.todo_type === 'count_approval' ? 780 : 520, width: '95vw', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', padding: '22px 24px' }}>
+          <div className="modal" style={{
+            maxWidth: reviewModal.todo_type === 'count_approval' ? 780 : 520,
+            width: '95vw',
+            height: reviewModal.todo_type === 'count_approval' ? '92vh' : 'auto',
+            maxHeight: '92vh',
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'hidden',
+          }}>
+
+            {/* HEADER â€” fixed, never scrolls */}
+            <div style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', padding: '22px 24px', flexShrink: 0 }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
                 {reviewModal.todo_type === 'edit_request'    && 'Edit Request'}
                 {reviewModal.todo_type === 'count_approval'  && 'Count Review'}
@@ -274,50 +289,48 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
               </div>
               <div style={{ fontSize: 20, fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
                 {reviewModal.todo_type === 'count_approval'
-                  ? (reviewModal._accountName || meta.account_name || reviewModal.title?.replace('Count to approve: ', ''))
+                  ? (countMeta.accountName || reviewModal.title?.replace('Count to approve: ', ''))
                   : (meta.account_name || reviewModal.title)}
                 {reviewModal.todo_type === 'count_approval' && (
                   <span style={{ fontSize: 10, fontWeight: 700, background: '#DCFCE7', color: '#15803D', padding: '3px 8px', borderRadius: 6 }}>Submitted</span>
                 )}
               </div>
-              {/* For count_approval, parse rep info from description since it's not in metadata */}
               {reviewModal.todo_type === 'count_approval'
                 ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
-                    {(function() {
-                      const repName = reviewModal._repName || (reviewModal.description || '').replace(/^Rep /, '').split(' submitted')[0] || '';
-                      const region = reviewModal._region || '';
-                      const dateStr = reviewModal._submittedAt ? new Date(reviewModal._submittedAt).toLocaleDateString() : '';
-                      return 'Submitted by ' + repName + (region ? '  |  ' + region : '') + (dateStr ? '  |  ' + dateStr : '');
-                    })()}
+                    {'Submitted by ' + (countMeta.repName || (reviewModal.description || '').replace(/^Rep /, '').split(' submitted')[0] || 'Unknown') + (countMeta.region ? '  |  ' + countMeta.region : '') + (countMeta.submittedAt ? '  |  ' + new Date(countMeta.submittedAt).toLocaleDateString() : '')}
                   </div>
                 : meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{'Submitted by ' + meta.rep_name + (meta.region ? '  |  ' + meta.region : '')}</div>
               }
             </div>
 
+            {/* COUNT APPROVAL LAYOUT */}
             {reviewModal.todo_type === 'count_approval' && (
               <>
-                <div style={{ display: 'flex', gap: 0, background: '#F7F9FC', borderBottom: '1px solid var(--border)' }}>
+                {/* STAT BAR â€” fixed */}
+                <div style={{ display: 'flex', background: '#F7F9FC', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
                   {[
-                    { label: 'Total Items', value: countLoading ? '...' : String(countItems.length) },
-                    { label: 'Items Counted', value: countLoading ? '...' : String(countItems.filter(i => (i.quantity || 0) > 0).length) },
-                    { label: 'Zero Qty', value: countLoading ? '...' : String(zeroQty), red: zeroQty > 0 },
-                    { label: 'Submitted', value: reviewModal._submittedAt ? new Date(reviewModal._submittedAt).toLocaleDateString() : '...' },
+                    { label: 'Total Items',    value: countLoading ? '...' : String(countItems.length) },
+                    { label: 'Items Counted',  value: countLoading ? '...' : String(countItems.filter(i => (i.quantity || 0) > 0).length) },
+                    { label: 'Zero Qty',       value: countLoading ? '...' : String(zeroQty), red: zeroQty > 0 },
+                    { label: 'Submitted',      value: countMeta.submittedAt ? new Date(countMeta.submittedAt).toLocaleDateString() : (countLoading ? '...' : '--') },
                   ].map(s => (
-                    <div key={s.label} style={{ flex: 1, padding: '14px 20px', borderRight: '1px solid var(--border)' }}>
+                    <div key={s.label} style={{ flex: 1, padding: '12px 16px', borderRight: '1px solid var(--border)' }}>
                       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)' }}>{s.label}</div>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: s.red ? 'var(--red)' : 'var(--text)', marginTop: 3 }}>{s.value}</div>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: s.red ? '#EF4444' : 'var(--text)', marginTop: 2 }}>{s.value}</div>
                     </div>
                   ))}
                 </div>
-                <div style={{ padding: '16px 24px', overflowY: 'auto', maxHeight: 360 }}>
+
+                {/* ITEM TABLE â€” scrollable, takes all remaining space */}
+                <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 10 }}>Count Details</div>
                   {countLoading ? (
-                    <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>Loading count data...</div>
+                    <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)' }}>Loading count data...</div>
                   ) : countItems.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)', fontStyle: 'italic' }}>No items found for this count.</div>
+                    <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)', fontStyle: 'italic' }}>No items found for this count.</div>
                   ) : (
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
+                      <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                         <tr style={{ background: '#F7F9FC' }}>
                           <th style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Item #</th>
                           <th style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Description</th>
@@ -329,15 +342,15 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                         {countItems.map((item, idx) => {
                           const isManual = item.not_in_catalog === true;
                           return (
-                          <tr key={item.id} style={{ background: isManual ? '#FFF5F5' : idx % 2 === 0 ? 'white' : '#F7F9FC' }}>
-                            <td style={{ padding: '9px 10px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: isManual ? '#DC2626' : 'var(--blue-action)', borderBottom: '1px solid #F1F5F9', whiteSpace: 'nowrap' }}>
-                              {item.item_number_raw}
-                              {isManual && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', padding: '1px 5px', borderRadius: 4, fontFamily: 'inherit', letterSpacing: 0.5 }}>MANUAL</span>}
-                            </td>
-                            <td style={{ padding: '9px 10px', fontSize: 13, color: isManual ? '#DC2626' : 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.description_raw}</td>
-                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text-mid)', borderBottom: '1px solid #F1F5F9' }}>{item.vendor_raw || '--'}</td>
-                            <td style={{ padding: '9px 10px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: (item.quantity || 0) === 0 ? 'var(--red)' : 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.quantity ?? 0}</td>
-                          </tr>
+                            <tr key={item.id} style={{ background: isManual ? '#FFF5F5' : idx % 2 === 0 ? 'white' : '#F7F9FC' }}>
+                              <td style={{ padding: '9px 10px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: isManual ? '#DC2626' : 'var(--blue-action)', borderBottom: '1px solid #F1F5F9', whiteSpace: 'nowrap' }}>
+                                {item.item_number_raw}
+                                {isManual && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', padding: '1px 5px', borderRadius: 4, letterSpacing: 0.5 }}>MANUAL</span>}
+                              </td>
+                              <td style={{ padding: '9px 10px', fontSize: 13, color: isManual ? '#DC2626' : 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.description_raw}</td>
+                              <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text-mid)', borderBottom: '1px solid #F1F5F9' }}>{item.vendor_raw || '--'}</td>
+                              <td style={{ padding: '9px 10px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: (item.quantity || 0) === 0 ? '#EF4444' : 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.quantity ?? 0}</td>
+                            </tr>
                           );
                         })}
                       </tbody>
@@ -345,22 +358,34 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                   )}
                   {!countLoading && countItems.some(i => i.not_in_catalog === true) && (
                     <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', padding: '1px 5px', borderRadius: 4, letterSpacing: 0.5, whiteSpace: 'nowrap' }}>MANUAL</span>
+                      <span style={{ fontSize: 9, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', padding: '1px 5px', borderRadius: 4, letterSpacing: 0.5 }}>MANUAL</span>
                       <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Item was manually entered and does not match a catalog item number.</span>
                     </div>
                   )}
                 </div>
+
+                {/* REJECTION NOTES â€” always visible, fixed at bottom */}
+                <div style={{ padding: '16px 24px', borderTop: '1px solid #E2E8F0', background: '#F8FAFC', flexShrink: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Rejection Notes (optional) â€” sent to rep if rejected</div>
+                  <textarea
+                    className="form-ta"
+                    value={rejectReason}
+                    onChange={e => setRejectReason(e.target.value)}
+                    placeholder="Add notes for the rep explaining what needs to be corrected before resubmitting..."
+                    style={{ width: '100%', boxSizing: 'border-box', minHeight: 72, resize: 'vertical' }}
+                  />
+                </div>
+
+                {/* ACTIONS */}
+                <div className="modal-actions" style={{ flexShrink: 0 }}>
+                  <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
+                  <button className="btn btn-danger" onClick={() => { onRejectCount(reviewModal, rejectReason, countMeta); closeModal(); }}>Reject Count</button>
+                  <button className="btn btn-primary" style={{ background: '#16A34A' }} onClick={() => { onApproveCount(reviewModal.count_id); onComplete(reviewModal.id); closeModal(); }}>Approve Count</button>
+                </div>
               </>
             )}
 
-            {/* Reject reason box â€” rendered outside all fragments, directly above action bar */}
-            {reviewModal.todo_type === 'count_approval' && showRejectBox && (
-              <div style={{ padding: '16px 24px', borderTop: '1px solid #FECACA', background: '#FFF8F8', flexShrink: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: '#991B1B', marginBottom: 8 }}>Reason for Rejection -- Rep will be notified</div>
-                <textarea className="form-ta" value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Explain what needs to be corrected before resubmitting..." style={{ borderColor: '#FCA5A5', width: '100%', boxSizing: 'border-box', minHeight: 80 }} />
-              </div>
-            )}
-
+            {/* ALL OTHER MODAL TYPES */}
             {reviewModal.todo_type === 'edit_request' && (
               <div className="modal-body">
                 {meta.reason && <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div><div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div></div>}
@@ -369,39 +394,33 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                 {showDenyBox && <div style={{ marginTop: 12 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Reason for Denial</div><textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)} placeholder="Explain why this request is being denied..." /></div>}
               </div>
             )}
-
             {reviewModal.todo_type === 'account_closure' && (
               <div className="modal-body">
                 {meta.reason && <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div><div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div></div>}
                 {meta.notes && <div><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Notes</div><div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{meta.notes}</div></div>}
               </div>
             )}
-
             {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && (
               <div className="modal-body">
                 <div style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.7 }}>{reviewModal.description || 'No additional details provided.'}</div>
               </div>
             )}
 
-            <div className="modal-actions">
-              <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
-              {reviewModal.todo_type === 'edit_request' && (
-                showDenyBox ? (
-                  <><button className="btn btn-outline" onClick={() => setShowDenyBox(false)}>Back</button><button className="btn btn-danger" onClick={() => { onDenyEdit(reviewModal, denyReason); closeModal(); }}>Confirm Denial</button></>
-                ) : (
-                  <><button className="btn btn-danger" onClick={() => setShowDenyBox(true)}>Deny Request</button><button className="btn btn-primary" onClick={() => { onApproveEdit(reviewModal); closeModal(); }}>Approve &amp; Reopen</button></>
-                )
-              )}
-              {reviewModal.todo_type === 'count_approval' && (
-                showRejectBox ? (
-                  <><button className="btn btn-outline" onClick={() => setShowRejectBox(false)}>Back</button><button className="btn btn-danger" onClick={() => { onRejectCount(reviewModal, rejectReason); closeModal(); }}>Confirm Rejection</button></>
-                ) : (
-                  <><button className="btn btn-danger" onClick={() => setShowRejectBox(true)}>Reject Count</button><button className="btn btn-primary" style={{ background: '#16A34A' }} onClick={() => { onApproveCount(reviewModal.count_id); onComplete(reviewModal.id); closeModal(); }}>Approve Count</button></>
-                )
-              )}
-              {reviewModal.todo_type === 'account_closure' && <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Reviewed</button>}
-              {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Complete</button>}
-            </div>
+            {/* Actions for non-count modals */}
+            {reviewModal.todo_type !== 'count_approval' && (
+              <div className="modal-actions">
+                <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
+                {reviewModal.todo_type === 'edit_request' && (
+                  showDenyBox ? (
+                    <><button className="btn btn-outline" onClick={() => setShowDenyBox(false)}>Back</button><button className="btn btn-danger" onClick={() => { onDenyEdit(reviewModal, denyReason); closeModal(); }}>Confirm Denial</button></>
+                  ) : (
+                    <><button className="btn btn-danger" onClick={() => setShowDenyBox(true)}>Deny Request</button><button className="btn btn-primary" onClick={() => { onApproveEdit(reviewModal); closeModal(); }}>Approve &amp; Reopen</button></>
+                  )
+                )}
+                {reviewModal.todo_type === 'account_closure' && <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Reviewed</button>}
+                {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Complete</button>}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -497,10 +516,10 @@ export default function AdminDashboard() {
     toast.success('Count approved!');
   }
 
-  async function rejectCount(todo, reason) {
+  async function rejectCount(todo, reason, countMeta) {
     const countId = todo.count_id;
-    const repId = todo._repId;
-    const accountName = todo._accountName || todo.title?.replace('Count to approve: ', '') || '';
+    const repId = countMeta?.repId || todo._repId;
+    const accountName = countMeta?.accountName || todo.title?.replace('Count to approve: ', '') || '';
     await supabase.from('inventory_counts').update({ status: 'in_progress' }).eq('id', countId);
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
     if (repId) {
