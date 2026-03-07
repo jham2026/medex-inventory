@@ -130,7 +130,8 @@ function MyCounts({ cycle, profile, navigate }) {
 
 function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCount, onRejectCount }) {
   const [reviewModal, setReviewModal] = useState(null);
-  const [denyReason, setDenyReason]   = useState('');
+  const [denyReason, setDenyReason]       = useState('');
+  const [rejectReason, setRejectReason]   = useState('');
   
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [showDenyBox, setShowDenyBox]     = useState(false);
