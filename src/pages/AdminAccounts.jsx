@@ -4,12 +4,43 @@ import { useToast } from '../components/ToastContext';
 
 const CATALOGS = [
   { value: 'claimsoft', label: 'Claimsoft' },
-  { value: 'edge', label: 'Edge' },
+  { value: 'edge', label: 'Account Edge' },
 ];
 
 function Pill({ status }) {
   const map = { Active: 'pill-app', Inactive: 'pill-ns' };
   return <span className={'pill ' + (map[status] || 'pill-ns')}>{status}</span>;
+}
+
+
+// â”€â”€ Versioned template download â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const TEMPLATE_DEFS = {
+  accounts: {
+    filename: 'MedEx_Accounts_Template_v1.csv',
+    csvContent: '#MedEx_Template,accounts,v1\nAccount,Region,Status,Rep,Item Catalog\nExample Account,Austin,Open,Jane Smith,Claimsoft Catalog',
+  },
+  users: {
+    filename: 'MedEx_Users_Template_v1.csv',
+    csvContent: '#MedEx_Template,users,v1\nFirstName,LastName,FullName,EmailAddress,Role,Region,Status\nJane,Smith,Jane Smith,jsmith@medexpsi.com,rep,Austin,Active',
+  },
+  claimsoft_catalog: {
+    filename: 'MedEx_ClaimsoftCatalog_Template_v1.csv',
+    csvContent: '#MedEx_Template,claimsoft_catalog,v1\nItemNumber,ItemCategory,ItemType,ProductFamily,Description,Size,Side,Barcode1,Barcode2,NDCNumber,AllowNegQty,IsSerialized,SerialNumber,TransferCanCreatePO,VendorPartNumber,VendorName,VendorDescription,Manufacturer,CostPerItem,PurchaseUOM,CostPerUOM,ItemsPerUOM,LeadTime,BillableItem,HCPCS,Mod1,Mod2,Mod3,Mod4,SellingPrice,RentalPrice,UsedPrice,IsTaxable,IsOxygenItem,NonMedicareItem,Warehouse,Location,Bin,QOH,IsAvailable,ParLevel,MinOrderQuantity,Devices,CMN,NewItemNumber,Instructions,RequiredForms,LinkText,QRCodeURL,DiscontinueDate\nCS-001,Category,Type,Family,Example Item,Medium,,123456,,,,,,,,Claimsoft,Description,Mfg,10.00,EA,10.00,1,0,Yes,A4570,,,,,25.00,,,,,,,,,,1,1,0,5,,,,,,,',
+  },
+  edge_catalog: {
+    filename: 'MedEx_EdgeCatalog_Template_v1.csv',
+    csvContent: '#MedEx_Template,edge_catalog,v1\nItem Number,Item Name,Buy,Sell,Inventory,Asset Acct,Income Acct,Expense/COS Acct,Item Picture,Description,Use Desc. On Sale,Custom List 1,Custom List 2,Custom List 3,Custom Field 1,Custom Field 2,Custom Field 3,Primary Vendor,Vendor Item Number,Tax When Bought,Buy Unit Measure,# Items/Buy Unit,Reorder Quantity,Minimum Level,Selling Price,Sell Unit Measure,Tax When Sold,# Items/Sell Unit,Inactive Item,Standard Cost,Brand\nEDG-001,Example Item,Yes,Yes,Yes,,,,,Description,,,,,,,CF3,Edge Vendor,V001,,,5,2,25.00,EA,,,No,20.00,Brand',
+  },
+};
+
+function downloadTemplate(type) {
+  const tmpl = TEMPLATE_DEFS[type];
+  if (!tmpl) return;
+  const blob = new Blob([tmpl.csvContent], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = tmpl.filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
 export default function AdminAccounts() {
@@ -172,7 +203,7 @@ export default function AdminAccounts() {
             <div className="modal">
               <div className="modal-head-blue">
                 <div className="modal-head-title">Assign Reps</div>
-                <div className="modal-head-sub">{acct?.name} Â· {acct?.region?.name}</div>
+                <div className="modal-head-sub">{acct?.name} Ã‚Â· {acct?.region?.name}</div>
               </div>
               <div className="modal-body">
                 <div className="form-lbl" style={{ marginTop: 0 }}>Assigned Reps ({assignedRepObjects.length})</div>
@@ -252,6 +283,10 @@ export default function AdminAccounts() {
         <span className="filter-label">Search:</span>
         <input className="search-input" placeholder="Search accounts..." value={search} onChange={e => setSearch(e.target.value)} />
         <span className="count-lbl ml-auto">{filtered.length} accounts</span>
+        <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 5 }} onClick={() => downloadTemplate('accounts')}>
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Template
+        </button>
       </div>
 
       <div className="section-title">
@@ -283,7 +318,7 @@ export default function AdminAccounts() {
                   <td>{acct.region?.name}</td>
                   <td>
                     <select className="cat-select" value={acct.catalog_source || ''} onChange={e => assignCatalog(acct.id, e.target.value)}>
-                      <option value="">â€” None â€”</option>
+                      <option value="">Ã¢â‚¬â€ None Ã¢â‚¬â€</option>
                       {CATALOGS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                   </td>
