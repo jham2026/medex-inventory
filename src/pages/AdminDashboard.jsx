@@ -542,6 +542,8 @@ export default function AdminDashboard() {
   const toast = useToast();
   const navigate = useNavigate();
   const [tab, setTabRaw]            = useState(() => sessionStorage.getItem('adminTab') || 'overview');
+  const [usersShowImport, setUsersShowImport] = useState(false);
+  const [usersShowAdd,    setUsersShowAdd]    = useState(false);
   function setTab(t) { sessionStorage.setItem('adminTab', t); setTabRaw(t); }
   const [cycle, setCycle]           = useState(null);
   const [progress, setProgress]     = useState([]);
