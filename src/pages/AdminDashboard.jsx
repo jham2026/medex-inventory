@@ -154,7 +154,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
       const [{ data: items }, { data: countData }] = await Promise.all([
         supabase
           .from('count_line_items')
-          .select('id, item_number_raw, description_raw, vendor_raw, quantity')
+          .select('id, item_number_raw, description_raw, vendor_raw, quantity, not_in_catalog, is_new_item')
           .eq('inventory_count_id', todo.count_id)
           .order('item_number_raw'),
         supabase
@@ -320,16 +320,28 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                         </tr>
                       </thead>
                       <tbody>
-                        {countItems.map((item, idx) => (
-                          <tr key={item.id} style={{ background: idx % 2 === 0 ? 'white' : '#F7F9FC' }}>
-                            <td style={{ padding: '9px 10px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: 'var(--blue-action)', borderBottom: '1px solid #F1F5F9' }}>{item.item_number_raw}</td>
-                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.description_raw}</td>
-                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text-mid)', borderBottom: '1px solid #F1F5F9' }}>{item.vendor_raw || <span>&mdash;</span>}</td>
+                        {countItems.map((item, idx) => {
+                          const isManual = item.not_in_catalog || item.is_new_item;
+                          return (
+                          <tr key={item.id} style={{ background: isManual ? '#FFF5F5' : idx % 2 === 0 ? 'white' : '#F7F9FC' }}>
+                            <td style={{ padding: '9px 10px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: isManual ? '#DC2626' : 'var(--blue-action)', borderBottom: '1px solid #F1F5F9', whiteSpace: 'nowrap' }}>
+                              {item.item_number_raw}
+                              {isManual && <span style={{ marginLeft: 6, fontSize: 9, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', padding: '1px 5px', borderRadius: 4, fontFamily: 'inherit', letterSpacing: 0.5 }}>MANUAL</span>}
+                            </td>
+                            <td style={{ padding: '9px 10px', fontSize: 13, color: isManual ? '#DC2626' : 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.description_raw}</td>
+                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text-mid)', borderBottom: '1px solid #F1F5F9' }}>{item.vendor_raw || '--'}</td>
                             <td style={{ padding: '9px 10px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: (item.quantity || 0) === 0 ? 'var(--red)' : 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.quantity ?? 0}</td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
+                  )}
+                  {!countLoading && countItems.some(i => i.not_in_catalog || i.is_new_item) && (
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: 9, fontWeight: 700, background: '#FEE2E2', color: '#DC2626', padding: '1px 5px', borderRadius: 4, letterSpacing: 0.5, whiteSpace: 'nowrap' }}>MANUAL</span>
+                      <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Item was manually entered and does not match a catalog item number.</span>
+                    </div>
                   )}
                 </div>
                 {showRejectBox && (
