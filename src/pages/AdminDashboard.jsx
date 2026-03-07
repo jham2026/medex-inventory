@@ -300,7 +300,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
       {reviewModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="modal" style={{
-            maxWidth: reviewModal.todo_type === 'count_approval' ? 780 : 520,
+            maxWidth: reviewModal.todo_type === 'count_approval' ? 780 : reviewModal.todo_type === 'account_closure' ? 660 : 520,
             width: '95vw',
             height: reviewModal.todo_type === 'count_approval' ? '92vh' : 'auto',
             maxHeight: '92vh',
@@ -310,22 +310,24 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
           }}>
 
             {/* HEADER â€” fixed, never scrolls */}
-            <div style={{ background: reviewModal.todo_type === 'account_closure' ? 'linear-gradient(135deg, #7C3AED, #5B21B6)' : 'linear-gradient(135deg, #1565C0, #0D47A1)', padding: '22px 24px', flexShrink: 0 }}>
+            <div style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', padding: '22px 24px', flexShrink: 0 }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
                 {reviewModal.todo_type === 'edit_request'    && 'Edit Request'}
                 {reviewModal.todo_type === 'count_approval'  && 'Count Review'}
                 {reviewModal.todo_type === 'account_closure' && 'Closure Review'}
                 {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && 'General Task'}
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap' }}>
                 {reviewModal.todo_type === 'count_approval'
                   ? (countMeta.accountName || reviewModal.title?.replace('Count to approve: ', ''))
+                  : reviewModal.todo_type === 'account_closure'
+                  ? (closureMeta.accountName || reviewModal.title?.replace('Account flagged for closure: ', ''))
                   : (meta.account_name || reviewModal.title)}
                 {reviewModal.todo_type === 'count_approval' && (
-                  <span style={{ fontSize: 10, fontWeight: 700, background: '#DCFCE7', color: '#15803D', padding: '3px 8px', borderRadius: 6 }}>Submitted</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, background: '#DCFCE7', color: '#15803D', padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>Submitted</span>
                 )}
                 {reviewModal.todo_type === 'account_closure' && (
-                  <span style={{ fontSize: 10, fontWeight: 700, background: '#FEF3C7', color: '#92400E', padding: '3px 8px', borderRadius: 6 }}>Flagged for Closure</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, background: '#EEAF24', color: '#003f63', padding: '3px 8px', borderRadius: 6, whiteSpace: 'nowrap', flexShrink: 0 }}>Flagged for Closure</span>
                 )}
               </div>
               {reviewModal.todo_type === 'count_approval'
@@ -434,16 +436,16 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
             {reviewModal.todo_type === 'account_closure' && (
               <>
                 {/* STAT BAR */}
-                <div style={{ display: 'flex', background: '#F7F9FC', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
+                <div style={{ display: 'flex', background: '#F7F9FC', borderBottom: '1px solid var(--border)', flexShrink: 0, overflow: 'hidden' }}>
                   {[
-                    { label: 'Reason', value: (closureMeta.reason || '--').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), color: '#D97706' },
-                    { label: 'Last Count Date', value: closureMeta.lastCountDate ? new Date(closureMeta.lastCountDate).toLocaleDateString() : '--' },
-                    { label: 'Final Count Done', value: closureMeta.finalCountPerformed ? closureMeta.finalCountPerformed.charAt(0).toUpperCase() + closureMeta.finalCountPerformed.slice(1) : '--', color: closureMeta.finalCountPerformed === 'yes' ? '#16A34A' : closureMeta.finalCountPerformed === 'no' ? '#EF4444' : undefined },
-                    { label: 'Inventory Returned', value: closureMeta.inventoryReturned ? closureMeta.inventoryReturned.charAt(0).toUpperCase() + closureMeta.inventoryReturned.slice(1) : '--', color: closureMeta.inventoryReturned === 'yes' ? '#16A34A' : closureMeta.inventoryReturned === 'partial' ? '#D97706' : closureMeta.inventoryReturned === 'no' ? '#EF4444' : undefined },
+                    { label: 'Reason', value: (closureMeta.reason || '--').replace(/_/g, ' ').replace(/\w/g, c => c.toUpperCase()), color: '#D97706' },
+                    { label: 'Last Count', value: closureMeta.lastCountDate ? new Date(closureMeta.lastCountDate).toLocaleDateString() : '--' },
+                    { label: 'Final Count', value: closureMeta.finalCountPerformed ? closureMeta.finalCountPerformed.charAt(0).toUpperCase() + closureMeta.finalCountPerformed.slice(1) : '--', color: closureMeta.finalCountPerformed === 'yes' ? '#16A34A' : closureMeta.finalCountPerformed === 'no' ? '#EF4444' : undefined },
+                    { label: 'Inv. Returned', value: closureMeta.inventoryReturned ? closureMeta.inventoryReturned.charAt(0).toUpperCase() + closureMeta.inventoryReturned.slice(1) : '--', color: closureMeta.inventoryReturned === 'yes' ? '#16A34A' : closureMeta.inventoryReturned === 'partial' ? '#D97706' : closureMeta.inventoryReturned === 'no' ? '#EF4444' : undefined },
                   ].map(s => (
-                    <div key={s.label} style={{ flex: 1, padding: '12px 14px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 5, minWidth: 0 }}>
-                      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>{s.label}</div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: s.color || 'var(--text)', whiteSpace: 'nowrap' }}>{s.value}</div>
+                    <div key={s.label} style={{ flex: 1, padding: '12px 10px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.8, color: 'var(--text-dim)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.label}</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: s.color || 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.value}</div>
                     </div>
                   ))}
                 </div>
@@ -474,7 +476,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
                 {/* ADMIN NOTES â€” always visible */}
                 <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', background: '#F8FAFC', flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Admin Notes (optional) â€” sent to rep</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Admin Notes (optional) -- sent to rep</div>
                   <textarea className="form-ta" value={closureNotes} onChange={e => setClosureNotes(e.target.value)} placeholder="Add any notes for the rep before confirming or denying this closure..." style={{ width: '100%', boxSizing: 'border-box', minHeight: 70, resize: 'vertical' }} />
                 </div>
 
@@ -482,7 +484,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                 <div className="modal-actions" style={{ flexShrink: 0 }}>
                   <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
                   <button className="btn btn-danger" onClick={() => { denyClosure(reviewModal, closureMeta, closureNotes); closeModal(); }}>Deny Closure</button>
-                  <button className="btn btn-primary" style={{ background: '#7C3AED' }} onClick={() => { confirmClosure(reviewModal, closureMeta, closureNotes); closeModal(); }}>Confirm Closure</button>
+                  <button className="btn btn-primary" style={{ background: 'var(--blue-action)' }} onClick={() => { confirmClosure(reviewModal, closureMeta, closureNotes); closeModal(); }}>Confirm Closure</button>
                 </div>
               </>
             )}
