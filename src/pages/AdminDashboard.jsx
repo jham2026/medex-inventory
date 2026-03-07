@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthContext';
 import { useToast } from '../components/ToastContext';
-import { COUNT_STATUS } from '../lib/supabase';
 import AdminUsers from './AdminUsers';
 import AdminDataManagement from './AdminDataManagement';
 import AdminAccounts from './AdminAccounts';
@@ -14,12 +13,11 @@ const NAV = [
   { key: 'overview',  label: 'Count Cycle Details' },
   { key: 'todos',     label: 'To Do' },
   { key: 'mycounts',  label: 'My Counts' },
+  { key: 'reports',   label: 'Reports' },
   { section: 'SETTINGS' },
   { key: 'accounts',  label: 'Accounts' },
   { key: 'users',     label: 'Users' },
   { key: 'catalog',   label: 'Item Catalog' },
-  { section: 'REPORTS' },
-  { key: 'data',      label: 'Export' },
 ];
 
 const STAT_CARDS = [
@@ -33,6 +31,100 @@ function Pill({ status }) {
   const map    = { not_started: 'pill-ns', in_progress: 'pill-ip', submitted: 'pill-sub', approved: 'pill-app' };
   const labels = { not_started: 'Not Started', in_progress: 'In Progress', submitted: 'Submitted', approved: 'Approved' };
   return <span className={'pill ' + (map[status] || 'pill-ns')}>{labels[status] || status}</span>;
+}
+
+function MyCounts({ cycle, profile, navigate }) {
+  const [counts, setCounts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!cycle || !profile?.id) { setLoading(false); return; }
+    supabase
+      .from('inventory_counts')
+      .select('id, status, account:accounts(id, name, region:regions(name))')
+      .eq('cycle_id', cycle.id)
+      .eq('rep_id', profile.id)
+      .then(({ data }) => { setCounts(data || []); setLoading(false); });
+  }, [cycle, profile]);
+
+  if (loading) return <div className="loading-center"><div className="spinner" /></div>;
+
+  const total     = counts.length;
+  const stats = {
+    not_started: counts.filter(c => c.status === 'not_started').length,
+    in_progress:  counts.filter(c => c.status === 'in_progress').length,
+    submitted:    counts.filter(c => c.status === 'submitted').length,
+    approved:     counts.filter(c => c.status === 'approved').length,
+  };
+  const pct = total > 0 ? Math.round((stats.submitted + stats.approved) / total * 100) : 0;
+  const firstName = profile?.full_name?.split(' ')[0] || 'there';
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+  const needAttention = counts.filter(c => c.status === 'not_started' || c.status === 'in_progress').length;
+
+  const statusColor = { not_started: 'var(--red)', in_progress: 'var(--amber)', submitted: 'var(--blue)', approved: 'var(--green)' };
+  const statusLabel = { not_started: 'Not Started', in_progress: 'In Progress', submitted: 'Submitted', approved: 'Approved' };
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>{greeting}, {firstName}</div>
+        <div style={{ fontSize: 14, color: 'var(--text-dim)' }}>
+          {needAttention > 0 ? needAttention + ' account' + (needAttention !== 1 ? 's' : '') + ' still need your attention' : 'All counts are up to date!'}
+        </div>
+      </div>
+
+      {cycle ? (
+        <div className="cycle-hero" style={{ marginBottom: 24 }}>
+          <div className="hero-top">
+            <div>
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#7A9ABE', marginBottom: 6 }}>Active Cycle</div>
+              <div className="hero-title">{cycle.name}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div className="hero-pct">{pct}%</div>
+              <div className="hero-pct-lbl">COMPLETE</div>
+            </div>
+          </div>
+          <div className="progress-bar">
+            <div className="progress-fill" style={{ width: pct + '%' }} />
+          </div>
+          <div className="hero-stats">
+            {STAT_CARDS.map(s => (
+              <div key={s.key} className={'stat-card hero-stat-card ' + s.cls}>
+                <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
+                <div className={'sc-lbl ' + s.tc}>{s.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div className="card" style={{ padding: 24, marginBottom: 24, color: 'var(--text-dim)', fontStyle: 'italic' }}>No active count cycle.</div>
+      )}
+
+      <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>Your Accounts</div>
+      {counts.length === 0 ? (
+        <div className="card" style={{ padding: 32, textAlign: 'center', color: 'var(--text-dim)' }}>No accounts assigned to you for this cycle.</div>
+      ) : counts.map(c => (
+        <div key={c.id} className="card" style={{ marginBottom: 10, padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderLeft: '4px solid ' + (statusColor[c.status] || 'var(--border)') }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>{c.account?.name}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{c.account?.region?.name}</div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: statusColor[c.status], marginTop: 3 }}>{statusLabel[c.status]}</div>
+          </div>
+          {(c.status === 'not_started' || c.status === 'in_progress') && (
+            <button className="btn btn-primary" onClick={() => navigate('/count/' + c.id)}>Enter Count</button>
+          )}
+          {c.status === 'submitted' && (
+            <button className="btn btn-outline" onClick={() => navigate('/count/' + c.id)}>View Count</button>
+          )}
+          {c.status === 'approved' && (
+            <button className="btn btn-outline" onClick={() => navigate('/count/' + c.id)}>View Count</button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCount }) {
@@ -160,11 +252,9 @@ export default function AdminDashboard() {
   const { profile } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const [myCounts, setMyCounts]     = useState([]);
   const [tab, setTab]               = useState('overview');
   const [cycle, setCycle]           = useState(null);
   const [progress, setProgress]     = useState([]);
-  const [alerts, setAlerts]         = useState([]);
   const [todos, setTodos]           = useState([]);
   const [loading, setLoading]       = useState(true);
   const [progressFilter, setProgressFilter] = useState('all');
@@ -180,13 +270,11 @@ export default function AdminDashboard() {
 
   async function loadData() {
     setLoading(true);
-    const [{ data: cycleData }, { data: alertData }, { data: todoData }] = await Promise.all([
+    const [{ data: cycleData }, { data: todoData }] = await Promise.all([
       supabase.from('count_cycles').select('*').eq('status', 'open').single(),
-      supabase.from('alerts').select('*').eq('is_read', false).order('created_at', { ascending: false }).limit(50),
       supabase.from('todos').select('*').eq('is_complete', false).order('created_at', { ascending: false }),
     ]);
     setCycle(cycleData);
-    setAlerts(alertData || []);
     setTodos(todoData || []);
 
     if (cycleData) {
@@ -205,15 +293,6 @@ export default function AdminDashboard() {
         acctRepsMap[ar.account_id].push(repMap[ar.rep_id]);
       }
       setProgress((counts || []).map(c => ({ ...c, rep: c.rep_id ? repMap[c.rep_id] : null, allReps: acctRepsMap[c.account?.id] || [] })));
-    }
-    if (cycleData && profile?.id) {
-      const { data: myCountData } = await supabase
-        .from('inventory_counts')
-        .select('id, status, account:accounts(name)')
-        .eq('cycle_id', cycleData.id)
-        .eq('rep_id', profile.id)
-        .in('status', ['not_started', 'in_progress']);
-      setMyCounts(myCountData || []);
     }
     setLoading(false);
   }
@@ -251,11 +330,6 @@ export default function AdminDashboard() {
       await supabase.from('alerts').insert({ alert_type: 'count_approved', title: 'Count Approved', message: 'Your count for ' + (countData.account?.name || '') + ' has been approved!', is_read: false, rep_id: countData.rep_id, inventory_count_id: countId });
     }
     toast.success('Count approved!');
-  }
-
-  async function dismissAlert(alertId) {
-    await supabase.from('alerts').update({ is_read: true }).eq('id', alertId);
-    setAlerts(prev => prev.filter(a => a.id !== alertId));
   }
 
   async function completeTodo(todoId) {
@@ -296,7 +370,6 @@ export default function AdminDashboard() {
   };
   const total = progress.length;
   const pct   = total > 0 ? Math.round((stats.submitted + stats.approved) / total * 100) : 0;
-  const initials = profile?.full_name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2) || 'AD';
 
   const filteredProgress = progressFilter === 'all' ? progress : progress.filter(p => p.status === progressFilter);
   const regionMap = {};
@@ -319,7 +392,6 @@ export default function AdminDashboard() {
 
   return (
     <div className="app-shell">
-
       {/* SIDEBAR */}
       <nav className="sidebar">
         <div className="sidebar-logo">
@@ -346,24 +418,6 @@ export default function AdminDashboard() {
           );
         })}
 
-        {/* My Counts section */}
-        {myCounts.length > 0 && (
-          <div style={{ padding: '8px 8px 12px', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 8 }}>
-            <div style={{ padding: '6px 12px 4px', fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '2px', textTransform: 'uppercase' }}>MY ACTIVE COUNTS</div>
-            {myCounts.map(c => (
-              <div key={c.id} onClick={() => navigate('/count/' + c.id)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', margin: '1px 0', borderRadius: 8, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 500, transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'white'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}>
-                <span>{c.account?.name}</span>
-                <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 8, textTransform: 'uppercase', background: c.status === 'in_progress' ? 'rgba(0,118,187,0.3)' : 'rgba(255,255,255,0.1)', color: c.status === 'in_progress' ? '#7dd3fc' : 'rgba(255,255,255,0.4)' }}>
-                  {c.status === 'in_progress' ? 'In Progress' : 'Not Started'}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-
         <div className="sidebar-bottom">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -386,11 +440,11 @@ export default function AdminDashboard() {
             <p>
               {tab === 'overview'  && (cycle ? cycle.name + ' \u2014 ' + total + ' accounts' : 'No active cycle')}
               {tab === 'todos'     && todos.length + ' pending task' + (todos.length !== 1 ? 's' : '')}
-              {tab === 'mycounts' && myCounts.length + ' active count' + (myCounts.length !== 1 ? 's' : '')}
-              {tab === 'accounts' && 'Manage account assignments'}
-              {tab === 'users'    && 'Manage rep accounts'}
-              {tab === 'catalog'  && 'Manage inventory items'}
-              {tab === 'data'     && 'Export count data'}
+              {tab === 'mycounts'  && 'Your assigned accounts for the active cycle'}
+              {tab === 'reports'   && 'Export count data'}
+              {tab === 'accounts'  && 'Manage account assignments'}
+              {tab === 'users'     && 'Manage rep accounts'}
+              {tab === 'catalog'   && 'Manage inventory items'}
             </p>
           </div>
           {tab === 'overview' && cycle && (
@@ -466,11 +520,11 @@ export default function AdminDashboard() {
                   {Object.keys(regionMap).sort().map(rName => {
                     const counts = regionMap[rName];
                     const allForRegion = progress.filter(p => (p.account?.region?.name || 'Unassigned') === rName);
-                    const rTotal    = allForRegion.length;
-                    const rApproved = allForRegion.filter(p => p.status === 'approved').length;
+                    const rTotal     = allForRegion.length;
+                    const rApproved  = allForRegion.filter(p => p.status === 'approved').length;
                     const rSubmitted = allForRegion.filter(p => p.status === 'submitted').length;
-                    const rPct      = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
-                    const progColor = rPct === 100 ? '#16A34A' : '#1565C0';
+                    const rPct       = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
+                    const progColor  = rPct === 100 ? '#16A34A' : '#1565C0';
                     const isCollapsed = collapsedRegions[rName];
                     const rStats = {
                       not_started: allForRegion.filter(p => p.status === 'not_started').length,
@@ -483,28 +537,29 @@ export default function AdminDashboard() {
                       <div key={rName} className="region-block">
                         {/* Clickable region header */}
                         <div className="region-header" onClick={() => toggleRegion(rName)} style={{ cursor: 'pointer' }}>
+                          {/* Top row: region name | centered stats | pct + chevron */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                              <div>
-                                <div className="region-eyebrow">Region</div>
-                                <div className="region-name">{rName}</div>
-                              </div>
-                              {/* Inline mini stats */}
-                              <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
-                                {STAT_CARDS.map(s => (
-                                  <div key={s.key} className={'stat-card ' + s.cls} style={{ padding: '4px 10px', minWidth: 48 }}>
-                                    <div className={'sc-num ' + s.tc} style={{ fontSize: 16, letterSpacing: '-0.5px' }}>{rStats[s.key]}</div>
-                                    <div className={'sc-lbl ' + s.tc} style={{ fontSize: 7 }}>{s.label}</div>
-                                  </div>
-                                ))}
-                              </div>
+                            {/* Left: region label */}
+                            <div style={{ minWidth: 120 }}>
+                              <div className="region-eyebrow">Region</div>
+                              <div className="region-name">{rName}</div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                            {/* Center: mini stat cards */}
+                            <div style={{ display: 'flex', gap: 8, flex: 1, justifyContent: 'center' }}>
+                              {STAT_CARDS.map(s => (
+                                <div key={s.key} className={'stat-card ' + s.cls} style={{ padding: '8px 14px', minWidth: 72, flex: '0 0 auto' }}>
+                                  <div className={'sc-num ' + s.tc} style={{ fontSize: 22, letterSpacing: '-0.5px' }}>{rStats[s.key]}</div>
+                                  <div className={'sc-lbl ' + s.tc} style={{ fontSize: 9 }}>{s.label}</div>
+                                </div>
+                              ))}
+                            </div>
+                            {/* Right: pct + chevron */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 90, justifyContent: 'flex-end' }}>
                               <div style={{ textAlign: 'right' }}>
                                 <div className="region-pct-num">{rPct}%</div>
                                 <div className="region-pct-lbl">Complete</div>
                               </div>
-                              <div style={{ fontSize: 18, color: '#1a3a5c', transition: 'transform 0.2s', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>&#9660;</div>
+                              <div style={{ fontSize: 16, color: '#1a3a5c', transition: 'transform 0.2s', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>&#9660;</div>
                             </div>
                           </div>
                           <div className="region-progress">
@@ -531,9 +586,9 @@ export default function AdminDashboard() {
                                     <td><Pill status={p.status} /></td>
                                     <td style={{ color: 'var(--text-dim)' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : '\u2014'}</td>
                                     <td>
-                                      {p.status === 'submitted' && <button className="tbl-btn" onClick={() => approveCount(p.id)}>Approve</button>}
-                                      {(p.status === 'not_started' || p.status === 'in_progress') && <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>}
-                                      {p.status === 'approved' && <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>View Count</button>}
+                                      {p.status === 'submitted'    && <button className="tbl-btn" onClick={e => { e.stopPropagation(); approveCount(p.id); }}>Approve</button>}
+                                      {(p.status === 'not_started' || p.status === 'in_progress') && <button className="tbl-btn" onClick={e => { e.stopPropagation(); navigate('/count/' + p.id); }}>Enter Count</button>}
+                                      {p.status === 'approved'     && <button className="tbl-btn" onClick={e => { e.stopPropagation(); navigate('/count/' + p.id); }}>View Count</button>}
                                     </td>
                                   </tr>
                                 ))}
@@ -556,26 +611,11 @@ export default function AdminDashboard() {
           )}
 
           {tab === 'todos'    && <TodoSection todos={todos} onComplete={completeTodo} onApproveEdit={approveEditRequest} onDenyEdit={denyEditRequest} onApproveCount={approveCount} />}
-          {tab === 'mycounts' && (
-            <div>
-              {myCounts.length === 0
-                ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)' }}>No active counts assigned to you.</div>
-                : myCounts.map(c => (
-                  <div key={c.id} className="card" style={{ marginBottom: 12, padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => navigate('/count/' + c.id)}>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: 16 }}>{c.account?.name}</div>
-                      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}><Pill status={c.status} /></div>
-                    </div>
-                    <button className="btn btn-primary">Enter Count</button>
-                  </div>
-                ))
-              }
-            </div>
-          )}
+          {tab === 'mycounts' && <MyCounts cycle={cycle} profile={profile} navigate={navigate} />}
           {tab === 'accounts' && <AdminAccounts />}
           {tab === 'users'    && <AdminUsers />}
           {tab === 'catalog'  && <AdminItemCatalog />}
-          {tab === 'data'     && <AdminDataManagement cycle={cycle} />}
+          {tab === 'reports'  && <AdminDataManagement cycle={cycle} />}
 
         </div>
       </div>
