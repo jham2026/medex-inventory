@@ -18,6 +18,7 @@ export default function LoginPage() {
       navigate('/');
     } catch (err) {
       setError('Invalid email or password. Please try again.');
+      setPassword('');
     } finally {
       setLoading(false);
     }
