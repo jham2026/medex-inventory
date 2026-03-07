@@ -15,7 +15,6 @@ const NAV = [
   { key: 'todos',     label: 'Tasks' },
   { key: 'mycounts',  label: 'My Counts' },
   { key: 'reports',   label: 'Reports' },
-  { key: 'auditlog',  label: 'Audit Log' },
   { section: 'SETTINGS' },
   { key: 'accounts',  label: 'Accounts' },
   { key: 'users',     label: 'Users' },
@@ -126,6 +125,39 @@ function MyCounts({ cycle, profile, navigate }) {
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+
+function ReportsPage({ cycle }) {
+  const [subTab, setSubTab] = React.useState('export');
+  return (
+    <div>
+      {/* Sub-tab bar */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {[
+          { key: 'export',   label: 'Export Data' },
+          { key: 'auditlog', label: 'Audit Log' },
+        ].map(t => (
+          <button
+            key={t.key}
+            onClick={() => setSubTab(t.key)}
+            style={{
+              padding: '8px 20px', borderRadius: 8, border: '1.5px solid',
+              fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+              borderColor: subTab === t.key ? 'var(--blue-action)' : 'var(--border)',
+              background:  subTab === t.key ? 'var(--blue-light)' : 'var(--white)',
+              color:       subTab === t.key ? 'var(--blue-action)' : 'var(--text-mid)',
+              transition: 'all 0.15s',
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {subTab === 'export'   && <AdminExport cycle={cycle} />}
+      {subTab === 'auditlog' && <AdminAuditLog />}
     </div>
   );
 }
@@ -782,7 +814,7 @@ export default function AdminDashboard() {
               {tab === 'overview'  && (cycle ? cycle.name + '\u2014' + total + ' accounts' : 'No active cycle')}
               {tab === 'todos'     && todos.length + ' pending task' + (todos.length !== 1 ? 's' : '')}
               {tab === 'mycounts'  && 'Your assigned accounts for the active cycle'}
-              {tab === 'reports'   && 'Download data as CSV files'}
+              {tab === 'reports'   && 'Exports and audit trail'}
               {tab === 'accounts'  && 'Manage account assignments'}
               {tab === 'users'     && 'Manage rep accounts'}
               {tab === 'catalog'   && 'Manage inventory items'}
@@ -1041,8 +1073,7 @@ export default function AdminDashboard() {
           {tab === 'accounts' && <AdminAccounts />}
           {tab === 'users'    && <AdminUsers />}
           {tab === 'catalog'  && <AdminItemCatalog />}
-          {tab === 'reports'  && <AdminExport cycle={cycle} />}
-              {tab === 'auditlog' && <AdminAuditLog />}
+          {tab === 'reports'  && <ReportsPage cycle={cycle} />}
 
         </div>
       </div>
