@@ -86,14 +86,12 @@ function MyCounts({ cycle, profile, navigate }) {
               <div className="hero-pct-lbl">COMPLETE</div>
             </div>
           </div>
-          <div className="progress-bar">
-            <div className="progress-fill" style={{ width: pct + '%' }} />
-          </div>
           <div className="hero-stats">
             {STAT_CARDS.map(s => (
               <div key={s.key} className={'stat-card hero-stat-card ' + s.cls}>
                 <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
                 <div className={'sc-lbl ' + s.tc}>{s.label}</div>
+                <div className={'sc-sub ' + s.tc}>{total > 0 ? Math.round(stats[s.key] / total * 100) : 0}%</div>
               </div>
             ))}
           </div>
@@ -500,9 +498,6 @@ export default function AdminDashboard() {
                         <div className="hero-pct-lbl">COMPLETE</div>
                       </div>
                     </div>
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: pct + '%' }} />
-                    </div>
                     <div className="hero-stats">
                       {STAT_CARDS.map(s => (
                         <div key={s.key}
@@ -511,6 +506,7 @@ export default function AdminDashboard() {
                           onClick={() => setProgressFilter(f => f === s.key ? 'all' : s.key)}>
                           <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
                           <div className={'sc-lbl ' + s.tc}>{s.label}</div>
+                          <div className={'sc-sub ' + s.tc}>{total > 0 ? Math.round(stats[s.key] / total * 100) : 0}%</div>
                         </div>
                       ))}
                     </div>
@@ -544,12 +540,13 @@ export default function AdminDashboard() {
                               <div className="region-eyebrow">Region</div>
                               <div className="region-name">{rName}</div>
                             </div>
-                            {/* Center: mini stat cards */}
-                            <div style={{ display: 'flex', gap: 8, flex: 1, justifyContent: 'center' }}>
+                            {/* Center: stat cards fill all available space equally */}
+                            <div style={{ display: 'flex', gap: 8, flex: 1, margin: '0 16px' }}>
                               {STAT_CARDS.map(s => (
-                                <div key={s.key} className={'stat-card ' + s.cls} style={{ padding: '8px 14px', minWidth: 72, flex: '0 0 auto' }}>
+                                <div key={s.key} className={'stat-card ' + s.cls} style={{ padding: '8px 10px', flex: '1 1 0' }}>
                                   <div className={'sc-num ' + s.tc} style={{ fontSize: 22, letterSpacing: '-0.5px' }}>{rStats[s.key]}</div>
                                   <div className={'sc-lbl ' + s.tc} style={{ fontSize: 9 }}>{s.label}</div>
+                                  <div className={'sc-sub ' + s.tc} style={{ fontSize: 9 }}>{rTotal > 0 ? Math.round(rStats[s.key] / rTotal * 100) : 0}%</div>
                                 </div>
                               ))}
                             </div>
@@ -561,9 +558,6 @@ export default function AdminDashboard() {
                               </div>
                               <div style={{ fontSize: 16, color: '#1a3a5c', transition: 'transform 0.2s', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>&#9660;</div>
                             </div>
-                          </div>
-                          <div className="region-progress">
-                            <div className="region-progress-fill" style={{ width: rPct + '%', background: progColor }} />
                           </div>
                         </div>
 
