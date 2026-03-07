@@ -8,6 +8,37 @@ const CATALOGS = [
   { value: 'claimsoft', label: 'Claimsoft' },
 ];
 
+
+// â”€â”€ Versioned template download â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+const TEMPLATE_DEFS = {
+  accounts: {
+    filename: 'MedEx_Accounts_Template_v1.csv',
+    csvContent: '#MedEx_Template,accounts,v1\nAccount,Region,Status,Rep,Item Catalog\nExample Account,Austin,Open,Jane Smith,Claimsoft Catalog',
+  },
+  users: {
+    filename: 'MedEx_Users_Template_v1.csv',
+    csvContent: '#MedEx_Template,users,v1\nFirstName,LastName,FullName,EmailAddress,Role,Region,Status\nJane,Smith,Jane Smith,jsmith@medexpsi.com,rep,Austin,Active',
+  },
+  claimsoft_catalog: {
+    filename: 'MedEx_ClaimsoftCatalog_Template_v1.csv',
+    csvContent: '#MedEx_Template,claimsoft_catalog,v1\nItemNumber,ItemCategory,ItemType,ProductFamily,Description,Size,Side,Barcode1,Barcode2,NDCNumber,AllowNegQty,IsSerialized,SerialNumber,TransferCanCreatePO,VendorPartNumber,VendorName,VendorDescription,Manufacturer,CostPerItem,PurchaseUOM,CostPerUOM,ItemsPerUOM,LeadTime,BillableItem,HCPCS,Mod1,Mod2,Mod3,Mod4,SellingPrice,RentalPrice,UsedPrice,IsTaxable,IsOxygenItem,NonMedicareItem,Warehouse,Location,Bin,QOH,IsAvailable,ParLevel,MinOrderQuantity,Devices,CMN,NewItemNumber,Instructions,RequiredForms,LinkText,QRCodeURL,DiscontinueDate\nCS-001,Category,Type,Family,Example Item,Medium,,123456,,,,,,,,Claimsoft,Description,Mfg,10.00,EA,10.00,1,0,Yes,A4570,,,,,25.00,,,,,,,,,,1,1,0,5,,,,,,,',
+  },
+  edge_catalog: {
+    filename: 'MedEx_EdgeCatalog_Template_v1.csv',
+    csvContent: '#MedEx_Template,edge_catalog,v1\nItem Number,Item Name,Buy,Sell,Inventory,Asset Acct,Income Acct,Expense/COS Acct,Item Picture,Description,Use Desc. On Sale,Custom List 1,Custom List 2,Custom List 3,Custom Field 1,Custom Field 2,Custom Field 3,Primary Vendor,Vendor Item Number,Tax When Bought,Buy Unit Measure,# Items/Buy Unit,Reorder Quantity,Minimum Level,Selling Price,Sell Unit Measure,Tax When Sold,# Items/Sell Unit,Inactive Item,Standard Cost,Brand\nEDG-001,Example Item,Yes,Yes,Yes,,,,,Description,,,,,,,CF3,Edge Vendor,V001,,,5,2,25.00,EA,,,No,20.00,Brand',
+  },
+};
+
+function downloadTemplate(type) {
+  const tmpl = TEMPLATE_DEFS[type];
+  if (!tmpl) return;
+  const blob = new Blob([tmpl.csvContent], { type: 'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = tmpl.filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function AdminItemCatalog() {
   const toast = useToast();
   const [items, setItems]           = useState([]);
@@ -73,14 +104,7 @@ export default function AdminItemCatalog() {
     setShowAdd(true);
   }
 
-  function downloadTemplate() {
-    const csv = 'Item Number,Description,Primary Vendor,Catalog Source\nEDG-001,Example Item,Edge,edge\nCLM-001,Example Item,Claimsoft,claimsoft';
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'item_catalog_template.csv'; a.click();
-    URL.revokeObjectURL(url);
-  }
+
 
   function handleImport(e) {
     const file = e.target.files[0];
@@ -112,6 +136,7 @@ export default function AdminItemCatalog() {
     });
   }
 
+  // Get unique vendors for filter
   const vendors = [...new Set(items.map(i => i.primary_vendor).filter(Boolean))].sort();
 
   const filtered = items
@@ -125,6 +150,7 @@ export default function AdminItemCatalog() {
 
   return (
     <div>
+      {/* Add/Edit Modal */}
       {showAdd && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAdd(false)}>
           <div className="modal">
@@ -152,6 +178,7 @@ export default function AdminItemCatalog() {
         </div>
       )}
 
+      {/* Catalog toggle */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
         <div onClick={() => setFilterCatalog('')}
           style={{ padding: '10px 20px', borderRadius: 9, cursor: 'pointer', border: '1.5px solid', fontWeight: 700, fontSize: 13,
@@ -171,6 +198,7 @@ export default function AdminItemCatalog() {
         ))}
       </div>
 
+      {/* Filter row + action buttons */}
       <div className="filter-row" style={{ marginBottom: 16 }}>
         <span className="filter-label">Vendor:</span>
         <select className="filter-select" value={filterVendor} onChange={e => setFilterVendor(e.target.value)}>
@@ -180,7 +208,14 @@ export default function AdminItemCatalog() {
         <span className="filter-label">Search:</span>
         <input className="search-input" placeholder="Search items..." value={search} onChange={e => setSearch(e.target.value)} />
         <span className="count-lbl ml-auto">{filtered.length} items</span>
-        <button className="btn btn-outline" onClick={downloadTemplate}>Template</button>
+        <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 5 }} onClick={() => downloadTemplate('claimsoft_catalog')}>
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Claimsoft Template
+        </button>
+        <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 5 }} onClick={() => downloadTemplate('edge_catalog')}>
+          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Account Edge Template
+        </button>
         <label className="btn btn-outline" style={{ cursor: 'pointer' }}>
           {importing ? 'Importing...' : 'Import'}
           <input type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} disabled={importing} />
@@ -188,6 +223,7 @@ export default function AdminItemCatalog() {
         <button className="btn btn-primary" onClick={openAdd}>+ Add Item</button>
       </div>
 
+      {/* Table */}
       <div className="card">
         <table>
           <thead>
@@ -206,7 +242,7 @@ export default function AdminItemCatalog() {
               <tr key={item.id}>
                 <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13 }}>{item.item_number}</td>
                 <td>{item.description}</td>
-                <td style={{ color: 'var(--text-mid)' }}>{item.primary_vendor || '--'}</td>
+                <td style={{ color: 'var(--text-mid)' }}>{item.primary_vendor || 'Ã¢â‚¬â€'}</td>
                 <td>
                   <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
                     background: item.catalog_source === 'edge' ? 'var(--blue-light)' : 'var(--gold-light)',
