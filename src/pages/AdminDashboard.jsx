@@ -131,7 +131,7 @@ function MyCounts({ cycle, profile, navigate }) {
 
 
 function ReportsPage({ cycle }) {
-  const [subTab, setSubTab] = React.useState('export');
+  const [subTab, setSubTab] = useState('export');
   return (
     <div>
       {/* Sub-tab bar */}
