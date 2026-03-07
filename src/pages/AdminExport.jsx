@@ -1,28 +1,27 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastContext';
 
 export default function AdminExport({ cycle }) {
   const toast = useToast();
-  const [scope, setScope]   = useState('company');
-  const [region, setRegion] = useState('');
-  const [rep, setRep]       = useState('');
-  const [regions, setRegions] = useState([]);
-  const [reps, setReps]     = useState([]);
-  const [exporting, setExporting] = useState(false);
-  const [cycles, setCycles] = useState([]);
+  const [cycles, setCycles]           = useState([]);
+  const [regions, setRegions]         = useState([]);
   const [selectedCycle, setSelectedCycle] = useState(cycle?.id || '');
+  const [selectedRegion, setSelectedRegion] = useState('');
+  const [exporting, setExporting]     = useState(false);
+  const [exportingRef, setExportingRef] = useState(null); // 'accounts'|'users'|'catalog'
 
-  useState(() => {
+  useEffect(() => {
+    supabase.from('count_cycles').select('*').order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setCycles(data || []);
+        if (!selectedCycle && data?.length) setSelectedCycle(data[0].id);
+      });
     supabase.from('regions').select('*').order('name').then(({ data }) => setRegions(data || []));
-    supabase.from('profiles').select('id,full_name').eq('role','rep').order('full_name').then(({ data }) => setReps(data || []));
-    supabase.from('count_cycles').select('*').order('year', { ascending: false }).then(({ data }) => {
-      setCycles(data || []);
-      if (!selectedCycle && data?.length) setSelectedCycle(data[0].id);
-    });
   }, []);
 
-  async function runExport() {
+  // â”€â”€ Count Data Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  async function runCountExport() {
     if (!selectedCycle) { toast.error('Select a count cycle'); return; }
     setExporting(true);
 
@@ -40,11 +39,8 @@ export default function AdminExport({ cycle }) {
       `)
       .eq('count.cycle_id', selectedCycle);
 
-    if (scope === 'region' && region) {
-      query = query.eq('count.account.region.name', region);
-    }
-    if (scope === 'rep' && rep) {
-      query = query.eq('count.rep_id', rep);
+    if (selectedRegion) {
+      query = query.eq('count.account.region.name', selectedRegion);
     }
 
     const { data, error } = await query;
@@ -54,104 +50,223 @@ export default function AdminExport({ cycle }) {
     const cycleLabel = cycles.find(c => c.id === selectedCycle)?.name || 'export';
 
     const header = [
-      'Region','Account','Rep','Item Number','Description','Vendor',
-      'Count','Previous Count','New Item','Not In Catalog',
-      'Edited After Submit','Scanned','Submitted Date','Status'
+      'Region', 'Account', 'Rep', 'Rep Email',
+      'Item Number', 'Description', 'Vendor',
+      'Count', 'Previous Count',
+      'New Item', 'Not In Catalog', 'Edited After Submit', 'Scanned',
+      'Submitted Date', 'Approved Date', 'Status'
     ];
 
     const csvRows = [header, ...rows.map(r => [
       r.count?.account?.region?.name || '',
       r.count?.account?.name || '',
       r.count?.rep?.full_name || '',
+      r.count?.rep?.email || '',
       r.item_number_raw || '',
       r.description_raw || '',
       r.vendor_raw || '',
-      r.quantity,
+      r.quantity ?? '',
       r.previous_quantity ?? '',
       r.is_new_item ? 'YES' : 'NO',
       r.not_in_catalog ? 'FLAG' : 'NO',
       r.was_edited_after_submit ? 'FLAG' : 'NO',
       r.entered_via_scan ? 'YES' : 'NO',
       r.count?.submitted_at ? new Date(r.count.submitted_at).toLocaleDateString() : '',
+      r.count?.approved_at  ? new Date(r.count.approved_at).toLocaleDateString()  : '',
       r.count?.status || '',
     ])];
 
-    const csv = csvRows.map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href = url;
-    const scopeLabel = scope === 'company' ? 'company_wide' : scope === 'region' ? `region_${region}` : `rep`;
-    a.download = `MedEx_${cycleLabel.replace(/\s/g,'_')}_${scopeLabel}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-
+    downloadCsv(csvRows, `MedEx_Counts_${cycleLabel.replace(/\s/g, '_')}${selectedRegion ? '_' + selectedRegion : ''}`);
     toast.success(`Exported ${rows.length} line items`);
     setExporting(false);
   }
 
+  // â”€â”€ Reference Data Exports â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  async function runAccountsExport() {
+    setExportingRef('accounts');
+    const { data: accts, error: e1 } = await supabase.from('accounts').select('name, is_active, flagged_closed, catalog_source, region:regions(name)').order('name');
+    const { data: arData } = await supabase.from('account_reps').select('account_id, rep:profiles(full_name)');
+    if (e1) { toast.error('Export error: ' + e1.message); setExportingRef(null); return; }
+
+    // Build rep map
+    const repMap = {};
+    for (const ar of arData || []) {
+      if (!repMap[ar.account_id]) repMap[ar.account_id] = [];
+      if (ar.rep?.full_name) repMap[ar.account_id].push(ar.rep.full_name);
+    }
+
+    const header = ['Account Name', 'Region', 'Catalog', 'Assigned Reps', 'Active', 'Flagged Closed'];
+    const rows = (accts || []).map(a => [
+      a.name || '',
+      a.region?.name || '',
+      a.catalog_source || '',
+      (repMap[a.id] || []).join('; '),
+      a.is_active ? 'YES' : 'NO',
+      a.flagged_closed ? 'YES' : 'NO',
+    ]);
+    downloadCsv([header, ...rows], 'MedEx_Accounts');
+    toast.success(`Exported ${rows.length} accounts`);
+    setExportingRef(null);
+  }
+
+  async function runUsersExport() {
+    setExportingRef('users');
+    const { data, error } = await supabase.from('profiles').select('full_name, email, role, region, is_active').order('full_name');
+    if (error) { toast.error('Export error: ' + error.message); setExportingRef(null); return; }
+    const header = ['Full Name', 'Email', 'Role', 'Region', 'Active'];
+    const rows = (data || []).map(u => [u.full_name || '', u.email || '', u.role || '', u.region || '', u.is_active ? 'YES' : 'NO']);
+    downloadCsv([header, ...rows], 'MedEx_Users');
+    toast.success(`Exported ${rows.length} users`);
+    setExportingRef(null);
+  }
+
+  async function runCatalogExport() {
+    setExportingRef('catalog');
+    const { data, error } = await supabase.from('item_catalog').select('item_number, description, primary_vendor, catalog_source').order('item_number');
+    if (error) { toast.error('Export error: ' + error.message); setExportingRef(null); return; }
+    const header = ['Item Number', 'Description', 'Primary Vendor', 'Catalog Source'];
+    const rows = (data || []).map(i => [i.item_number || '', i.description || '', i.primary_vendor || '', i.catalog_source || '']);
+    downloadCsv([header, ...rows], 'MedEx_ItemCatalog');
+    toast.success(`Exported ${rows.length} items`);
+    setExportingRef(null);
+  }
+
+  function downloadCsv(rows, filename) {
+    const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = filename + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   return (
     <div>
-      <div className="card">
-        <div className="card-header">
-          <span style={{ fontWeight: 'bold' }}>Export Count Data</span>
+
+      {/* â”€â”€ Intro note â”€â”€ */}
+      <div style={{
+        background: 'var(--blue-light)', border: '1px solid #C7DCFF',
+        borderRadius: 12, padding: '14px 18px', marginBottom: 24,
+        display: 'flex', alignItems: 'center', gap: 12,
+      }}>
+        <span style={{ fontSize: 20 }}>ðŸ“¤</span>
+        <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.5 }}>
+          All exports download as <strong style={{ color: 'var(--blue)' }}>standard CSV files</strong> compatible with Excel and Google Sheets.
+          To <strong style={{ color: 'var(--blue)' }}>import data</strong> or download a blank CSV template, go to the relevant Settings page (Accounts, Users, or Item Catalog).
         </div>
-        <div className="card-body">
-          <div className="input-group">
-            <label className="input-label">Count Cycle</label>
-            <select className="select" style={{ maxWidth: 240 }}
-              value={selectedCycle} onChange={e => setSelectedCycle(e.target.value)}>
-              {cycles.map(c => (
-                <option key={c.id} value={c.id}>{c.name} ({c.status})</option>
-              ))}
+      </div>
+
+      {/* â”€â”€ Section: Reference Data â”€â”€ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--text-dim)' }}>Reference Data</span>
+        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+      </div>
+
+      {/* Accounts */}
+      <ExportCard
+        icon="ðŸ¢" iconBg="var(--blue-light)"
+        title="Accounts"
+        sub="Account names, regions, assigned reps, catalog and status"
+        loading={exportingRef === 'accounts'}
+        onExport={runAccountsExport}
+      />
+
+      {/* Users */}
+      <ExportCard
+        icon="ðŸ‘¤" iconBg="var(--gold-light)"
+        title="Users"
+        sub="User names, emails, roles and regions"
+        loading={exportingRef === 'users'}
+        onExport={runUsersExport}
+      />
+
+      {/* Item Catalog */}
+      <ExportCard
+        icon="ðŸ“‹" iconBg="var(--amber-light)"
+        title="Item Catalog"
+        sub="Item numbers, descriptions and vendor info"
+        loading={exportingRef === 'catalog'}
+        onExport={runCatalogExport}
+      />
+
+      {/* â”€â”€ Section: Count Data â”€â”€ */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '24px 0 14px' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--text-dim)' }}>Count Data</span>
+        <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+      </div>
+
+      {/* Count History */}
+      <div style={{
+        background: 'var(--white)', border: '1px solid var(--border)',
+        borderRadius: 12, padding: '16px 20px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexWrap: 'wrap', gap: 12,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--green-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>ðŸ“Š</div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700 }}>Count History</div>
+            <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
+              Full count results â€” all statuses (not started, in progress, submitted) â€” every line item detail
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Cycle filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '6px 12px' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Cycle:</span>
+            <select
+              style={{ border: 'none', background: 'transparent', fontSize: 12, fontFamily: 'inherit', fontWeight: 600, color: 'var(--blue)', cursor: 'pointer', outline: 'none' }}
+              value={selectedCycle} onChange={e => setSelectedCycle(e.target.value)}
+            >
+              {cycles.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-
-          <div className="input-group">
-            <label className="input-label">Export Scope</label>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              {[['company','Company-Wide'],['region','By Region'],['rep','By Rep']].map(([k,v]) => (
-                <label key={k} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: 13 }}>
-                  <input type="radio" name="scope" value={k} checked={scope===k} onChange={() => setScope(k)} />
-                  {v}
-                </label>
-              ))}
-            </div>
+          {/* Region filter */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 8, padding: '6px 12px' }}>
+            <span style={{ fontSize: 12, color: 'var(--text-dim)', fontWeight: 600 }}>Region:</span>
+            <select
+              style={{ border: 'none', background: 'transparent', fontSize: 12, fontFamily: 'inherit', fontWeight: 600, color: 'var(--blue)', cursor: 'pointer', outline: 'none' }}
+              value={selectedRegion} onChange={e => setSelectedRegion(e.target.value)}
+            >
+              <option value="">All Regions</option>
+              {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+            </select>
           </div>
-
-          {scope === 'region' && (
-            <div className="input-group">
-              <label className="input-label">Region</label>
-              <select className="select" style={{ maxWidth: 200 }} value={region} onChange={e => setRegion(e.target.value)}>
-                <option value="">— Select Region —</option>
-                {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-              </select>
-            </div>
-          )}
-
-          {scope === 'rep' && (
-            <div className="input-group">
-              <label className="input-label">Rep</label>
-              <select className="select" style={{ maxWidth: 240 }} value={rep} onChange={e => setRep(e.target.value)}>
-                <option value="">— Select Rep —</option>
-                {reps.map(r => <option key={r.id} value={r.id}>{r.full_name}</option>)}
-              </select>
-            </div>
-          )}
-
-          <div className="alert-banner info" style={{ marginBottom: 16 }}>
-            Export includes all count line items with flags for: not-in-catalog items, post-submission edits, and new items. Flagged items are marked in the export for your review.
-          </div>
-
           <button
-            className="btn btn-primary btn-lg"
-            onClick={runExport}
+            className="btn btn-primary"
+            onClick={runCountExport}
             disabled={exporting || !selectedCycle}
+            style={{ whiteSpace: 'nowrap' }}
           >
-            {exporting ? 'Exporting...' : ' Download CSV Export'}
+            {exporting ? 'Exporting...' : 'â†“ Export CSV'}
           </button>
         </div>
       </div>
+
+    </div>
+  );
+}
+
+function ExportCard({ icon, iconBg, title, sub, loading, onExport }) {
+  return (
+    <div style={{
+      background: 'var(--white)', border: '1px solid var(--border)',
+      borderRadius: 12, padding: '16px 20px', marginBottom: 10,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 10, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{icon}</div>
+        <div>
+          <div style={{ fontSize: 14, fontWeight: 700 }}>{title}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{sub}</div>
+        </div>
+      </div>
+      <button className="btn btn-primary" onClick={onExport} disabled={loading} style={{ whiteSpace: 'nowrap', flexShrink: 0 }}>
+        {loading ? 'Exporting...' : 'â†“ Export CSV'}
+      </button>
     </div>
   );
 }
