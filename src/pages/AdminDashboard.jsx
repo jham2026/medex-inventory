@@ -11,7 +11,7 @@ import AdminItemCatalog from './AdminItemCatalog';
 const NAV = [
   { section: 'DASHBOARD' },
   { key: 'overview',  label: 'Count Cycle Details' },
-  { key: 'todos',     label: 'To Do' },
+  { key: 'todos',     label: 'Tasks' },
   { key: 'mycounts',  label: 'My Counts' },
   { key: 'reports',   label: 'Reports' },
   { section: 'SETTINGS' },
@@ -128,10 +128,14 @@ function MyCounts({ cycle, profile, navigate }) {
   );
 }
 
-function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCount }) {
+function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCount, onRejectCount }) {
   const [reviewModal, setReviewModal] = useState(null);
   const [denyReason, setDenyReason]   = useState('');
   const [denyingId, setDenyingId]     = useState(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectingId, setRejectingId]   = useState(null);
+  const [countItems, setCountItems]     = useState([]);
+  const [countLoading, setCountLoading] = useState(false);
 
   const editRequests   = todos.filter(t => t.todo_type === 'edit_request');
   const countApprovals = todos.filter(t => t.todo_type === 'count_approval');
@@ -140,8 +144,23 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
   function parseMeta(t) { try { return JSON.parse(t.metadata || '{}'); } catch { return {}; } }
 
-  function openReview(todo) { setReviewModal(todo); setDenyReason(''); setDenyingId(null); }
-  function closeModal() { setReviewModal(null); setDenyReason(''); setDenyingId(null); }
+  async function openReview(todo) {
+    setReviewModal(todo);
+    setDenyReason(''); setDenyingId(null);
+    setRejectReason(''); setRejectingId(null);
+    setCountItems([]);
+    if (todo.todo_type === 'count_approval' && todo.count_id) {
+      setCountLoading(true);
+      const { data } = await supabase
+        .from('inventory_count_items')
+        .select('*, item:item_catalog(item_number, description, primary_vendor)')
+        .eq('count_id', todo.count_id)
+        .order('created_at');
+      setCountItems(data || []);
+      setCountLoading(false);
+    }
+  }
+  function closeModal() { setReviewModal(null); setDenyReason(''); setDenyingId(null); setRejectReason(''); setRejectingId(null); setCountItems([]); }
 
   function TodoCard({ title, count, children, emptyMsg }) {
     return (
@@ -167,10 +186,11 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
   }
 
   const meta = reviewModal ? parseMeta(reviewModal) : {};
+  const zeroQty = countItems.filter(i => (i.quantity || 0) === 0).length;
 
   return (
     <div>
-      <TodoCard title="Count Edit Requests" count={editRequests.length} emptyMsg="No edit requests pending.">
+      <TodoCard title="Edit Requests" count={editRequests.length} emptyMsg="No edit requests pending.">
         {editRequests.map(t => {
           const m = parseMeta(t);
           return (
@@ -186,7 +206,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
         })}
       </TodoCard>
 
-      <TodoCard title="Counts to Approve" count={countApprovals.length} emptyMsg="No counts awaiting approval.">
+      <TodoCard title="Count Review" count={countApprovals.length} emptyMsg="No counts awaiting review.">
         {countApprovals.map(t => (
           <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
             <div>
@@ -198,7 +218,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
         ))}
       </TodoCard>
 
-      <TodoCard title="Accounts Flagged for Closure" count={closureFlags.length} emptyMsg="No accounts flagged for closure.">
+      <TodoCard title="Closure Review" count={closureFlags.length} emptyMsg="No closure flags pending.">
         {closureFlags.map(t => {
           const m = parseMeta(t);
           return (
@@ -226,121 +246,109 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
         ))}
       </TodoCard>
 
-      {/* REVIEW MODAL */}
       {reviewModal && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeModal()}>
-          <div className="modal">
-
-            {/* Header */}
+          <div className="modal" style={{ maxWidth: reviewModal.todo_type === 'count_approval' ? 640 : 520, width: '95vw' }}>
             <div style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', padding: '22px 24px' }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
-                {reviewModal.todo_type === 'edit_request'   && 'Count Edit Request'}
-                {reviewModal.todo_type === 'count_approval' && 'Count Approval'}
-                {reviewModal.todo_type === 'account_closure'&& 'Account Flagged for Closure'}
+                {reviewModal.todo_type === 'edit_request'    && 'Edit Request'}
+                {reviewModal.todo_type === 'count_approval'  && 'Count Review'}
+                {reviewModal.todo_type === 'account_closure' && 'Closure Review'}
                 {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && 'General Task'}
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'white' }}>{meta.account_name || reviewModal.title}</div>
-              {meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Submitted by {meta.rep_name}{meta.region ? ' Â· ' + meta.region : ''}</div>}
+              <div style={{ fontSize: 20, fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: 10 }}>
+                {meta.account_name || reviewModal.title}
+                {reviewModal.todo_type === 'count_approval' && (
+                  <span style={{ fontSize: 10, fontWeight: 700, background: '#DCFCE7', color: '#15803D', padding: '3px 8px', borderRadius: 6 }}>Submitted</span>
+                )}
+              </div>
+              {meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>Submitted by {meta.rep_name}{meta.region ? ' \u00b7 ' + meta.region : ''}</div>}
             </div>
 
-            {/* Body */}
-            <div className="modal-body">
-
-              {/* Edit Request details */}
-              {reviewModal.todo_type === 'edit_request' && (
-                <>
-                  {meta.reason && (
-                    <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div>
-                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div>
-                    </div>
-                  )}
-                  {meta.urgency && (
-                    <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Urgency</div>
-                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.urgency}</div>
-                    </div>
-                  )}
-                  {meta.details && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Rep's Explanation</div>
-                      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{meta.details}</div>
-                    </div>
-                  )}
-                  {denyingId === reviewModal.id && (
-                    <div style={{ marginTop: 12 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Reason for Denial</div>
-                      <textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)} placeholder="Explain why this request is being denied..." />
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Count Approval details */}
-              {reviewModal.todo_type === 'count_approval' && (
-                <div style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.7 }}>
-                  {reviewModal.description || 'A rep has submitted this count and it is ready for your review and approval.'}
+            {reviewModal.todo_type === 'count_approval' && (
+              <>
+                <div style={{ display: 'flex', gap: 24, padding: '14px 24px', background: '#F7F9FC', borderBottom: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                  <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)' }}>Total Items</div><div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginTop: 2 }}>{countItems.length}</div></div>
+                  <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)' }}>Zero Qty Items</div><div style={{ fontSize: 14, fontWeight: 700, color: zeroQty > 0 ? 'var(--red)' : 'var(--text)', marginTop: 2 }}>{zeroQty}</div></div>
                 </div>
-              )}
-
-              {/* Closure Flag details */}
-              {reviewModal.todo_type === 'account_closure' && (
-                <>
-                  {meta.reason && (
-                    <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div>
-                      <div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div>
-                    </div>
+                <div style={{ padding: '16px 24px', maxHeight: 300, overflowY: 'auto' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 10 }}>Count Details</div>
+                  {countLoading ? (
+                    <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)' }}>Loading count data...</div>
+                  ) : countItems.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-dim)', fontStyle: 'italic' }}>No items found for this count.</div>
+                  ) : (
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                      <thead>
+                        <tr style={{ background: '#F7F9FC' }}>
+                          <th style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Item #</th>
+                          <th style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Description</th>
+                          <th style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Vendor</th>
+                          <th style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>Qty</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {countItems.map((item, idx) => (
+                          <tr key={item.id} style={{ background: idx % 2 === 0 ? 'white' : '#F7F9FC' }}>
+                            <td style={{ padding: '9px 10px', fontSize: 13, fontFamily: 'monospace', fontWeight: 700, color: 'var(--blue-action)', borderBottom: '1px solid #F1F5F9' }}>{item.item?.item_number || item.item_number}</td>
+                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.item?.description || item.description}</td>
+                            <td style={{ padding: '9px 10px', fontSize: 13, color: 'var(--text-mid)', borderBottom: '1px solid #F1F5F9' }}>{item.item?.primary_vendor || item.vendor || '\u2014'}</td>
+                            <td style={{ padding: '9px 10px', fontSize: 13, fontWeight: 700, textAlign: 'right', color: (item.quantity || 0) === 0 ? 'var(--red)' : 'var(--text)', borderBottom: '1px solid #F1F5F9' }}>{item.quantity ?? 0}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   )}
-                  {meta.notes && (
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Notes</div>
-                      <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{meta.notes}</div>
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* General task details */}
-              {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && (
-                <div style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.7 }}>
-                  {reviewModal.description || 'No additional details provided.'}
                 </div>
-              )}
-            </div>
+                {rejectingId === reviewModal.id && (
+                  <div style={{ padding: '0 24px 16px' }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Reason for Rejection \u2014 Rep will be notified</div>
+                    <textarea className="form-ta" value={rejectReason} onChange={e => setRejectReason(e.target.value)} placeholder="Explain what needs to be corrected before resubmitting..." />
+                  </div>
+                )}
+              </>
+            )}
 
-            {/* Actions */}
+            {reviewModal.todo_type === 'edit_request' && (
+              <div className="modal-body">
+                {meta.reason && <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div><div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div></div>}
+                {meta.urgency && <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Urgency</div><div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.urgency}</div></div>}
+                {meta.details && <div style={{ marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Rep's Explanation</div><div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{meta.details}</div></div>}
+                {denyingId === reviewModal.id && <div style={{ marginTop: 12 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Reason for Denial</div><textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)} placeholder="Explain why this request is being denied..." /></div>}
+              </div>
+            )}
+
+            {reviewModal.todo_type === 'account_closure' && (
+              <div className="modal-body">
+                {meta.reason && <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div><div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div></div>}
+                {meta.notes && <div><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Notes</div><div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px', fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6 }}>{meta.notes}</div></div>}
+              </div>
+            )}
+
+            {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && (
+              <div className="modal-body">
+                <div style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.7 }}>{reviewModal.description || 'No additional details provided.'}</div>
+              </div>
+            )}
+
             <div className="modal-actions">
               <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
-
               {reviewModal.todo_type === 'edit_request' && (
                 denyingId === reviewModal.id ? (
-                  <>
-                    <button className="btn btn-outline" onClick={() => setDenyingId(null)}>Back</button>
-                    <button className="btn btn-danger" onClick={() => { onDenyEdit(reviewModal, denyReason); closeModal(); }}>Confirm Denial</button>
-                  </>
+                  <><button className="btn btn-outline" onClick={() => setDenyingId(null)}>Back</button><button className="btn btn-danger" onClick={() => { onDenyEdit(reviewModal, denyReason); closeModal(); }}>Confirm Denial</button></>
                 ) : (
-                  <>
-                    <button className="btn btn-danger" onClick={() => setDenyingId(reviewModal.id)}>Deny Request</button>
-                    <button className="btn btn-primary" onClick={() => { onApproveEdit(reviewModal); closeModal(); }}>Approve &amp; Reopen</button>
-                  </>
+                  <><button className="btn btn-danger" onClick={() => setDenyingId(reviewModal.id)}>Deny Request</button><button className="btn btn-primary" onClick={() => { onApproveEdit(reviewModal); closeModal(); }}>Approve &amp; Reopen</button></>
                 )
               )}
-
               {reviewModal.todo_type === 'count_approval' && (
-                <>
-                  <button className="btn btn-outline" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Dismiss</button>
-                  <button className="btn btn-primary" onClick={() => { onApproveCount(reviewModal.count_id); closeModal(); }}>Approve Count</button>
-                </>
+                rejectingId === reviewModal.id ? (
+                  <><button className="btn btn-outline" onClick={() => setRejectingId(null)}>Back</button><button className="btn btn-danger" onClick={() => { onRejectCount(reviewModal, rejectReason); closeModal(); }}>Confirm Rejection</button></>
+                ) : (
+                  <><button className="btn btn-danger" onClick={() => setRejectingId(reviewModal.id)}>Reject Count</button><button className="btn btn-primary" style={{ background: '#16A34A' }} onClick={() => { onApproveCount(reviewModal.count_id); onComplete(reviewModal.id); closeModal(); }}>Approve Count</button></>
+                )
               )}
-
-              {reviewModal.todo_type === 'account_closure' && (
-                <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Reviewed</button>
-              )}
-
-              {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && (
-                <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Complete</button>
-              )}
+              {reviewModal.todo_type === 'account_closure' && <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Reviewed</button>}
+              {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Complete</button>}
             </div>
           </div>
         </div>
@@ -348,6 +356,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
     </div>
   );
 }
+
 
 export default function AdminDashboard() {
   const { profile } = useAuth();
@@ -434,6 +443,27 @@ export default function AdminDashboard() {
       await supabase.from('alerts').insert({ alert_type: 'count_approved', title: 'Count Approved', message: 'Your count for ' + (countData.account?.name || '') + ' has been approved!', is_read: false, rep_id: countData.rep_id, inventory_count_id: countId });
     }
     toast.success('Count approved!');
+  }
+
+  async function rejectCount(todo, reason) {
+    let meta = {}; try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
+    const countId = todo.count_id;
+    await supabase.from('inventory_counts').update({ status: 'in_progress' }).eq('id', countId);
+    await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
+    const { data: countData } = await supabase.from('inventory_counts').select('rep_id').eq('id', countId).single();
+    if (countData?.rep_id) {
+      await supabase.from('alerts').insert({
+        alert_type: 'count_rejected',
+        title: 'Count Rejected â€” Action Required',
+        message: 'Your count for ' + (meta.account_name || '') + ' was rejected and needs corrections.' + (reason ? ' Reason: ' + reason : ''),
+        is_read: false,
+        rep_id: countData.rep_id,
+        inventory_count_id: countId,
+      });
+    }
+    setProgress(prev => prev.map(p => p.id === countId ? { ...p, status: 'in_progress' } : p));
+    setTodos(prev => prev.filter(t => t.id !== todo.id));
+    toast.info('Count rejected â€” rep has been notified.');
   }
 
   async function completeTodo(todoId) {
@@ -717,7 +747,7 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {tab === 'todos'    && <TodoSection todos={todos} onComplete={completeTodo} onApproveEdit={approveEditRequest} onDenyEdit={denyEditRequest} onApproveCount={approveCount} />}
+          {tab === 'todos'    && <TodoSection todos={todos} onComplete={completeTodo} onApproveEdit={approveEditRequest} onDenyEdit={denyEditRequest} onApproveCount={approveCount} onRejectCount={rejectCount} />}
           {tab === 'mycounts' && <MyCounts cycle={cycle} profile={profile} navigate={navigate} />}
           {tab === 'accounts' && <AdminAccounts />}
           {tab === 'users'    && <AdminUsers />}
