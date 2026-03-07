@@ -370,6 +370,15 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
         <span className="filter-label">Search:</span>
         <input className="search-input" placeholder="Name or email..." value={search} onChange={e => setSearch(e.target.value)} />
         <span className="count-lbl ml-auto">{filtered.length} of {users.length} users</span>
+        <button className="btn btn-outline" onClick={downloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          Template
+        </button>
+        <button className="btn btn-outline" onClick={() => setShowImport(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 9V2M3.5 4.5l3-3 3 3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+          {showImport ? 'Hide Import' : 'Import'}
+        </button>
+        <button className="btn btn-primary" onClick={openAdd}>+ Add User</button>
       </div>
 
       {/* â”€â”€ Table â€” matches design file: Name, Email, Status, Actions â”€â”€ */}
@@ -388,10 +397,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
               <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32, fontStyle: 'italic' }}>No users match your filter.</td></tr>
             ) : filtered.map(u => (
               <tr key={u.id}>
-                <td>
-                  <div style={{ fontWeight: 700 }}>{u.full_name}</div>
-                  <div style={{ marginTop: 2 }}>{roleTag(u.role)}</div>
-                </td>
+                <td style={{ fontWeight: 700 }}>{u.full_name}</td>
                 <td style={{ fontSize: 13, color: 'var(--text-mid)' }}>{u.email}</td>
                 <td>
                   <span style={{ fontSize: 12, fontWeight: 700, color: u.is_active ? 'var(--green)' : 'var(--text-dim)' }}>
