@@ -207,6 +207,48 @@ export default function AdminAuditLog() {
     setSearch('');
   }
 
+
+  async function exportAuditLog() {
+    // Fetch ALL matching records (no pagination limit) for export
+    let query = supabase
+      .from('audit_logs')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (filterCategory) query = query.eq('category', filterCategory);
+    if (filterUser)     query = query.eq('user_id', filterUser);
+    if (filterDateFrom) query = query.gte('created_at', filterDateFrom + 'T00:00:00');
+    if (filterDateTo)   query = query.lte('created_at', filterDateTo + 'T23:59:59');
+    if (search)         query = query.or('action.ilike.%' + search + '%,user_name.ilike.%' + search + '%,target_name.ilike.%' + search + '%');
+
+    const { data, error } = await query;
+    if (error) { toast.error('Export failed: ' + error.message); return; }
+
+    const header = ['Timestamp', 'User', 'Role', 'Category', 'Action', 'Target Type', 'Target', 'Details'];
+    const rows = (data || []).map(log => [
+      new Date(log.created_at).toLocaleString(),
+      log.user_name || '',
+      log.user_role || '',
+      log.category || '',
+      ACTION_LABELS[log.action] || log.action || '',
+      log.target_type || '',
+      log.target_name || '',
+      log.details ? JSON.stringify(log.details) : '',
+    ]);
+
+    const csv = [header, ...rows]
+      .map(r => r.map(v => '"' + String(v ?? '').replace(/"/g, '""') + '"').join(','))
+      .join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement('a');
+    a.href = url;
+    a.download = 'MedEx_AuditLog_' + new Date().toISOString().slice(0,10) + '.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.success('Exported ' + rows.length + ' audit events');
+  }
+
   const hasFilters = filterCategory || filterUser || filterDateFrom || filterDateTo || search;
 
   return (
@@ -253,6 +295,17 @@ export default function AdminAuditLog() {
           <span className="count-lbl ml-auto" style={{ whiteSpace: 'nowrap' }}>
             {loading ? 'Loading...' : total.toLocaleString() + ' events'}
           </span>
+          <button
+            className="btn btn-primary"
+            onClick={exportAuditLog}
+            disabled={loading}
+            style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+              <path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            Export CSV
+          </button>
         </div>
       </div>
 
