@@ -7,27 +7,30 @@ import { COUNT_STATUS } from '../lib/supabase';
 import AdminUsers from './AdminUsers';
 import AdminDataManagement from './AdminDataManagement';
 import AdminAccounts from './AdminAccounts';
+import AdminItemCatalog from './AdminItemCatalog';
 
 const NAV = [
-  { section: 'MAIN' },
-  { key: 'overview', label: 'Count Cycle Details' },
-  { key: 'todos',    label: 'To Do' },
+  { section: 'DASHBOARD' },
+  { key: 'overview',  label: 'Count Cycle Details' },
+  { key: 'todos',     label: 'To Do' },
+  { key: 'mycounts',  label: 'My Counts' },
   { section: 'SETTINGS' },
-  { key: 'accounts', label: 'Accounts' },
-  { key: 'users',    label: 'Users' },
+  { key: 'accounts',  label: 'Accounts' },
+  { key: 'users',     label: 'Users' },
+  { key: 'catalog',   label: 'Item Catalog' },
   { section: 'REPORTS' },
-  { key: 'data',     label: 'Import / Export' },
+  { key: 'data',      label: 'Export' },
 ];
 
 const STAT_CARDS = [
-  { key: 'not_started', label: 'Not Started', cls: 'sc-red',  tc: 'c-red'  },
-  { key: 'in_progress', label: 'In Progress',  cls: 'sc-gold', tc: 'c-gold' },
-  { key: 'submitted',   label: 'Submitted',    cls: 'sc-blue', tc: 'c-blue' },
-  { key: 'approved',    label: 'Approved',     cls: 'sc-green',tc: 'c-green'},
+  { key: 'not_started', label: 'Not Started', cls: 'sc-red',   tc: 'c-red'   },
+  { key: 'in_progress', label: 'In Progress',  cls: 'sc-gold',  tc: 'c-gold'  },
+  { key: 'submitted',   label: 'Submitted',    cls: 'sc-blue',  tc: 'c-blue'  },
+  { key: 'approved',    label: 'Approved',     cls: 'sc-green', tc: 'c-green' },
 ];
 
 function Pill({ status }) {
-  const map = { not_started: 'pill-ns', in_progress: 'pill-ip', submitted: 'pill-sub', approved: 'pill-app' };
+  const map    = { not_started: 'pill-ns', in_progress: 'pill-ip', submitted: 'pill-sub', approved: 'pill-app' };
   const labels = { not_started: 'Not Started', in_progress: 'In Progress', submitted: 'Submitted', approved: 'Approved' };
   return <span className={'pill ' + (map[status] || 'pill-ns')}>{labels[status] || status}</span>;
 }
@@ -42,9 +45,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
   const closureFlags   = todos.filter(t => t.todo_type === 'account_closure');
   const general        = todos.filter(t => !t.todo_type || t.todo_type === 'general');
 
-  function parseMeta(t) {
-    try { return JSON.parse(t.metadata || '{}'); } catch { return {}; }
-  }
+  function parseMeta(t) { try { return JSON.parse(t.metadata || '{}'); } catch { return {}; } }
 
   function TodoCard({ title, count, children, emptyMsg }) {
     return (
@@ -55,8 +56,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
         </div>
         {count === 0
           ? <div className="todo-empty">{emptyMsg || 'No items pending.'}</div>
-          : children
-        }
+          : children}
       </div>
     );
   }
@@ -66,24 +66,21 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
       <TodoCard title="Count Edit Requests" count={editRequests.length} emptyMsg="No edit requests pending.">
         {editRequests.map(t => {
           const meta = parseMeta(t);
-          const isExpanded = expanded[t.id];
           return (
             <div key={t.id} style={{ borderBottom: '1px solid var(--border)' }}>
               <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 2 }}>{meta.account_name || t.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{meta.rep_name} Â· {meta.region}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{meta.rep_name} &middot; {meta.region}</div>
                   {meta.reason && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 4 }}>Reason: <strong>{meta.reason.replace(/_/g,' ')}</strong></div>}
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
                   <button className="tbl-btn" onClick={() => onApproveEdit(t)}>Approve</button>
                   <button className="tbl-btn-danger" onClick={() => setDenyModal(t)}>Deny</button>
-                  <button className="tbl-btn-sm" onClick={() => setExpanded(p => ({ ...p, [t.id]: !p[t.id] }))}>
-                    {isExpanded ? 'Less' : 'Details'}
-                  </button>
+                  <button className="tbl-btn-sm" onClick={() => setExpanded(p => ({ ...p, [t.id]: !p[t.id] }))}>{expanded[t.id] ? 'Less' : 'Details'}</button>
                 </div>
               </div>
-              {isExpanded && meta.details && (
+              {expanded[t.id] && meta.details && (
                 <div style={{ padding: '0 20px 16px', background: 'var(--bg)' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Rep's Explanation</div>
                   <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>{meta.details}</div>
@@ -95,21 +92,18 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
       </TodoCard>
 
       <TodoCard title="Counts to Approve" count={countApprovals.length} emptyMsg="No counts awaiting approval.">
-        {countApprovals.map(t => {
-          const meta = parseMeta(t);
-          return (
-            <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title?.replace('Count to approve: ', '')}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{t.description}</div>
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button className="tbl-btn" onClick={() => onApproveCount(t.count_id)}>Approve Count</button>
-                <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Dismiss</button>
-              </div>
+        {countApprovals.map(t => (
+          <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title?.replace('Count to approve: ', '')}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{t.description}</div>
             </div>
-          );
-        })}
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className="tbl-btn" onClick={() => onApproveCount(t.count_id)}>Approve Count</button>
+              <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Dismiss</button>
+            </div>
+          </div>
+        ))}
       </TodoCard>
 
       <TodoCard title="Accounts Flagged for Closure" count={closureFlags.length} emptyMsg="No accounts flagged for closure.">
@@ -119,7 +113,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
             <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{meta.account_name || t.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>Rep: {meta.rep_name} Â· Reason: {meta.reason?.replace(/_/g,' ')}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>Rep: {meta.rep_name} &middot; Reason: {meta.reason?.replace(/_/g,' ')}</div>
                 {meta.notes && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 3 }}>{meta.notes}</div>}
               </div>
               <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Mark Reviewed</button>
@@ -148,11 +142,8 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
               <div className="modal-head-sub">{parseMeta(denyModal).account_name}</div>
             </div>
             <div className="modal-body">
-              <p style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 12 }}>
-                Please provide a reason for denying this request. The rep will be notified.
-              </p>
-              <textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)}
-                placeholder="Explain why the edit request is being denied..." />
+              <p style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 12 }}>Please provide a reason for denying this request. The rep will be notified.</p>
+              <textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)} placeholder="Explain why the edit request is being denied..." />
             </div>
             <div className="modal-actions">
               <button className="btn btn-outline" onClick={() => { setDenyModal(null); setDenyReason(''); }}>Cancel</button>
@@ -169,15 +160,16 @@ export default function AdminDashboard() {
   const { profile } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
-  const [myCounts, setMyCounts] = useState([]);
-  const [tab, setTab]           = useState('overview');
-  const [cycle, setCycle]       = useState(null);
-  const [progress, setProgress] = useState([]);
-  const [alerts, setAlerts]     = useState([]);
-  const [todos, setTodos]       = useState([]);
-  const [loading, setLoading]   = useState(true);
+  const [myCounts, setMyCounts]     = useState([]);
+  const [tab, setTab]               = useState('overview');
+  const [cycle, setCycle]           = useState(null);
+  const [progress, setProgress]     = useState([]);
+  const [alerts, setAlerts]         = useState([]);
+  const [todos, setTodos]           = useState([]);
+  const [loading, setLoading]       = useState(true);
   const [progressFilter, setProgressFilter] = useState('all');
-  const [cycleForm, setCycleForm] = useState({ name: '', quarter: 'Q1', year: new Date().getFullYear() });
+  const [cycleForm, setCycleForm]   = useState({ name: '', quarter: 'Q1', year: new Date().getFullYear() });
+  const [collapsedRegions, setCollapsedRegions] = useState({});
 
   useEffect(() => { loadData(); }, []);
 
@@ -212,11 +204,7 @@ export default function AdminDashboard() {
         if (!acctRepsMap[ar.account_id]) acctRepsMap[ar.account_id] = [];
         acctRepsMap[ar.account_id].push(repMap[ar.rep_id]);
       }
-      setProgress((counts || []).map(c => ({
-        ...c,
-        rep: c.rep_id ? repMap[c.rep_id] : null,
-        allReps: acctRepsMap[c.account?.id] || [],
-      })));
+      setProgress((counts || []).map(c => ({ ...c, rep: c.rep_id ? repMap[c.rep_id] : null, allReps: acctRepsMap[c.account?.id] || [] })));
     }
     if (cycleData && profile?.id) {
       const { data: myCountData } = await supabase
@@ -241,9 +229,7 @@ export default function AdminDashboard() {
     const { data: accounts } = await supabase.from('accounts').select('id, name, assigned_rep_id').eq('is_active', true);
     if (!accounts?.length) { toast.warning('No active accounts found.'); loadData(); return; }
     for (let i = 0; i < accounts.length; i += 100) {
-      const batch = accounts.slice(i, i + 100).map(a => ({
-        cycle_id: newCycle.id, account_id: a.id, rep_id: a.assigned_rep_id || null, status: 'not_started',
-      }));
+      const batch = accounts.slice(i, i + 100).map(a => ({ cycle_id: newCycle.id, account_id: a.id, rep_id: a.assigned_rep_id || null, status: 'not_started' }));
       await supabase.from('inventory_counts').insert(batch);
     }
     toast.success('Cycle "' + cycleForm.name + '" opened!');
@@ -262,11 +248,7 @@ export default function AdminDashboard() {
     await supabase.from('inventory_counts').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', countId);
     setProgress(prev => prev.map(p => p.id === countId ? { ...p, status: 'approved' } : p));
     if (countData?.rep_id) {
-      await supabase.from('alerts').insert({
-        alert_type: 'count_approved', title: 'Count Approved',
-        message: 'Your count for ' + (countData.account?.name || '') + ' has been approved!',
-        is_read: false, rep_id: countData.rep_id, inventory_count_id: countId,
-      });
+      await supabase.from('alerts').insert({ alert_type: 'count_approved', title: 'Count Approved', message: 'Your count for ' + (countData.account?.name || '') + ' has been approved!', is_read: false, rep_id: countData.rep_id, inventory_count_id: countId });
     }
     toast.success('Count approved!');
   }
@@ -283,33 +265,27 @@ export default function AdminDashboard() {
   }
 
   async function approveEditRequest(todo) {
-    let meta = {};
-    try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
+    let meta = {}; try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
     if (todo.count_id) await supabase.from('inventory_counts').update({ status: 'in_progress' }).eq('id', todo.count_id);
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
     const { data: countData } = await supabase.from('inventory_counts').select('rep_id').eq('id', todo.count_id).single();
-    await supabase.from('alerts').insert({
-      alert_type: 'edit_approved', title: 'Edit Request Approved',
-      message: 'Your request to reopen ' + (meta.account_name || '') + ' has been approved.',
-      is_read: false, rep_id: countData?.rep_id, inventory_count_id: todo.count_id,
-    });
+    await supabase.from('alerts').insert({ alert_type: 'edit_approved', title: 'Edit Request Approved', message: 'Your request to reopen ' + (meta.account_name || '') + ' has been approved.', is_read: false, rep_id: countData?.rep_id, inventory_count_id: todo.count_id });
     setTodos(prev => prev.filter(t => t.id !== todo.id));
-    toast.success('Edit request approved â€” count unlocked!');
+    toast.success('Edit request approved!');
     loadData();
   }
 
   async function denyEditRequest(todo, reason) {
-    let meta = {};
-    try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
+    let meta = {}; try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
     const { data: countData } = await supabase.from('inventory_counts').select('rep_id').eq('id', todo.count_id).single();
-    await supabase.from('alerts').insert({
-      alert_type: 'edit_denied', title: 'Edit Request Denied',
-      message: 'Your request to reopen ' + (meta.account_name || '') + ' was denied.' + (reason ? ' Reason: ' + reason : ''),
-      is_read: false, rep_id: countData?.rep_id, inventory_count_id: todo.count_id,
-    });
+    await supabase.from('alerts').insert({ alert_type: 'edit_denied', title: 'Edit Request Denied', message: 'Your request to reopen ' + (meta.account_name || '') + ' was denied.' + (reason ? ' Reason: ' + reason : ''), is_read: false, rep_id: countData?.rep_id, inventory_count_id: todo.count_id });
     setTodos(prev => prev.filter(t => t.id !== todo.id));
     toast.info('Edit request denied.');
+  }
+
+  function toggleRegion(rName) {
+    setCollapsedRegions(prev => ({ ...prev, [rName]: !prev[rName] }));
   }
 
   const stats = {
@@ -319,18 +295,18 @@ export default function AdminDashboard() {
     approved:     progress.filter(p => p.status === 'approved').length,
   };
   const total = progress.length;
-  const pct = total > 0 ? Math.round((stats.submitted + stats.approved) / total * 100) : 0;
+  const pct   = total > 0 ? Math.round((stats.submitted + stats.approved) / total * 100) : 0;
   const initials = profile?.full_name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2) || 'AD';
 
   const filteredProgress = progressFilter === 'all' ? progress : progress.filter(p => p.status === progressFilter);
-
-  // Build region map from filtered progress
   const regionMap = {};
   filteredProgress.forEach(p => {
     const rName = p.account?.region?.name || 'Unassigned';
     if (!regionMap[rName]) regionMap[rName] = [];
     regionMap[rName].push(p);
   });
+
+  const pageTitle = NAV.find(n => n.key === tab)?.label || 'Dashboard';
 
   if (loading) return (
     <div className="app-shell">
@@ -344,7 +320,7 @@ export default function AdminDashboard() {
   return (
     <div className="app-shell">
 
-      {/* â”€â”€ SIDEBAR â”€â”€ */}
+      {/* SIDEBAR */}
       <nav className="sidebar">
         <div className="sidebar-logo">
           <div className="logo-text"><span>Med</span><span>Ex</span></div>
@@ -370,6 +346,24 @@ export default function AdminDashboard() {
           );
         })}
 
+        {/* My Counts section */}
+        {myCounts.length > 0 && (
+          <div style={{ padding: '8px 8px 12px', borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 8 }}>
+            <div style={{ padding: '6px 12px 4px', fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '2px', textTransform: 'uppercase' }}>MY ACTIVE COUNTS</div>
+            {myCounts.map(c => (
+              <div key={c.id} onClick={() => navigate('/count/' + c.id)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 12px', margin: '1px 0', borderRadius: 8, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 500, transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'white'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}>
+                <span>{c.account?.name}</span>
+                <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 8, textTransform: 'uppercase', background: c.status === 'in_progress' ? 'rgba(0,118,187,0.3)' : 'rgba(255,255,255,0.1)', color: c.status === 'in_progress' ? '#7dd3fc' : 'rgba(255,255,255,0.4)' }}>
+                  {c.status === 'in_progress' ? 'In Progress' : 'Not Started'}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="sidebar-bottom">
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -384,17 +378,19 @@ export default function AdminDashboard() {
         <div className="sidebar-accent-bar" />
       </nav>
 
-      {/* â”€â”€ MAIN â”€â”€ */}
+      {/* MAIN */}
       <div className="main-col">
         <div className="topbar">
           <div>
-            <h1>{NAV.find(n => n.key === tab)?.label || 'Dashboard'}</h1>
+            <h1>{pageTitle}</h1>
             <p>
-              {tab === 'overview' && (cycle ? cycle.name + ' â€” ' + total + ' accounts' : 'No active cycle')}
-              {tab === 'todos'    && todos.length + ' pending task' + (todos.length !== 1 ? 's' : '')}
+              {tab === 'overview'  && (cycle ? cycle.name + ' \u2014 ' + total + ' accounts' : 'No active cycle')}
+              {tab === 'todos'     && todos.length + ' pending task' + (todos.length !== 1 ? 's' : '')}
+              {tab === 'mycounts' && myCounts.length + ' active count' + (myCounts.length !== 1 ? 's' : '')}
               {tab === 'accounts' && 'Manage account assignments'}
               {tab === 'users'    && 'Manage rep accounts'}
-              {tab === 'data'     && 'Import and export data'}
+              {tab === 'catalog'  && 'Manage inventory items'}
+              {tab === 'data'     && 'Export count data'}
             </p>
           </div>
           {tab === 'overview' && cycle && (
@@ -404,7 +400,7 @@ export default function AdminDashboard() {
 
         <div className="content-area">
 
-          {/* â”€â”€ OVERVIEW â”€â”€ */}
+          {/* OVERVIEW */}
           {tab === 'overview' && (
             <>
               {!cycle ? (
@@ -412,15 +408,14 @@ export default function AdminDashboard() {
                   <div className="card-head">
                     <div>
                       <div className="card-head-title">Open a Count Cycle</div>
-                      <div className="card-head-sub">No active cycle â€” create one to begin</div>
+                      <div className="card-head-sub">No active cycle \u2014 create one to begin</div>
                     </div>
                   </div>
                   <div className="card-body">
                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
                       <div>
                         <label className="input-label">Cycle Name</label>
-                        <input className="input" style={{ width: 180 }} value={cycleForm.name}
-                          onChange={e => setCycleForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Q1 2026" />
+                        <input className="input" style={{ width: 180 }} value={cycleForm.name} onChange={e => setCycleForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Q1 2026" />
                       </div>
                       <div>
                         <label className="input-label">Quarter</label>
@@ -430,8 +425,7 @@ export default function AdminDashboard() {
                       </div>
                       <div>
                         <label className="input-label">Year</label>
-                        <input className="input" type="number" style={{ width: 100 }} value={cycleForm.year}
-                          onChange={e => setCycleForm(p => ({ ...p, year: parseInt(e.target.value) }))} />
+                        <input className="input" type="number" style={{ width: 100 }} value={cycleForm.year} onChange={e => setCycleForm(p => ({ ...p, year: parseInt(e.target.value) }))} />
                       </div>
                       <button className="btn btn-primary" onClick={openCycle}>Open Cycle</button>
                     </div>
@@ -445,7 +439,7 @@ export default function AdminDashboard() {
                       <div>
                         <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#7A9ABE', marginBottom: 6 }}>Company Wide</div>
                         <div className="hero-title">{cycle.name} Count Cycle</div>
-                        <div className="hero-meta">Opened {new Date(cycle.opened_at).toLocaleDateString()} Â· {total} accounts total</div>
+                        <div className="hero-meta">Opened {new Date(cycle.opened_at).toLocaleDateString()} &middot; {total} accounts total</div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
                         <div className="hero-pct">{pct}%</div>
@@ -472,12 +466,12 @@ export default function AdminDashboard() {
                   {Object.keys(regionMap).sort().map(rName => {
                     const counts = regionMap[rName];
                     const allForRegion = progress.filter(p => (p.account?.region?.name || 'Unassigned') === rName);
-                    const rTotal = allForRegion.length;
+                    const rTotal    = allForRegion.length;
                     const rApproved = allForRegion.filter(p => p.status === 'approved').length;
                     const rSubmitted = allForRegion.filter(p => p.status === 'submitted').length;
-                    const rPct = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
+                    const rPct      = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
                     const progColor = rPct === 100 ? '#16A34A' : '#1565C0';
-
+                    const isCollapsed = collapsedRegions[rName];
                     const rStats = {
                       not_started: allForRegion.filter(p => p.status === 'not_started').length,
                       in_progress:  allForRegion.filter(p => p.status === 'in_progress').length,
@@ -487,69 +481,73 @@ export default function AdminDashboard() {
 
                     return (
                       <div key={rName} className="region-block">
-                        <div className="region-header">
-                          <div className="region-header-top">
-                            <div>
-                              <div className="region-eyebrow">Region</div>
-                              <div className="region-name">{rName}</div>
+                        {/* Clickable region header */}
+                        <div className="region-header" onClick={() => toggleRegion(rName)} style={{ cursor: 'pointer' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <div>
+                                <div className="region-eyebrow">Region</div>
+                                <div className="region-name">{rName}</div>
+                              </div>
+                              {/* Inline mini stats */}
+                              <div style={{ display: 'flex', gap: 6, marginLeft: 8 }}>
+                                {STAT_CARDS.map(s => (
+                                  <div key={s.key} className={'stat-card ' + s.cls} style={{ padding: '4px 10px', minWidth: 48 }}>
+                                    <div className={'sc-num ' + s.tc} style={{ fontSize: 16, letterSpacing: '-0.5px' }}>{rStats[s.key]}</div>
+                                    <div className={'sc-lbl ' + s.tc} style={{ fontSize: 7 }}>{s.label}</div>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                               <div style={{ textAlign: 'right' }}>
                                 <div className="region-pct-num">{rPct}%</div>
                                 <div className="region-pct-lbl">Complete</div>
                               </div>
+                              <div style={{ fontSize: 18, color: '#1a3a5c', transition: 'transform 0.2s', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>&#9660;</div>
                             </div>
                           </div>
                           <div className="region-progress">
                             <div className="region-progress-fill" style={{ width: rPct + '%', background: progColor }} />
                           </div>
-                          <div className="region-mini-stats">
-                            {STAT_CARDS.map(s => (
-                              <div key={s.key} className={'stat-card hero-stat-card ' + s.cls} style={{ padding: '8px 10px' }}>
-                                <div className={'sc-num ' + s.tc} style={{ fontSize: 20 }}>{rStats[s.key]}</div>
-                                <div className={'sc-lbl ' + s.tc} style={{ fontSize: 8 }}>{s.label}</div>
-                              </div>
-                            ))}
+                        </div>
+
+                        {/* Collapsible table */}
+                        {!isCollapsed && (
+                          <div className="region-detail">
+                            <table>
+                              <thead>
+                                <tr><th>Account</th><th>Rep(s)</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
+                              </thead>
+                              <tbody>
+                                {counts.map(p => (
+                                  <tr key={p.id}>
+                                    <td style={{ fontWeight: 700 }}>{p.account?.name}</td>
+                                    <td>
+                                      {p.allReps?.length > 0
+                                        ? p.allReps.filter(Boolean).map(r => <span key={r.id} className="rep-tag">{r.full_name}</span>)
+                                        : <span style={{ color: 'var(--red)', fontSize: 12 }}>Unassigned</span>}
+                                    </td>
+                                    <td><Pill status={p.status} /></td>
+                                    <td style={{ color: 'var(--text-dim)' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : '\u2014'}</td>
+                                    <td>
+                                      {p.status === 'submitted' && <button className="tbl-btn" onClick={() => approveCount(p.id)}>Approve</button>}
+                                      {(p.status === 'not_started' || p.status === 'in_progress') && <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>}
+                                      {p.status === 'approved' && <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>View Count</button>}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
                           </div>
-                        </div>
-                        <div className="region-detail">
-                          <table>
-                            <thead>
-                              <tr>
-                                <th>Account</th><th>Rep(s)</th><th>Status</th><th>Submitted</th><th>Actions</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {counts.map(p => (
-                                <tr key={p.id}>
-                                  <td style={{ fontWeight: 700 }}>{p.account?.name}</td>
-                                  <td>
-                                    {p.allReps?.length > 0
-                                      ? p.allReps.filter(Boolean).map(r => <span key={r.id} className="rep-tag">{r.full_name}</span>)
-                                      : <span style={{ color: 'var(--red)', fontSize: 12 }}>Unassigned</span>
-                                    }
-                                  </td>
-                                  <td><Pill status={p.status} /></td>
-                                  <td style={{ color: 'var(--text-dim)' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : 'â€”'}</td>
-                                  <td>
-                                    {p.status === 'submitted' && <button className="tbl-btn" onClick={() => approveCount(p.id)}>Approve</button>}
-                                    {(p.status === 'not_started' || p.status === 'in_progress') && (
-                                      <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>
-                                    )}
-                                    {p.status === 'approved' && <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>View Count</button>}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
+                        )}
                       </div>
                     );
                   })}
 
                   {progressFilter !== 'all' && (
                     <div style={{ textAlign: 'center', marginTop: 12 }}>
-                      <button className="btn btn-outline" onClick={() => setProgressFilter('all')}>Clear Filter â€” Show All</button>
+                      <button className="btn btn-outline" onClick={() => setProgressFilter('all')}>Clear Filter \u2014 Show All</button>
                     </div>
                   )}
                 </>
@@ -557,19 +555,26 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {/* â”€â”€ TO DO â”€â”€ */}
-          {tab === 'todos' && (
-            <TodoSection
-              todos={todos}
-              onComplete={completeTodo}
-              onApproveEdit={approveEditRequest}
-              onDenyEdit={denyEditRequest}
-              onApproveCount={approveCount}
-            />
+          {tab === 'todos'    && <TodoSection todos={todos} onComplete={completeTodo} onApproveEdit={approveEditRequest} onDenyEdit={denyEditRequest} onApproveCount={approveCount} />}
+          {tab === 'mycounts' && (
+            <div>
+              {myCounts.length === 0
+                ? <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-dim)' }}>No active counts assigned to you.</div>
+                : myCounts.map(c => (
+                  <div key={c.id} className="card" style={{ marginBottom: 12, padding: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer' }} onClick={() => navigate('/count/' + c.id)}>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 16 }}>{c.account?.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 4 }}><Pill status={c.status} /></div>
+                    </div>
+                    <button className="btn btn-primary">Enter Count</button>
+                  </div>
+                ))
+              }
+            </div>
           )}
-
           {tab === 'accounts' && <AdminAccounts />}
           {tab === 'users'    && <AdminUsers />}
+          {tab === 'catalog'  && <AdminItemCatalog />}
           {tab === 'data'     && <AdminDataManagement cycle={cycle} />}
 
         </div>
