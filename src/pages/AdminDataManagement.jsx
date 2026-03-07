@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useAuth } from '../components/AuthContext';
+import { logAudit } from '../hooks/useAudit';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ToastContext';
 import Papa from 'papaparse';
@@ -123,6 +125,7 @@ function validateRequiredCols(rows, importType) {
 
 export default function AdminDataManagement() {
   const toast = useToast();
+  const { profile } = useAuth();
 
   const [importType, setImportType]       = useState('accounts');
   const [file, setFile]                   = useState(null);
@@ -326,6 +329,12 @@ export default function AdminDataManagement() {
           }
 
           setImportResults({ inserted, updated, errors, total: rows.length, errorDetails });
+          // Audit log
+          await logAudit(profile, IMPORT_ACTION_MAP[importType] || 'IMPORT_UNKNOWN', 'import', {
+            target_type: importType,
+            target_name: file?.name || 'unknown file',
+            details: { inserted, updated, errors, total: rows.length, file: file?.name },
+          });
           if (errors === 0) toast.success('Import complete - ' + (inserted + updated) + ' records processed');
           else toast.warning('Import finished with ' + errors + ' errors - ' + (inserted + updated) + ' succeeded');
 
@@ -337,6 +346,14 @@ export default function AdminDataManagement() {
     });
   }
 
+
+  const IMPORT_ACTION_MAP = {
+    accounts:          'IMPORT_ACCOUNTS',
+    users:             'IMPORT_USERS',
+    claimsoft_catalog: 'IMPORT_CLAIMSOFT_CATALOG',
+    edge_catalog:      'IMPORT_EDGE_CATALOG',
+    referral_sources:  'IMPORT_REFERRAL_SOURCES',
+  };
   const tmpl = TEMPLATES[importType];
 
   return (
