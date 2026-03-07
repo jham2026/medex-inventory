@@ -10,27 +10,32 @@ import AdminAccounts from './AdminAccounts';
 
 const NAV = [
   { section: 'MAIN' },
-  { key: 'overview', label: 'Count Cycle Details',        icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
-  { key: 'todos',    label: 'To Do',            icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4' },
-  { section: 'MANAGE' },
-  { key: 'accounts', label: 'Accounts',         icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4' },
-  { key: 'users',    label: 'Users',            icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
-  { section: 'DATA' },
-  { key: 'data',     label: 'Import / Export',  icon: 'M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12' },
+  { key: 'overview', label: 'Count Cycle Details' },
+  { key: 'todos',    label: 'To Do' },
+  { section: 'SETTINGS' },
+  { key: 'accounts', label: 'Accounts' },
+  { key: 'users',    label: 'Users' },
+  { section: 'REPORTS' },
+  { key: 'data',     label: 'Import / Export' },
 ];
 
-function NavIcon({ path }) {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d={path} />
-    </svg>
-  );
+const STAT_CARDS = [
+  { key: 'not_started', label: 'Not Started', cls: 'sc-red',  tc: 'c-red'  },
+  { key: 'in_progress', label: 'In Progress',  cls: 'sc-gold', tc: 'c-gold' },
+  { key: 'submitted',   label: 'Submitted',    cls: 'sc-blue', tc: 'c-blue' },
+  { key: 'approved',    label: 'Approved',     cls: 'sc-green',tc: 'c-green'},
+];
+
+function Pill({ status }) {
+  const map = { not_started: 'pill-ns', in_progress: 'pill-ip', submitted: 'pill-sub', approved: 'pill-app' };
+  const labels = { not_started: 'Not Started', in_progress: 'In Progress', submitted: 'Submitted', approved: 'Approved' };
+  return <span className={'pill ' + (map[status] || 'pill-ns')}>{labels[status] || status}</span>;
 }
 
 function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCount }) {
-  const [expandedId, setExpandedId] = useState(null);
   const [denyModal, setDenyModal] = useState(null);
   const [denyReason, setDenyReason] = useState('');
+  const [expanded, setExpanded] = useState({});
 
   const editRequests   = todos.filter(t => t.todo_type === 'edit_request');
   const countApprovals = todos.filter(t => t.todo_type === 'count_approval');
@@ -41,18 +46,16 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
     try { return JSON.parse(t.metadata || '{}'); } catch { return {}; }
   }
 
-  function Section({ title, badge, color, items, renderItem, emptyMsg }) {
+  function TodoCard({ title, count, children, emptyMsg }) {
     return (
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div className="card-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div className="card-title" style={{ fontSize: 17 }}>{title}</div>
-            <span style={{ background: items.length > 0 ? color : '#C5D1DA', color: 'white', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 10 }}>{items.length}</span>
-          </div>
+      <div className="todo-section">
+        <div className="todo-head">
+          <div className="todo-head-title">{title}</div>
+          <div className="todo-badge">{count}</div>
         </div>
-        {items.length === 0
-          ? <div className="table-empty" style={{ padding: '24px 20px', fontSize: 13 }}>{emptyMsg || 'No items pending.'}</div>
-          : items.map(renderItem)
+        {count === 0
+          ? <div className="todo-empty">{emptyMsg || 'No items pending.'}</div>
+          : children
         }
       </div>
     );
@@ -60,215 +63,105 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
   return (
     <div>
-      {/* Edit Requests */}
-      <Section title="Count Edit Requests" emptyMsg="No edit requests pending." badge={editRequests.length} color="#0076BB" items={editRequests} renderItem={t => {
-        const meta = parseMeta(t);
-        const expanded = expandedId === t.id;
-        return (
-          <div key={t.id} style={{ borderBottom: '1px solid #E1E8EE' }}>
-            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6, flexWrap: 'wrap' }}>
-                  <span className={'badge ' + (t.priority === 'high' ? 'b-red' : 'b-blue')} style={{ fontSize: 10 }}>
-                    {t.priority === 'high' ? 'Urgent' : 'Normal'}
-                  </span>
-                  <span style={{ fontSize: 11, color: '#7A909F' }}>{new Date(t.created_at).toLocaleDateString()}</span>
+      <TodoCard title="Count Edit Requests" count={editRequests.length} emptyMsg="No edit requests pending.">
+        {editRequests.map(t => {
+          const meta = parseMeta(t);
+          const isExpanded = expanded[t.id];
+          return (
+            <div key={t.id} style={{ borderBottom: '1px solid var(--border)' }}>
+              <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 2 }}>{meta.account_name || t.title}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-dim)' }}>{meta.rep_name} Â· {meta.region}</div>
+                  {meta.reason && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 4 }}>Reason: <strong>{meta.reason.replace(/_/g,' ')}</strong></div>}
                 </div>
-                <div style={{ fontWeight: 600, fontSize: 14, color: '#1A2B38', marginBottom: 2 }}>{meta.account_name || t.title}</div>
-                <div style={{ fontSize: 12, color: '#7A909F' }}>{meta.rep_name} &middot; {meta.region}</div>
-                {meta.reason && <div style={{ fontSize: 12, color: '#3D5466', marginTop: 4 }}>Reason: <strong>{meta.reason.replace(/_/g, ' ')}</strong></div>}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => setExpandedId(expanded ? null : t.id)}>
-                  {expanded ? 'Hide Details' : 'View Details'}
-                </button>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button className="btn btn-blue btn-sm" onClick={() => onApproveEdit(t)}>Approve</button>
-                  <button className="btn btn-sm" style={{ background: '#EF4444', color: 'white' }} onClick={() => { setDenyModal(t); setDenyReason(''); }}>Deny</button>
-                </div>
-              </div>
-            </div>
-            {expanded && (
-              <div style={{ padding: '0 20px 16px', background: '#F7F9FB', borderTop: '1px solid #E1E8EE' }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, marginTop: 12 }}>Rep's Explanation</div>
-                <div style={{ fontSize: 13, color: '#3D5466', lineHeight: 1.6, background: 'white', border: '1px solid #E1E8EE', borderRadius: 8, padding: '10px 14px' }}>
-                  {meta.details || 'No details provided.'}
-                </div>
-                {meta.requested_at && (
-                  <div style={{ fontSize: 11, color: '#7A909F', marginTop: 8 }}>
-                    Requested: {new Date(meta.requested_at).toLocaleString()}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      }} />
-
-      {/* Counts to Approve */}
-      <Section title="Counts to Approve" emptyMsg="No counts awaiting approval." badge={countApprovals.length} color="#c88e0f" items={countApprovals} renderItem={t => {
-        const meta = parseMeta(t);
-        const expanded = expandedId === t.id;
-        return (
-          <div key={t.id} style={{ borderBottom: '1px solid #E1E8EE' }}>
-            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span className="badge b-gold" style={{ fontSize: 10 }}>Awaiting Approval</span>
-                  <span style={{ fontSize: 11, color: '#7A909F' }}>{new Date(t.created_at).toLocaleDateString()}</span>
-                </div>
-                <div style={{ fontWeight: 600, fontSize: 14, color: '#1A2B38', marginBottom: 2 }}>{t.title?.replace('Count to approve: ', '')}</div>
-                <div style={{ fontSize: 12, color: '#7A909F' }}>{t.description}</div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-                {t.count_id && (
-                  <button className="btn btn-ghost btn-sm" onClick={() => setExpandedId(expanded ? null : t.id)}>
-                    {expanded ? 'Hide' : 'Review'}
+                <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                  <button className="tbl-btn" onClick={() => onApproveEdit(t)}>Approve</button>
+                  <button className="tbl-btn-danger" onClick={() => setDenyModal(t)}>Deny</button>
+                  <button className="tbl-btn-sm" onClick={() => setExpanded(p => ({ ...p, [t.id]: !p[t.id] }))}>
+                    {isExpanded ? 'Less' : 'Details'}
                   </button>
-                )}
-                <button className="btn btn-blue btn-sm" onClick={() => { onApproveCount(t.count_id); onComplete(t.id); }}>Mark Approved</button>
+                </div>
+              </div>
+              {isExpanded && meta.details && (
+                <div style={{ padding: '0 20px 16px', background: 'var(--bg)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: 6 }}>Rep's Explanation</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-mid)', lineHeight: 1.6, background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px' }}>{meta.details}</div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </TodoCard>
+
+      <TodoCard title="Counts to Approve" count={countApprovals.length} emptyMsg="No counts awaiting approval.">
+        {countApprovals.map(t => {
+          const meta = parseMeta(t);
+          return (
+            <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title?.replace('Count to approve: ', '')}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{t.description}</div>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="tbl-btn" onClick={() => onApproveCount(t.count_id)}>Approve Count</button>
+                <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Dismiss</button>
               </div>
             </div>
-          </div>
-        );
-      }} />
+          );
+        })}
+      </TodoCard>
 
-      {/* Account Closures */}
-      <Section title="Accounts Flagged for Closure" emptyMsg="No accounts flagged for closure." badge={closureFlags.length} color="#EF4444" items={closureFlags} renderItem={t => {
-        const meta = parseMeta(t);
-        const expanded = expandedId === t.id;
-        return (
-          <div key={t.id} style={{ borderBottom: '1px solid #E1E8EE' }}>
-            <div style={{ padding: '14px 20px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <TodoCard title="Accounts Flagged for Closure" count={closureFlags.length} emptyMsg="No accounts flagged for closure.">
+        {closureFlags.map(t => {
+          const meta = parseMeta(t);
+          return (
+            <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span className="badge b-red" style={{ fontSize: 10 }}>Closure Requested</span>
-                  <span style={{ fontSize: 11, color: '#7A909F' }}>{new Date(t.created_at).toLocaleDateString()}</span>
-                </div>
-                <div style={{ fontWeight: 600, fontSize: 14, color: '#1A2B38', marginBottom: 2 }}>{t.title?.replace('Account flagged for closure: ', '')}</div>
-                <div style={{ fontSize: 12, color: '#7A909F' }}>{meta.rep_name} &middot; Reason: {meta.reason?.replace(/_/g,' ') || 'Not specified'}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{meta.account_name || t.title}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>Rep: {meta.rep_name} Â· Reason: {meta.reason?.replace(/_/g,' ')}</div>
+                {meta.notes && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 3 }}>{meta.notes}</div>}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
-                <button className="btn btn-ghost btn-sm" onClick={() => setExpandedId(expanded ? null : t.id)}>
-                  {expanded ? 'Hide' : 'Review'}
-                </button>
-                <button className="btn btn-sm" style={{ background: '#EF4444', color: 'white' }} onClick={() => onComplete(t.id)}>Close Account</button>
-              </div>
+              <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Mark Reviewed</button>
             </div>
-            {expanded && (
-              <div style={{ padding: '0 20px 16px', background: '#FFF5F5', borderTop: '1px solid #fecaca' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
-                  {[
-                    { label: 'Reason', value: meta.reason?.replace(/_/g,' ') },
-                    { label: 'Last Count Date', value: meta.last_count_date },
-                    { label: 'Final Count Performed', value: meta.final_count_performed },
-                    { label: 'Inventory Retrieved', value: meta.inventory_retrieved },
-                  ].map((f, i) => f.value && (
-                    <div key={i} style={{ background: 'white', borderRadius: 8, padding: '10px 12px', border: '1px solid #fecaca' }}>
-                      <div style={{ fontSize: 10, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>{f.label}</div>
-                      <div style={{ fontSize: 13, color: '#1A2B38', fontWeight: 500 }}>{f.value}</div>
-                    </div>
-                  ))}
-                </div>
-                {meta.notes && (
-                  <div style={{ marginTop: 12, background: 'white', borderRadius: 8, padding: '10px 12px', border: '1px solid #fecaca' }}>
-                    <div style={{ fontSize: 10, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 3 }}>Notes</div>
-                    <div style={{ fontSize: 13, color: '#3D5466', lineHeight: 1.5 }}>{meta.notes}</div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      }} />
+          );
+        })}
+      </TodoCard>
 
-      {/* General Tasks */}
-      <Section title="General Tasks" emptyMsg="No general tasks pending." badge={general.length} color="#7A909F" items={general} renderItem={t => (
-        <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid #E1E8EE', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
-              <span className={'badge ' + (t.priority === 'high' ? 'b-red' : 'b-gray')} style={{ fontSize: 10 }}>{t.priority === 'high' ? 'High Priority' : 'Normal'}</span>
-              <span style={{ fontSize: 11, color: '#7A909F' }}>{new Date(t.created_at).toLocaleDateString()}</span>
+      <TodoCard title="General Tasks" count={general.length} emptyMsg="No general tasks pending.">
+        {general.map(t => (
+          <div key={t.id} style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title}</div>
+              {t.description && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{t.description}</div>}
             </div>
-            <div style={{ fontWeight: 600, fontSize: 14, color: '#1A2B38', marginBottom: 3 }}>{t.title}</div>
-            {t.description && <div style={{ fontSize: 13, color: '#7A909F' }}>{t.description}</div>}
+            <button className="tbl-btn-sm" onClick={() => onComplete(t.id)}>Mark Complete</button>
           </div>
-          <button className="btn btn-ghost btn-sm" onClick={() => onComplete(t.id)}>Mark Complete</button>
-        </div>
-      )} />
+        ))}
+      </TodoCard>
 
-      {/* Deny Modal */}
       {denyModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,31,50,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 380, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
-            <div style={{ background: '#7f1d1d', padding: '20px 24px', borderBottom: '3px solid #EF4444' }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>Deny Edit Request</div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{parseMeta(denyModal).account_name}</div>
+        <div className="modal-overlay">
+          <div className="modal">
+            <div className="modal-head-red">
+              <div className="modal-head-title">Deny Edit Request</div>
+              <div className="modal-head-sub">{parseMeta(denyModal).account_name}</div>
             </div>
-            <div style={{ padding: 24 }}>
-              <div style={{ fontSize: 13, color: '#3D5466', marginBottom: 16, lineHeight: 1.5 }}>
+            <div className="modal-body">
+              <p style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 12 }}>
                 Please provide a reason for denying this request. The rep will be notified.
-              </div>
-              <textarea value={denyReason} onChange={e => setDenyReason(e.target.value)} rows={4}
-                placeholder="Explain why the edit request is being denied..."
-                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 13, fontFamily: 'inherit', outline: 'none', resize: 'vertical', boxSizing: 'border-box', marginBottom: 16 }} />
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => setDenyModal(null)}
-                  style={{ flex: 1, padding: '12px', background: '#F2F5F8', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#3D5466', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Cancel
-                </button>
-                <button onClick={() => { onDenyEdit(denyModal, denyReason); setDenyModal(null); setDenyReason(''); }}
-                  style={{ flex: 2, padding: '12px', background: '#EF4444', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>
-                  Deny Request
-                </button>
-              </div>
+              </p>
+              <textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)}
+                placeholder="Explain why the edit request is being denied..." />
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-outline" onClick={() => { setDenyModal(null); setDenyReason(''); }}>Cancel</button>
+              <button className="btn btn-danger" onClick={() => { onDenyEdit(denyModal, denyReason); setDenyModal(null); setDenyReason(''); }}>Deny Request</button>
             </div>
           </div>
         </div>
       )}
     </div>
-  );
-}
-
-function PastCycleRow({ cycle, onExport }) {
-  const [stats, setStats] = useState(null);
-
-  useEffect(() => {
-    supabase.from('inventory_counts')
-      .select('status')
-      .eq('cycle_id', cycle.id)
-      .then(({ data }) => {
-        const counts = data || [];
-        setStats({
-          total: counts.length,
-          approved: counts.filter(c => c.status === 'approved').length,
-          submitted: counts.filter(c => c.status === 'submitted').length,
-        });
-      });
-  }, [cycle.id]);
-
-  return (
-    <tr>
-      <td><strong style={{ color: '#1A2B38', fontWeight: 500 }}>{cycle.name}</strong></td>
-      <td style={{ color: '#7A909F' }}>{cycle.opened_at ? new Date(cycle.opened_at).toLocaleDateString() : '--'}</td>
-      <td style={{ color: '#7A909F' }}>{cycle.closed_at ? new Date(cycle.closed_at).toLocaleDateString() : '--'}</td>
-      <td>
-        {stats ? (
-          <span style={{ fontSize: 13 }}>
-            <span style={{ color: '#15803d', fontWeight: 600 }}>{stats.approved}</span>
-            <span style={{ color: '#7A909F' }}> approved / </span>
-            <span style={{ color: '#7A909F' }}>{stats.total} total</span>
-          </span>
-        ) : (
-          <span style={{ color: '#C5D1DA', fontSize: 12 }}>Loading...</span>
-        )}
-      </td>
-      <td>
-        <button className="btn btn-blue btn-sm" onClick={() => onExport(cycle)}>
-          Export CSV
-        </button>
-      </td>
-    </tr>
   );
 }
 
@@ -285,7 +178,6 @@ export default function AdminDashboard() {
   const [loading, setLoading]   = useState(true);
   const [progressFilter, setProgressFilter] = useState('all');
   const [cycleForm, setCycleForm] = useState({ name: '', quarter: 'Q1', year: new Date().getFullYear() });
-  const [pastCycles, setPastCycles] = useState([]);
 
   useEffect(() => { loadData(); }, []);
 
@@ -305,12 +197,6 @@ export default function AdminDashboard() {
     setAlerts(alertData || []);
     setTodos(todoData || []);
 
-    const { data: pastData } = await supabase
-      .from('count_cycles')
-      .select('*')
-      .eq('status', 'closed')
-      .order('closed_at', { ascending: false });
-    setPastCycles(pastData || []);
     if (cycleData) {
       const { data: counts } = await supabase
         .from('inventory_counts')
@@ -332,7 +218,6 @@ export default function AdminDashboard() {
         allReps: acctRepsMap[c.account?.id] || [],
       })));
     }
-    // Load counts assigned to current user
     if (cycleData && profile?.id) {
       const { data: myCountData } = await supabase
         .from('inventory_counts')
@@ -352,141 +237,43 @@ export default function AdminDashboard() {
       status: 'open', opened_at: new Date().toISOString(),
     }).select().single();
     if (error) { toast.error('Error: ' + error.message); return; }
-    toast.info('Cycle "' + cycleForm.name + '" created - populating counts...');
+    toast.info('Cycle "' + cycleForm.name + '" created â€” populating counts...');
     const { data: accounts } = await supabase.from('accounts').select('id, name, assigned_rep_id').eq('is_active', true);
     if (!accounts?.length) { toast.warning('No active accounts found.'); loadData(); return; }
-    const { data: histItems } = await supabase.from('historical_counts')
-      .select('account_name, item_number, quantity')
-      .eq('quarter', cycleForm.quarter === 'Q1' ? 'Q3' : 'Q1')
-      .eq('year', cycleForm.quarter === 'Q1' ? cycleForm.year - 1 : cycleForm.year);
-    const acctNameMap = {};
-    for (const a of accounts) acctNameMap[a.name.trim().toUpperCase()] = a.id;
-    const histQtyMap = {};
-    for (const h of histItems || []) {
-      const acctId = acctNameMap[h.account_name?.trim().toUpperCase()];
-      if (acctId && h.item_number) histQtyMap[acctId + '_' + h.item_number] = h.quantity;
-    }
-    let totalCreated = 0;
     for (let i = 0; i < accounts.length; i += 100) {
       const batch = accounts.slice(i, i + 100).map(a => ({
         cycle_id: newCycle.id, account_id: a.id, rep_id: a.assigned_rep_id || null, status: 'not_started',
       }));
-      const { data: created, error: batchError } = await supabase.from('inventory_counts').insert(batch).select('id, account_id');
-      if (batchError) { toast.error('Error: ' + batchError.message); continue; }
-      totalCreated += created?.length || 0;
-      for (const countRecord of created || []) {
-        const histKeys = Object.keys(histQtyMap).filter(k => k.startsWith(countRecord.account_id + '_'));
-        if (!histKeys.length) continue;
-        const lineItems = histKeys.map(key => ({
-          inventory_count_id: countRecord.id,
-          item_number_raw: key.replace(countRecord.account_id + '_', ''),
-          description_raw: key.replace(countRecord.account_id + '_', ''),
-          quantity: 0, previous_quantity: histQtyMap[key],
-          is_new_item: false, not_in_catalog: false,
-        }));
-        const itemNumbers = [...new Set(lineItems.map(l => l.item_number_raw))];
-        const { data: catalogItems } = await supabase.from('item_catalog')
-          .select('item_number, description, primary_vendor').in('item_number', itemNumbers.slice(0, 100));
-        const catalogMap = {};
-        for (const c of catalogItems || []) catalogMap[c.item_number] = c;
-        const enriched = lineItems.map(l => ({
-          ...l,
-          description_raw: catalogMap[l.item_number_raw]?.description || l.item_number_raw,
-          vendor_raw: catalogMap[l.item_number_raw]?.primary_vendor || null,
-        }));
-        for (let j = 0; j < enriched.length; j += 100) {
-          await supabase.from('count_line_items').insert(enriched.slice(j, j + 100));
-        }
-      }
+      await supabase.from('inventory_counts').insert(batch);
     }
-    toast.success('Cycle "' + cycleForm.name + '" opened! ' + totalCreated + ' counts created.');
+    toast.success('Cycle "' + cycleForm.name + '" opened!');
     loadData();
   }
 
   async function closeCycle() {
-    if (!window.confirm('Close cycle "' + cycle?.name + '"? Reps will no longer be able to submit counts.')) return;
+    if (!window.confirm('Close cycle "' + cycle?.name + '"? Reps will no longer be able to submit.')) return;
     await supabase.from('count_cycles').update({ status: 'closed', closed_at: new Date().toISOString() }).eq('id', cycle.id);
     toast.success('Count cycle closed.');
     setCycle(null); setProgress([]); loadData();
   }
 
-  async function exportCycle(exportCycle) {
-    toast.info('Preparing export for ' + exportCycle.name + '...');
-    const { data: counts } = await supabase
-      .from('inventory_counts')
-      .select('status, submitted_at, account:accounts(name, region:regions(name)), rep:profiles(full_name)')
-      .eq('cycle_id', exportCycle.id);
-
-    const { data: lineItems } = await supabase
-      .from('count_line_items')
-      .select('item_number_raw, description_raw, vendor_raw, quantity, not_in_catalog, inventory_count_id')
-      .in('inventory_count_id', (counts || []).map(c => c.id));
-
-    const countMap = {};
-    for (const c of counts || []) countMap[c.id] = c;
-
-    const rows = [['Cycle', 'Account', 'Region', 'Rep', 'Status', 'Submitted', 'Item Number', 'Description', 'Vendor', 'Quantity', 'Not In Catalog']];
-    for (const item of lineItems || []) {
-      const c = countMap[item.inventory_count_id] || {};
-      rows.push([
-        exportCycle.name,
-        c.account?.name || '',
-        c.account?.region?.name || '',
-        c.rep?.full_name || '',
-        c.status || '',
-        c.submitted_at ? new Date(c.submitted_at).toLocaleDateString() : '',
-        item.item_number_raw || '',
-        item.description_raw || '',
-        item.vendor_raw || '',
-        item.quantity || 0,
-        item.not_in_catalog ? 'Yes' : 'No',
-      ]);
-    }
-
-    const csv = rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = exportCycle.name.replace(/\s+/g, '_') + '_export.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success('Export downloaded!');
-  }
-
   async function approveCount(countId) {
-    const { data: countData } = await supabase
-      .from('inventory_counts')
-      .select('rep_id, account:accounts(name)')
-      .eq('id', countId).single();
-
+    const { data: countData } = await supabase.from('inventory_counts').select('rep_id, account:accounts(name)').eq('id', countId).single();
     await supabase.from('inventory_counts').update({ status: 'approved', approved_at: new Date().toISOString() }).eq('id', countId);
     setProgress(prev => prev.map(p => p.id === countId ? { ...p, status: 'approved' } : p));
-
-    // Notify the rep
     if (countData?.rep_id) {
       await supabase.from('alerts').insert({
-        alert_type: 'count_approved',
-        title: 'Count Approved',
-        message: 'Your count for ' + (countData.account?.name || '') + ' has been reviewed and approved!',
-        is_read: false,
-        rep_id: countData.rep_id,
-        inventory_count_id: countId,
+        alert_type: 'count_approved', title: 'Count Approved',
+        message: 'Your count for ' + (countData.account?.name || '') + ' has been approved!',
+        is_read: false, rep_id: countData.rep_id, inventory_count_id: countId,
       });
     }
-
     toast.success('Count approved!');
   }
 
   async function dismissAlert(alertId) {
     await supabase.from('alerts').update({ is_read: true }).eq('id', alertId);
     setAlerts(prev => prev.filter(a => a.id !== alertId));
-  }
-
-  async function dismissAllAlerts() {
-    if (!window.confirm('Mark all alerts as read?')) return;
-    await supabase.from('alerts').update({ is_read: true }).eq('is_read', false);
-    setAlerts([]); toast.success('All alerts cleared.');
   }
 
   async function completeTodo(todoId) {
@@ -498,41 +285,29 @@ export default function AdminDashboard() {
   async function approveEditRequest(todo) {
     let meta = {};
     try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
-    if (todo.count_id) {
-      await supabase.from('inventory_counts').update({ status: 'in_progress' }).eq('id', todo.count_id);
-    }
+    if (todo.count_id) await supabase.from('inventory_counts').update({ status: 'in_progress' }).eq('id', todo.count_id);
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
     const { data: countData } = await supabase.from('inventory_counts').select('rep_id').eq('id', todo.count_id).single();
     await supabase.from('alerts').insert({
-      alert_type: 'edit_approved',
-      title: 'Edit Request Approved',
-      message: 'Your request to reopen the count for ' + (meta.account_name || '') + ' has been approved. You can now edit your count.',
-      is_read: false,
-      rep_id: countData?.rep_id,
-      inventory_count_id: todo.count_id,
+      alert_type: 'edit_approved', title: 'Edit Request Approved',
+      message: 'Your request to reopen ' + (meta.account_name || '') + ' has been approved.',
+      is_read: false, rep_id: countData?.rep_id, inventory_count_id: todo.count_id,
     });
     setTodos(prev => prev.filter(t => t.id !== todo.id));
-    toast.success('Edit request approved - count unlocked!');
+    toast.success('Edit request approved â€” count unlocked!');
     loadData();
   }
 
   async function denyEditRequest(todo, reason) {
     let meta = {};
     try { meta = JSON.parse(todo.metadata || '{}'); } catch {}
-
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
-
-    // Notify the rep
     const { data: countData } = await supabase.from('inventory_counts').select('rep_id').eq('id', todo.count_id).single();
     await supabase.from('alerts').insert({
-      alert_type: 'edit_denied',
-      title: 'Edit Request Denied',
-      message: 'Your request to reopen the count for ' + (meta.account_name || '') + ' was denied.' + (reason ? ' Reason: ' + reason : ''),
-      is_read: false,
-      rep_id: countData?.rep_id,
-      inventory_count_id: todo.count_id,
+      alert_type: 'edit_denied', title: 'Edit Request Denied',
+      message: 'Your request to reopen ' + (meta.account_name || '') + ' was denied.' + (reason ? ' Reason: ' + reason : ''),
+      is_read: false, rep_id: countData?.rep_id, inventory_count_id: todo.count_id,
     });
-
     setTodos(prev => prev.filter(t => t.id !== todo.id));
     toast.info('Edit request denied.');
   }
@@ -545,273 +320,236 @@ export default function AdminDashboard() {
   };
   const total = progress.length;
   const pct = total > 0 ? Math.round((stats.submitted + stats.approved) / total * 100) : 0;
-  const filteredProgress = progressFilter === 'all' ? progress : progress.filter(p => p.status === progressFilter);
   const initials = profile?.full_name?.split(' ').map(w => w[0]).join('').toUpperCase().slice(0,2) || 'AD';
-  const currentLabel = NAV.find(n => n.key === tab)?.label || '';
+
+  const filteredProgress = progressFilter === 'all' ? progress : progress.filter(p => p.status === progressFilter);
+
+  // Build region map from filtered progress
+  const regionMap = {};
+  filteredProgress.forEach(p => {
+    const rName = p.account?.region?.name || 'Unassigned';
+    if (!regionMap[rName]) regionMap[rName] = [];
+    regionMap[rName].push(p);
+  });
 
   if (loading) return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
-      <div style={{ width: 220, background: 'linear-gradient(180deg,#1565C0,#0D47A1)', flexShrink: 0 }} />
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+    <div className="app-shell">
+      <div className="sidebar" />
+      <div className="main-col" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="loading-center"><div className="spinner" /><span>Loading...</span></div>
       </div>
     </div>
   );
 
   return (
-    <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
+    <div className="app-shell">
 
-      {/* Ã¢â€Ã¢â€ SIDEBAR Ã¢â€Ã¢â€ */}
-      <div style={{ width: 240, minWidth: 240, background: '#003f63', display: 'flex', flexDirection: 'column', height: '100vh', overflowY: 'auto', flexShrink: 0 }}>
-
-        {/* Mesh overlay */}
-        <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0px,rgba(255,255,255,0.03) 1px,transparent 1px,transparent 12px)', pointerEvents: 'none', zIndex: 0 }} />
-        {/* Gold right border */}
-        <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 3, background: 'linear-gradient(180deg,#FFD040,#FFC010)', pointerEvents: 'none', zIndex: 1 }} />
-
-        {/* Logo */}
-        <div style={{ padding: '22px 16px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 28, fontWeight: 800, color: '#FFD040', letterSpacing: '-0.5px', lineHeight: 1 }}>
-            MedEx
-          </div>
-          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: 5, fontWeight: 700 }}>
-            Inventory Counts
-          </div>
+      {/* â”€â”€ SIDEBAR â”€â”€ */}
+      <nav className="sidebar">
+        <div className="sidebar-logo">
+          <div className="logo-text"><span>Med</span><span>Ex</span></div>
+          <div className="logo-sub">Inventory Count System</div>
         </div>
 
-        {/* Nav */}
-        <div style={{ padding: '8px 0', flex: 1, position: 'relative', zIndex: 1 }}>
-          {NAV.map((item, i) => {
-            if (item.section) return (
-              <div key={i} style={{ padding: '14px 14px 4px', fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '2px', textTransform: 'uppercase' }}>
-                {item.section}
-              </div>
-            );
-            const active = tab === item.key;
-            return (
-              <div key={item.key}
-                onClick={() => setTab(item.key)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '9px 10px', margin: '1px 6px',
-                  color: active ? '#fff' : 'rgba(255,255,255,0.65)',
-                  fontSize: 13, fontWeight: active ? 600 : 500,
-                  cursor: 'pointer', borderRadius: 9,
-                  background: active ? 'rgba(255,255,255,0.14)' : 'transparent',
-                  transition: 'all 0.15s', position: 'relative',
-                }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)'; }}}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.65)'; }}}
-              >
-                <div style={{ width: 6, height: 6, borderRadius: '50%', background: active ? '#FFD040' : 'rgba(255,255,255,0.2)', flexShrink: 0, boxShadow: active ? '0 0 6px rgba(255,208,64,0.6)' : 'none' }} />
-                <NavIcon path={item.icon} />
+        {NAV.map((item, i) => {
+          if (item.section) return (
+            <div key={i} className="nav-section">
+              <div className="nav-section-label">{item.section}</div>
+            </div>
+          );
+          return (
+            <div key={item.key} style={{ padding: '0 12px 2px' }}>
+              <div className={'nav-item' + (tab === item.key ? ' active' : '')} onClick={() => setTab(item.key)}>
+                <div className="nav-dot" />
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {item.key === 'todos' && todos.length > 0 && (
                   <span style={{ background: '#EF4444', color: 'white', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 10 }}>{todos.length}</span>
                 )}
-                {item.key === 'overview' && alerts.length > 0 && (
-                  <span style={{ background: '#EEAF24', color: '#1A2B38', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 10 }}>{alerts.length}</span>
-                )}
               </div>
-            );
-          })}
+            </div>
+          );
+        })}
+
+        <div className="sidebar-bottom">
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div className="user-name">{profile?.full_name}</div>
+              <div className="user-role">Administrator</div>
+            </div>
+            <button onClick={signOut} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.55)', fontSize: 11, fontWeight: 600, padding: '5px 12px', borderRadius: 7, cursor: 'pointer', fontFamily: 'inherit' }}>
+              Sign Out
+            </button>
+          </div>
         </div>
+        <div className="sidebar-accent-bar" />
+      </nav>
 
-        {/* My Counts */}
-        {myCounts.length > 0 && (
-          <div style={{ padding: '8px 8px 12px', borderTop: '1px solid rgba(255,255,255,0.08)', position: 'relative', zIndex: 1 }}>
-            <div style={{ padding: '10px 12px 6px', fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '2px', textTransform: 'uppercase' }}>MY COUNTS</div>
-            {myCounts.map(c => (
-              <div key={c.id} onClick={() => navigate('/count/' + c.id)}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', margin: '1px 0', borderRadius: 8, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 500, transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'white'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.7)'; }}>
-                <span>{c.account?.name}</span>
-                <span style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 8, textTransform: 'uppercase', background: c.status === 'in_progress' ? 'rgba(0,118,187,0.3)' : 'rgba(255,255,255,0.1)', color: c.status === 'in_progress' ? '#7dd3fc' : 'rgba(255,255,255,0.4)' }}>{c.status === 'in_progress' ? 'In Progress' : 'Not Started'}</span>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Footer */}
-        <div style={{ padding: '14px 14px', borderTop: '1px solid rgba(255,255,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
-          <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #3398cc, #EEAF24)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'white', flexShrink: 0 }}>
-            {initials}
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.full_name}</div>
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>Administrator</div>
-          </div>
-          <button onClick={signOut} style={{ fontSize: 11, padding: '5px 11px', borderRadius: 7, background: 'var(--blue-light)', color: 'var(--blue)', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 700, flexShrink: 0 }}>
-            Sign Out
-          </button>
-        </div>
-      </div>
-
-      {/* Ã¢â€Ã¢â€ MAIN Ã¢â€Ã¢â€ */}
-      <div style={{ flex: 1, minWidth: 0, background: '#F7F9FB', overflowY: 'auto', height: '100vh' }}>
-
-        {/* Sticky header */}
-        <div style={{ background: 'rgba(247,249,252,0.97)', backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--border)', padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10, boxShadow: '0 1px 0 var(--border)' }}>
+      {/* â”€â”€ MAIN â”€â”€ */}
+      <div className="main-col">
+        <div className="topbar">
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.3px', color: 'var(--text)' }}>{currentLabel}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 2 }}>
+            <h1>{NAV.find(n => n.key === tab)?.label || 'Dashboard'}</h1>
+            <p>
               {tab === 'overview' && (cycle ? cycle.name + ' â€” ' + total + ' accounts' : 'No active cycle')}
               {tab === 'todos'    && todos.length + ' pending task' + (todos.length !== 1 ? 's' : '')}
               {tab === 'accounts' && 'Manage account assignments'}
               {tab === 'users'    && 'Manage rep accounts'}
               {tab === 'data'     && 'Import and export data'}
-            </div>
+            </p>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-
-            {tab === 'overview' && cycle && (
-              <>
-                <button className="btn btn-ghost btn-sm" onClick={() => {}}>Export</button>
-                <button className="btn btn-blue btn-sm" onClick={closeCycle}>Close Cycle</button>
-              </>
-            )}
-          </div>
+          {tab === 'overview' && cycle && (
+            <button className="btn btn-danger" onClick={closeCycle}>Close Cycle</button>
+          )}
         </div>
 
-        {/* Content */}
-        <div style={{ padding: '24px 28px' }}>
+        <div className="content-area">
 
-          {/* Ã¢â€Ã¢â€ OVERVIEW Ã¢â€Ã¢â€ */}
+          {/* â”€â”€ OVERVIEW â”€â”€ */}
           {tab === 'overview' && (
             <>
-              {alerts.length > 0 && (
-                <div className="card">
-                  <div className="card-header">
-                    <div><div className="card-title" style={{ fontSize: 17 }}>Alerts</div><div className="card-sub" style={{ fontSize: 13 }}>{alerts.length} unread</div></div>
-                    <button className="btn btn-ghost btn-sm" onClick={dismissAllAlerts}>Clear All</button>
-                  </div>
-                  {alerts.map(a => (
-                    <div key={a.id} style={{ padding: '10px 20px', borderBottom: '1px solid #E1E8EE', display: 'flex', alignItems: 'center', gap: 12, fontSize: 13 }}>
-                      <span style={{ flex: 1, color: '#3D5466' }}>{a.message}</span>
-                      <span style={{ color: '#7A909F', fontSize: 11 }}>{new Date(a.created_at).toLocaleDateString()}</span>
-                      <button className="btn btn-ghost btn-sm" onClick={() => dismissAlert(a.id)}>Dismiss</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
               {!cycle ? (
-                <div className="card">
-                  <div className="card-header"><div className="card-title" style={{ fontSize: 17 }}>Open a Count Cycle</div></div>
-                  <div style={{ padding: 20 }}>
+                <div className="card" style={{ maxWidth: 560 }}>
+                  <div className="card-head">
+                    <div>
+                      <div className="card-head-title">Open a Count Cycle</div>
+                      <div className="card-head-sub">No active cycle â€” create one to begin</div>
+                    </div>
+                  </div>
+                  <div className="card-body">
                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-                      <div className="input-group" style={{ marginBottom: 0 }}>
+                      <div>
                         <label className="input-label">Cycle Name</label>
-                        <input className="input" value={cycleForm.name} onChange={e => setCycleForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Q1 2026" style={{ width: 180 }} />
+                        <input className="input" style={{ width: 180 }} value={cycleForm.name}
+                          onChange={e => setCycleForm(p => ({ ...p, name: e.target.value }))} placeholder="e.g. Q1 2026" />
                       </div>
-                      <div className="input-group" style={{ marginBottom: 0 }}>
+                      <div>
                         <label className="input-label">Quarter</label>
-                        <select className="select" style={{ width: 100 }} value={cycleForm.quarter} onChange={e => setCycleForm(p => ({ ...p, quarter: e.target.value }))}>
+                        <select className="select" value={cycleForm.quarter} onChange={e => setCycleForm(p => ({ ...p, quarter: e.target.value }))}>
                           <option>Q1</option><option>Q2</option><option>Q3</option><option>Q4</option>
                         </select>
                       </div>
-                      <div className="input-group" style={{ marginBottom: 0 }}>
+                      <div>
                         <label className="input-label">Year</label>
-                        <input className="input" type="number" style={{ width: 100 }} value={cycleForm.year} onChange={e => setCycleForm(p => ({ ...p, year: parseInt(e.target.value) }))} />
+                        <input className="input" type="number" style={{ width: 100 }} value={cycleForm.year}
+                          onChange={e => setCycleForm(p => ({ ...p, year: parseInt(e.target.value) }))} />
                       </div>
-                      <button className="btn btn-blue" onClick={openCycle}>Open Cycle</button>
+                      <button className="btn btn-primary" onClick={openCycle}>Open Cycle</button>
                     </div>
                   </div>
                 </div>
               ) : (
-                <div style={{ background: 'linear-gradient(180deg,#2E88E8 0%,#1565C0 50%,#0D47A1 100%)', borderRadius: 14, padding: '28px 32px', marginBottom: 20, color: 'white', borderLeft: '5px solid #FFD040', boxShadow: '0 4px 20px rgba(21,101,192,0.25)', position: 'relative', overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
-                    <div>
-                      <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>{cycle.name} Count Cycle</div>
-                      <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 6 }}>Opened {new Date(cycle.opened_at).toLocaleDateString()} &middot; {total} accounts total</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 56, fontWeight: 800, color: '#FFD040', lineHeight: 1, letterSpacing: '-2px' }}>{pct}%</div>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2 }}>Complete</div>
-                    </div>
-                  </div>
-                  <div style={{ height: 6, background: 'rgba(255,255,255,0.12)', borderRadius: 3, overflow: 'hidden', marginBottom: 24 }}>
-                    <div style={{ height: '100%', background: '#FFD040', borderRadius: 3, width: pct + '%', transition: 'width 0.5s' }} />
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
-                    {[
-                      { key: 'not_started', label: 'Not Started', color: 'rgba(255,255,255,0.6)', bg: 'rgba(255,255,255,0.07)' },
-                      { key: 'in_progress', label: 'In Progress',  color: '#7dd3fc', bg: 'rgba(0,118,187,0.3)' },
-                      { key: 'submitted',   label: 'Submitted',    color: '#FFD040', bg: 'rgba(255,208,64,0.15)' },
-                      { key: 'approved',    label: 'Approved',     color: '#4ade80', bg: 'rgba(34,197,94,0.2)' },
-                    ].map(s => (
-                      <div key={s.key} onClick={() => setProgressFilter(f => f === s.key ? 'all' : s.key)}
-                        style={{ background: s.bg, borderRadius: 10, padding: '14px 16px', cursor: 'pointer', border: progressFilter === s.key ? '1.5px solid ' + s.color : '1.5px solid transparent', transition: 'all 0.15s' }}>
-                        <div style={{ fontSize: 40, fontWeight: 800, color: s.color, lineHeight: 1, letterSpacing: '-1px' }}>{stats[s.key]}</div>
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginTop: 4 }}>{s.label}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {cycle && (
                 <>
-                  {(() => {
-                    const regionMap = {};
-                    progress.forEach(p => {
-                      const rName = p.account?.region?.name || 'Unassigned';
-                      if (!regionMap[rName]) regionMap[rName] = [];
-                      regionMap[rName].push(p);
-                    });
-                    const regionNames = Object.keys(regionMap).sort();
-                    const filtered = progressFilter !== 'all';
-                    return regionNames.map(rName => {
-                      const counts = regionMap[rName];
-                      const shown = filtered ? counts.filter(p => p.status === progressFilter) : counts;
-                      if (shown.length === 0) return null;
-                      const rTotal = counts.length;
-                      const rApproved = counts.filter(p => p.status === 'approved').length;
-                      const rSubmitted = counts.filter(p => p.status === 'submitted').length;
-                      const rInProgress = counts.filter(p => p.status === 'in_progress').length;
-                      const rNotStarted = counts.filter(p => p.status === 'not_started').length;
-                      const rPct = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
-                      return (
-                        <div key={rName} className="card" style={{ marginBottom: 16 }}>
-                          <div style={{ padding: '14px 20px', background: 'linear-gradient(180deg,#2E88E8 0%,#1565C0 100%)', borderRadius: '10px 10px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ fontSize: 16, fontWeight: 700, color: 'white' }}>{rName}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                              <div style={{ display: 'flex', gap: 12 }}>
-                                {rNotStarted > 0 && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>{rNotStarted} Not Started</span>}
-                                {rInProgress > 0 && <span style={{ fontSize: 11, color: '#7dd3fc', fontWeight: 600 }}>{rInProgress} In Progress</span>}
-                                {rSubmitted > 0  && <span style={{ fontSize: 11, color: '#FFD040', fontWeight: 600 }}>{rSubmitted} Submitted</span>}
-                                {rApproved > 0   && <span style={{ fontSize: 11, color: '#4ade80', fontWeight: 600 }}>{rApproved} Approved</span>}
+                  {/* Hero card */}
+                  <div className="cycle-hero">
+                    <div className="hero-top">
+                      <div>
+                        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#7A9ABE', marginBottom: 6 }}>Company Wide</div>
+                        <div className="hero-title">{cycle.name} Count Cycle</div>
+                        <div className="hero-meta">Opened {new Date(cycle.opened_at).toLocaleDateString()} Â· {total} accounts total</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div className="hero-pct">{pct}%</div>
+                        <div className="hero-pct-lbl">COMPLETE</div>
+                      </div>
+                    </div>
+                    <div className="progress-bar">
+                      <div className="progress-fill" style={{ width: pct + '%' }} />
+                    </div>
+                    <div className="hero-stats">
+                      {STAT_CARDS.map(s => (
+                        <div key={s.key}
+                          className={'stat-card hero-stat-card ' + s.cls}
+                          style={{ outline: progressFilter === s.key ? '2.5px solid white' : 'none', outlineOffset: 2 }}
+                          onClick={() => setProgressFilter(f => f === s.key ? 'all' : s.key)}>
+                          <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
+                          <div className={'sc-lbl ' + s.tc}>{s.label}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Region blocks */}
+                  {Object.keys(regionMap).sort().map(rName => {
+                    const counts = regionMap[rName];
+                    const allForRegion = progress.filter(p => (p.account?.region?.name || 'Unassigned') === rName);
+                    const rTotal = allForRegion.length;
+                    const rApproved = allForRegion.filter(p => p.status === 'approved').length;
+                    const rSubmitted = allForRegion.filter(p => p.status === 'submitted').length;
+                    const rPct = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
+                    const progColor = rPct === 100 ? '#16A34A' : '#1565C0';
+
+                    const rStats = {
+                      not_started: allForRegion.filter(p => p.status === 'not_started').length,
+                      in_progress:  allForRegion.filter(p => p.status === 'in_progress').length,
+                      submitted:    allForRegion.filter(p => p.status === 'submitted').length,
+                      approved:     allForRegion.filter(p => p.status === 'approved').length,
+                    };
+
+                    return (
+                      <div key={rName} className="region-block">
+                        <div className="region-header">
+                          <div className="region-header-top">
+                            <div>
+                              <div className="region-eyebrow">Region</div>
+                              <div className="region-name">{rName}</div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                              <div style={{ textAlign: 'right' }}>
+                                <div className="region-pct-num">{rPct}%</div>
+                                <div className="region-pct-lbl">Complete</div>
                               </div>
-                              <div style={{ fontSize: 14, fontWeight: 700, color: '#FFD040', paddingLeft: 12, borderLeft: '1px solid rgba(255,255,255,0.15)' }}>{rPct}% done</div>
                             </div>
                           </div>
-                          <table className="tbl">
+                          <div className="region-progress">
+                            <div className="region-progress-fill" style={{ width: rPct + '%', background: progColor }} />
+                          </div>
+                          <div className="region-mini-stats">
+                            {STAT_CARDS.map(s => (
+                              <div key={s.key} className={'stat-card hero-stat-card ' + s.cls} style={{ padding: '8px 10px' }}>
+                                <div className={'sc-num ' + s.tc} style={{ fontSize: 20 }}>{rStats[s.key]}</div>
+                                <div className={'sc-lbl ' + s.tc} style={{ fontSize: 8 }}>{s.label}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="region-detail">
+                          <table>
                             <thead>
-                              <tr><th>Account</th><th>Rep(s)</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
+                              <tr>
+                                <th>Account</th><th>Rep(s)</th><th>Status</th><th>Submitted</th><th>Actions</th>
+                              </tr>
                             </thead>
                             <tbody>
-                              {shown.map(p => (
+                              {counts.map(p => (
                                 <tr key={p.id}>
-                                  <td><strong style={{ color: '#1A2B38', fontWeight: 600 }}>{p.account?.name}</strong></td>
-                                  <td>{p.allReps?.length > 0 ? p.allReps.filter(Boolean).map(r => (<span key={r.id} style={{ display: 'inline-block', fontSize: 11, background: '#F2F5F8', color: '#3D5466', padding: '2px 7px', borderRadius: 5, marginRight: 4, whiteSpace: 'nowrap' }}>{r.full_name}</span>)) : <span style={{ color: '#EF4444', fontSize: 12 }}>Unassigned</span>}</td>
-                                  <td><span className={'badge ' + (p.status === 'approved' ? 'b-green' : p.status === 'submitted' ? 'b-gold' : p.status === 'in_progress' ? 'b-blue' : 'b-gray')}>{COUNT_STATUS[p.status]?.label}</span></td>
-                                  <td style={{ color: '#7A909F' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'â€”'}</td>
-                                  <td style={{ display: 'flex', gap: 6 }}>
-                                    {p.status === 'submitted' && <button className="btn btn-blue btn-sm" onClick={() => approveCount(p.id)}>Approve</button>}
-                                    {(p.status === 'not_started' || p.status === 'in_progress') && <button className="btn btn-ghost btn-sm" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>}
+                                  <td style={{ fontWeight: 700 }}>{p.account?.name}</td>
+                                  <td>
+                                    {p.allReps?.length > 0
+                                      ? p.allReps.filter(Boolean).map(r => <span key={r.id} className="rep-tag">{r.full_name}</span>)
+                                      : <span style={{ color: 'var(--red)', fontSize: 12 }}>Unassigned</span>
+                                    }
+                                  </td>
+                                  <td><Pill status={p.status} /></td>
+                                  <td style={{ color: 'var(--text-dim)' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : 'â€”'}</td>
+                                  <td>
+                                    {p.status === 'submitted' && <button className="tbl-btn" onClick={() => approveCount(p.id)}>Approve</button>}
+                                    {(p.status === 'not_started' || p.status === 'in_progress') && (
+                                      <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>
+                                    )}
+                                    {p.status === 'approved' && <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>View Count</button>}
                                   </td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         </div>
-                      );
-                    });
-                  })()}
+                      </div>
+                    );
+                  })}
+
                   {progressFilter !== 'all' && (
-                    <div style={{ textAlign: 'center', marginTop: 8 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setProgressFilter('all')}>Clear Filter â€” Show All</button>
+                    <div style={{ textAlign: 'center', marginTop: 12 }}>
+                      <button className="btn btn-outline" onClick={() => setProgressFilter('all')}>Clear Filter â€” Show All</button>
                     </div>
                   )}
                 </>
@@ -819,7 +557,7 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {/* Ã¢â€Ã¢â€ TO DO Ã¢â€Ã¢â€ */}
+          {/* â”€â”€ TO DO â”€â”€ */}
           {tab === 'todos' && (
             <TodoSection
               todos={todos}
