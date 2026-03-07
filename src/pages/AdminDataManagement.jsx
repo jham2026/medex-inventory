@@ -7,7 +7,7 @@ export default function AdminDataManagement({ cycle }) {
   const toast = useToast();
   const [activeTab, setActiveTab] = useState('import');
 
-  // â”â” IMPORT STATE â”â”
+  // Ã¢â€Ã¢â€ IMPORT STATE Ã¢â€Ã¢â€
   const [importType, setImportType] = useState('accounts');
   const [catalogSource, setCatalogSource] = useState('edge');
   const [file, setFile] = useState(null);
@@ -15,7 +15,7 @@ export default function AdminDataManagement({ cycle }) {
   const [importing, setImporting] = useState(false);
   const [importResults, setImportResults] = useState(null);
 
-  // â”â” EXPORT STATE â”â”
+  // Ã¢â€Ã¢â€ EXPORT STATE Ã¢â€Ã¢â€
   const [scope, setScope] = useState('company');
   const [region, setRegion] = useState('');
   const [rep, setRep] = useState('');
@@ -34,7 +34,7 @@ export default function AdminDataManagement({ cycle }) {
     });
   }, []);
 
-  // â”â” IMPORT FUNCTIONS â”â”
+  // Ã¢â€Ã¢â€ IMPORT FUNCTIONS Ã¢â€Ã¢â€
   function handleFile(e) {
     const f = e.target.files[0];
     if (!f) return;
@@ -108,8 +108,8 @@ export default function AdminDataManagement({ cycle }) {
           }
 
           setImportResults({ inserted, updated, errors, total: rows.length });
-          if (errors === 0) toast.success(`Import complete â” ${inserted + updated} records processed`);
-          else toast.warning(`Import finished with ${errors} errors â” ${inserted + updated} succeeded`);
+          if (errors === 0) toast.success(`Import complete Ã¢â€ ${inserted + updated} records processed`);
+          else toast.warning(`Import finished with ${errors} errors Ã¢â€ ${inserted + updated} succeeded`);
         } catch (err) {
           toast.error('Import failed: ' + err.message);
         }
@@ -118,7 +118,7 @@ export default function AdminDataManagement({ cycle }) {
     });
   }
 
-  // â”â” EXPORT FUNCTION â”â”
+  // Ã¢â€Ã¢â€ EXPORT FUNCTION Ã¢â€Ã¢â€
   async function runExport() {
     if (!selectedCycle) { toast.error('Select a count cycle'); return; }
     setExporting(true);
@@ -180,40 +180,40 @@ export default function AdminDataManagement({ cycle }) {
             style={{
               padding: '8px 24px', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600,
               cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-              background: activeTab === k ? '#0076BB' : 'transparent',
-              color: activeTab === k ? 'white' : '#7A909F',
+              background: activeTab === k ? 'var(--blue)' : 'transparent',
+              color: activeTab === k ? 'white' : 'var(--text-dim)',
             }}>
             {v}
           </button>
         ))}
       </div>
 
-      {/* â”â” IMPORT PANEL â”â” */}
+      {/* Ã¢â€Ã¢â€ IMPORT PANEL Ã¢â€Ã¢â€ */}
       {activeTab === 'import' && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, alignItems: 'start' }}>
 
           {/* Left: Import settings */}
           <div className="card">
-            <div className="card-header" style={{ borderBottom: '3px solid #EEAF24' }}>
+            <div className="card-header" style={{ borderBottom: '3px solid var(--gold)' }}>
               <div className="card-title">Import Data</div>
-              <div style={{ fontSize: 12, color: '#7A909F', marginTop: 2 }}>Upload a CSV to add or update records</div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>Upload a CSV to add or update records</div>
             </div>
             <div className="card-body">
 
               {/* Import Type */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>What are you importing?</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>What are you importing?</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {importTypes.map(({ key, label, desc }) => (
                     <div key={key} onClick={() => { setImportType(key); resetImport(); }}
                       style={{
                         padding: '12px 14px', borderRadius: 8, cursor: 'pointer', border: '1.5px solid',
-                        borderColor: importType === key ? '#0076BB' : '#E1E8EE',
-                        background: importType === key ? '#e8f4fb' : 'white',
+                        borderColor: importType === key ? 'var(--blue)' : 'var(--border)',
+                        background: importType === key ? 'var(--blue-light)' : 'white',
                         transition: 'all 0.15s',
                       }}>
-                      <div style={{ fontSize: 14, fontWeight: 600, color: importType === key ? '#0076BB' : '#1A2B38' }}>{label}</div>
-                      <div style={{ fontSize: 11, color: '#7A909F', marginTop: 2 }}>{desc}</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: importType === key ? 'var(--blue)' : 'var(--text)' }}>{label}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{desc}</div>
                     </div>
                   ))}
                 </div>
@@ -222,16 +222,16 @@ export default function AdminDataManagement({ cycle }) {
               {/* Catalog Source */}
               {importType === 'item_catalog' && (
                 <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Catalog Source</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Catalog Source</div>
                   <div style={{ display: 'flex', gap: 10 }}>
                     {[['edge', 'Edge'], ['claimsoft', 'Claimsoft']].map(([k, v]) => (
                       <label key={k} onClick={() => setCatalogSource(k)}
                         style={{
                           flex: 1, padding: '10px', borderRadius: 8, cursor: 'pointer', border: '1.5px solid',
-                          borderColor: catalogSource === k ? '#0076BB' : '#E1E8EE',
-                          background: catalogSource === k ? '#e8f4fb' : 'white',
+                          borderColor: catalogSource === k ? 'var(--blue)' : 'var(--border)',
+                          background: catalogSource === k ? 'var(--blue-light)' : 'white',
                           textAlign: 'center', fontSize: 13, fontWeight: 600,
-                          color: catalogSource === k ? '#0076BB' : '#3D5466',
+                          color: catalogSource === k ? 'var(--blue)' : 'var(--text-mid)',
                         }}>
                         {v}
                       </label>
@@ -242,19 +242,19 @@ export default function AdminDataManagement({ cycle }) {
 
               {/* File Upload */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Select CSV File</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Select CSV File</div>
                 <label style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px',
-                  border: '2px dashed ' + (file ? '#0076BB' : '#C5D1DA'), borderRadius: 8,
-                  cursor: 'pointer', background: file ? '#e8f4fb' : '#F7F9FB',
+                  border: '2px dashed ' + (file ? 'var(--blue)' : 'var(--border)'), borderRadius: 8,
+                  cursor: 'pointer', background: file ? 'var(--blue-light)' : 'var(--bg)',
                 }}>
                   <input type="file" accept=".csv" onChange={handleFile} style={{ display: 'none' }} />
                   
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: file ? '#0076BB' : '#3D5466' }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: file ? 'var(--blue)' : 'var(--text-mid)' }}>
                       {file ? file.name : 'Choose CSV file...'}
                     </div>
-                    <div style={{ fontSize: 11, color: '#7A909F' }}>
+                    <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>
                       {file ? `${(file.size / 1024).toFixed(1)} KB` : 'Click to browse'}
                     </div>
                   </div>
@@ -266,15 +266,15 @@ export default function AdminDataManagement({ cycle }) {
                 <div style={{
                   padding: '12px 14px', borderRadius: 8, marginBottom: 16,
                   background: importResults.errors === 0 ? '#f0fff4' : '#fef8eb',
-                  border: '1px solid ' + (importResults.errors === 0 ? '#22C55E' : '#EEAF24'),
+                  border: '1px solid ' + (importResults.errors === 0 ? '#22C55E' : 'var(--gold)'),
                 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: importResults.errors === 0 ? '#15803d' : '#c88e0f', marginBottom: 4 }}>
                     Import Complete
                   </div>
-                  <div style={{ fontSize: 12, color: '#3D5466' }}>
+                  <div style={{ fontSize: 12, color: 'var(--text-mid)' }}>
                     {importResults.inserted + importResults.updated} records processed
                     {importResults.errors > 0 && <span style={{ color: '#EF4444', marginLeft: 8 }}>{importResults.errors} errors</span>}
-                    <span style={{ color: '#7A909F', marginLeft: 8 }}>({importResults.total} total rows)</span>
+                    <span style={{ color: 'var(--text-dim)', marginLeft: 8 }}>({importResults.total} total rows)</span>
                   </div>
                 </div>
               )}
@@ -283,7 +283,7 @@ export default function AdminDataManagement({ cycle }) {
               <div style={{ display: 'flex', gap: 10 }}>
                 <button onClick={runImport} disabled={importing || !file}
                   style={{
-                    flex: 1, padding: '12px', background: importing || !file ? '#C5D1DA' : '#0076BB',
+                    flex: 1, padding: '12px', background: importing || !file ? 'var(--border)' : 'var(--blue)',
                     color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700,
                     cursor: importing || !file ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                   }}>
@@ -291,7 +291,7 @@ export default function AdminDataManagement({ cycle }) {
                 </button>
                 {file && (
                   <button onClick={resetImport}
-                    style={{ padding: '12px 16px', background: '#F2F5F8', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 14, fontWeight: 600, color: '#3D5466', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ padding: '12px 16px', background: 'var(--bg)', border: '1.5px solid #E1E8EE', borderRadius: 8, fontSize: 14, fontWeight: 600, color: 'var(--text-mid)', cursor: 'pointer', fontFamily: 'inherit' }}>
                     Clear
                   </button>
                 )}
@@ -303,7 +303,7 @@ export default function AdminDataManagement({ cycle }) {
           <div className="card">
             <div className="card-header" style={{ borderBottom: '3px solid #E1E8EE' }}>
               <div className="card-title">File Preview</div>
-              <div style={{ fontSize: 12, color: '#7A909F', marginTop: 2 }}>First 5 rows of your CSV</div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>First 5 rows of your CSV</div>
             </div>
             <div className="card-body">
               {preview.length === 0 ? (
@@ -318,21 +318,21 @@ export default function AdminDataManagement({ cycle }) {
                     <thead>
                       <tr>
                         {Object.keys(preview[0]).slice(0, 6).map(k => (
-                          <th key={k} style={{ padding: '8px 10px', background: '#F2F5F8', textAlign: 'left', whiteSpace: 'nowrap', fontWeight: 600, color: '#3D5466', borderBottom: '1px solid #E1E8EE' }}>{k}</th>
+                          <th key={k} style={{ padding: '8px 10px', background: 'var(--bg)', textAlign: 'left', whiteSpace: 'nowrap', fontWeight: 600, color: 'var(--text-mid)', borderBottom: '1px solid #E1E8EE' }}>{k}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
                       {preview.map((row, i) => (
-                        <tr key={i} style={{ background: i % 2 === 0 ? 'white' : '#F7F9FB' }}>
+                        <tr key={i} style={{ background: i % 2 === 0 ? 'white' : 'var(--bg)' }}>
                           {Object.values(row).slice(0, 6).map((v, j) => (
-                            <td key={j} style={{ padding: '7px 10px', borderBottom: '1px solid #E1E8EE', whiteSpace: 'nowrap', color: '#1A2B38' }}>{v}</td>
+                            <td key={j} style={{ padding: '7px 10px', borderBottom: '1px solid #E1E8EE', whiteSpace: 'nowrap', color: 'var(--text)' }}>{v}</td>
                           ))}
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  <div style={{ fontSize: 11, color: '#7A909F', marginTop: 8, padding: '0 2px' }}>Showing up to 6 columns Â· {preview.length} rows previewed</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 8, padding: '0 2px' }}>Showing up to 6 columns Ã‚Â· {preview.length} rows previewed</div>
                 </div>
               )}
             </div>
@@ -340,19 +340,19 @@ export default function AdminDataManagement({ cycle }) {
         </div>
       )}
 
-      {/* â”â” EXPORT PANEL â”â” */}
+      {/* Ã¢â€Ã¢â€ EXPORT PANEL Ã¢â€Ã¢â€ */}
       {activeTab === 'export' && (
         <div style={{ maxWidth: 600 }}>
           <div className="card">
-            <div className="card-header" style={{ borderBottom: '3px solid #EEAF24' }}>
+            <div className="card-header" style={{ borderBottom: '3px solid var(--gold)' }}>
               <div className="card-title">Export Count Data</div>
-              <div style={{ fontSize: 12, color: '#7A909F', marginTop: 2 }}>Download count data as CSV</div>
+              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>Download count data as CSV</div>
             </div>
             <div className="card-body">
 
               {/* Cycle selector */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Count Cycle</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Count Cycle</div>
                 <select className="select" style={{ width: '100%' }}
                   value={selectedCycle} onChange={e => setSelectedCycle(e.target.value)}>
                   {cycles.map(c => <option key={c.id} value={c.id}>{c.name} ({c.status})</option>)}
@@ -361,16 +361,16 @@ export default function AdminDataManagement({ cycle }) {
 
               {/* Scope */}
               <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Export Scope</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Export Scope</div>
                 <div style={{ display: 'flex', gap: 10 }}>
                   {[['company','Company-Wide'], ['region','By Region'], ['rep','By Rep']].map(([k, v]) => (
                     <div key={k} onClick={() => setScope(k)}
                       style={{
                         flex: 1, padding: '10px', borderRadius: 8, cursor: 'pointer', border: '1.5px solid',
-                        borderColor: scope === k ? '#0076BB' : '#E1E8EE',
-                        background: scope === k ? '#e8f4fb' : 'white',
+                        borderColor: scope === k ? 'var(--blue)' : 'var(--border)',
+                        background: scope === k ? 'var(--blue-light)' : 'white',
                         textAlign: 'center', fontSize: 13, fontWeight: 600,
-                        color: scope === k ? '#0076BB' : '#3D5466',
+                        color: scope === k ? 'var(--blue)' : 'var(--text-mid)',
                       }}>
                       {v}
                     </div>
@@ -381,7 +381,7 @@ export default function AdminDataManagement({ cycle }) {
               {/* Region filter */}
               {scope === 'region' && (
                 <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Region</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Region</div>
                   <select className="select" style={{ width: '100%' }} value={region} onChange={e => setRegion(e.target.value)}>
                     <option value="">Select Region...</option>
                     {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
@@ -392,7 +392,7 @@ export default function AdminDataManagement({ cycle }) {
               {/* Rep filter */}
               {scope === 'rep' && (
                 <div style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#7A909F', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Rep</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Rep</div>
                   <select className="select" style={{ width: '100%' }} value={rep} onChange={e => setRep(e.target.value)}>
                     <option value="">Select Rep...</option>
                     {reps.map(r => <option key={r.id} value={r.id}>{r.full_name}</option>)}
@@ -400,13 +400,13 @@ export default function AdminDataManagement({ cycle }) {
                 </div>
               )}
 
-              <div style={{ padding: '12px 14px', background: '#e8f4fb', border: '1px solid #cce6f5', borderRadius: 8, fontSize: 12, color: '#3D5466', marginBottom: 20, lineHeight: 1.6 }}>
+              <div style={{ padding: '12px 14px', background: 'var(--blue-light)', border: '1px solid #C3DEFF', borderRadius: 8, fontSize: 12, color: 'var(--text-mid)', marginBottom: 20, lineHeight: 1.6 }}>
                 Export includes all count line items with flags for not-in-catalog items, post-submission edits, and new items.
               </div>
 
               <button onClick={runExport} disabled={exporting || !selectedCycle}
                 style={{
-                  width: '100%', padding: '13px', background: exporting || !selectedCycle ? '#C5D1DA' : '#0076BB',
+                  width: '100%', padding: '13px', background: exporting || !selectedCycle ? 'var(--border)' : 'var(--blue)',
                   color: 'white', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700,
                   cursor: exporting || !selectedCycle ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
                 }}>
