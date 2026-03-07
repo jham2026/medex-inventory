@@ -166,7 +166,7 @@ export default function AdminExport({ cycle }) {
 
       {/* Accounts */}
       <ExportCard
-        icon="ðŸ¢" iconBg="var(--blue-light)"
+        icon="--" iconBg="var(--blue-light)"
         title="Accounts"
         sub="Account names, regions, assigned reps, catalog and status"
         loading={exportingRef === 'accounts'}
@@ -175,7 +175,7 @@ export default function AdminExport({ cycle }) {
 
       {/* Users */}
       <ExportCard
-        icon="ðŸ‘¤" iconBg="var(--gold-light)"
+        icon="--" iconBg="var(--gold-light)"
         title="Users"
         sub="User names, emails, roles and regions"
         loading={exportingRef === 'users'}
@@ -184,7 +184,7 @@ export default function AdminExport({ cycle }) {
 
       {/* Item Catalog */}
       <ExportCard
-        icon="ðŸ“‹" iconBg="var(--amber-light)"
+        icon="--" iconBg="var(--amber-light)"
         title="Item Catalog"
         sub="Item numbers, descriptions and vendor info"
         loading={exportingRef === 'catalog'}
@@ -205,7 +205,7 @@ export default function AdminExport({ cycle }) {
         flexWrap: 'wrap', gap: 12,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--green-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>ðŸ“Š</div>
+          <div style={{ width: 40, height: 40, borderRadius: 10, background: 'var(--green-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>CH</div>
           <div>
             <div style={{ fontSize: 14, fontWeight: 700 }}>Count History</div>
             <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>
