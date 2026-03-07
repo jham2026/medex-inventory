@@ -865,45 +865,7 @@ export default function AdminDashboard() {
                 </label>
               </>
             )}
-            {tab === 'users' && (
-              <>
-                <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                  onClick={() => {
-                    const csv = 'FullName,EmailAddress,Role,Region\nJane Smith,jsmith@medexpsi.com,rep,Austin';
-                    const blob = new Blob([csv], { type: 'text/csv' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a'); a.href = url; a.download = 'users_template.csv'; a.click();
-                    URL.revokeObjectURL(url);
-                  }}>
-                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Template
-                </button>
-                <label className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 9V2M3.5 4.5l3-3 3 3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                  Import
-                  <input type="file" accept=".csv" style={{ display: 'none' }} onChange={e => {
-                    const file = e.target.files[0]; if (!file) return;
-                    import('papaparse').then(({ default: Papa }) => {
-                      Papa.parse(file, { header: true, skipEmptyLines: true, complete: async (res) => {
-                        let updated = 0, errors = 0;
-                        for (const row of res.data) {
-                          const email    = (row['EmailAddress'] || row['Email'] || row['email'] || '').trim();
-                          const fullName = (row['FullName'] || row['Full Name'] || row['full_name'] || '').trim();
-                          const role     = (row['Role'] || row['role'] || 'rep').trim().toLowerCase();
-                          const region   = (row['Region'] || row['region'] || '').trim();
-                          if (!email) { errors++; continue; }
-                          const { error } = await supabase.from('profiles').update({ full_name: fullName, role, region: region || null }).eq('email', email);
-                          if (error) errors++; else updated++;
-                        }
-                        if (errors === 0) toast.success('Updated ' + updated + ' users!');
-                        else toast.warning('Updated ' + updated + ' with ' + errors + ' errors.');
-                        e.target.value = '';
-                      }});
-                    });
-                  }} />
-                </label>
-              </>
-            )}
+
           </div>
         </div>
 
