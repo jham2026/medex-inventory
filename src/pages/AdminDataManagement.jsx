@@ -392,8 +392,11 @@ export default function AdminDataManagement() {
             target_name: file?.name || 'unknown file',
             details: { inserted, updated, errors, total: rows.length, file: file?.name },
           });
-          if (errors === 0) toast.success('Import complete - ' + (inserted + updated) + ' records processed');
-          else toast.warning('Import finished with ' + errors + ' errors - ' + (inserted + updated) + ' succeeded');
+          if (errors === 0) toast.success('Import Complete | ' + inserted + ' new, ' + updated + ' updated â€” ' + (inserted + updated) + ' total');
+          else {
+            const detail = errorDetails.slice(0, 3).join('; ') + (errorDetails.length > 3 ? '...' : '');
+            toast.warning('Import finished | ' + (inserted + updated) + ' succeeded, ' + errors + ' error(s): ' + detail);
+          }
 
         } catch (err) {
           toast.error('Import failed: ' + err.message);
