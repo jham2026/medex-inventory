@@ -245,12 +245,8 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
         {editRequests.map(t => {
           const m = parseMeta(t);
           return (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{m.account_name || t.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 3 }}>{m.rep_name} &middot; {m.region}</div>
-                {m.reason && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 3 }}>Reason: <strong>{m.reason.replace(/_/g,' ')}</strong></div>}
-              </div>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{m.account_name || t.title?.replace('Edit request: ', '')}</div>
               <ReviewBtn todo={t} />
             </div>
           );
@@ -259,11 +255,8 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
       <TodoCard title="Count Review" count={countApprovals.length} emptyMsg="No counts awaiting review.">
         {countApprovals.map(t => (
-          <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title?.replace('Count to approve: ', '')}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 3 }}>{t.description}</div>
-            </div>
+          <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title?.replace('Count to approve: ', '')}</div>
             <ReviewBtn todo={t} />
           </div>
         ))}
@@ -273,12 +266,8 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
         {closureFlags.map(t => {
           const m = parseMeta(t);
           return (
-            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-              <div>
-                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{m.account_name || t.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 3 }}>Rep: {m.rep_name} &middot; Reason: {m.reason?.replace(/_/g,' ')}</div>
-                {m.notes && <div style={{ fontSize: 12, color: 'var(--text-mid)', marginTop: 3 }}>{m.notes}</div>}
-              </div>
+            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{m.account_name || t.title?.replace('Account flagged for closure: ', '')}</div>
               <ReviewBtn todo={t} />
             </div>
           );
@@ -287,11 +276,8 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
 
       <TodoCard title="General Tasks" count={general.length} emptyMsg="No general tasks pending.">
         {general.map(t => (
-          <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title}</div>
-              {t.description && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 3 }}>{t.description}</div>}
-            </div>
+          <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 20px', borderBottom: '1px solid var(--border)' }}>
+            <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)' }}>{t.title}</div>
             <ReviewBtn todo={t} />
           </div>
         ))}
@@ -310,14 +296,14 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
           }}>
 
             {/* HEADER â€” fixed, never scrolls */}
-            <div style={{ background: 'linear-gradient(135deg, #1565C0, #0D47A1)', padding: '22px 24px', flexShrink: 0 }}>
-              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)', marginBottom: 6 }}>
+            <div className="modal-head-blue" style={{ flexShrink: 0 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', marginBottom: 6, position: 'relative', zIndex: 1 }}>
                 {reviewModal.todo_type === 'edit_request'    && 'Edit Request'}
                 {reviewModal.todo_type === 'count_approval'  && 'Count Review'}
                 {reviewModal.todo_type === 'account_closure' && 'Closure Review'}
                 {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && 'General Task'}
               </div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap' }}>
+              <div style={{ fontSize: 20, fontWeight: 800, color: 'white', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'nowrap', position: 'relative', zIndex: 1 }}>
                 {reviewModal.todo_type === 'count_approval'
                   ? (countMeta.accountName || reviewModal.title?.replace('Count to approve: ', ''))
                   : reviewModal.todo_type === 'account_closure'
@@ -331,14 +317,14 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                 )}
               </div>
               {reviewModal.todo_type === 'count_approval'
-                ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
+                ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4, position: 'relative', zIndex: 1 }}>
                     {'Submitted by ' + (countMeta.repName || (reviewModal.description || '').replace(/^Rep /, '').split(' submitted')[0] || 'Unknown') + (countMeta.region ? '  |  ' + countMeta.region : '') + (countMeta.submittedAt ? '  |  ' + new Date(countMeta.submittedAt).toLocaleDateString() : '')}
                   </div>
                 : reviewModal.todo_type === 'account_closure'
-                ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>
+                ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4, position: 'relative', zIndex: 1 }}>
                     {'Flagged by ' + (closureMeta.repName || '--') + (closureMeta.region ? '  |  ' + closureMeta.region : '') + (closureMeta.flaggedAt ? '  |  ' + new Date(closureMeta.flaggedAt).toLocaleDateString() : '')}
                   </div>
-                : meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{'Submitted by ' + meta.rep_name + (meta.region ? '  |  ' + meta.region : '')}</div>
+                : meta.rep_name && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4, position: 'relative', zIndex: 1 }}>{'Submitted by ' + meta.rep_name + (meta.region ? '  |  ' + meta.region : '')}</div>
               }
             </div>
 
