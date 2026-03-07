@@ -98,7 +98,7 @@ export default function RepDashboard() {
 
     await supabase.from('alerts').insert({
       alert_type: 'edit_request',
-      message: profile?.full_name + ' requested to reopen count for ' + count.account?.name + ' â” Reason: ' + editForm.reason,
+      message: profile?.full_name + ' requested to reopen count for ' + count.account?.name + ' Ã¢â€ Reason: ' + editForm.reason,
       is_read: false,
     });
 
@@ -154,15 +154,13 @@ export default function RepDashboard() {
   );
 
   return (
-    <div style={{ background: '#F7F9FB', minHeight: '100vh', maxWidth: 430, margin: '0 auto', position: 'relative', borderLeft: '1px solid #E1E8EE', borderRight: '1px solid #E1E8EE' }}>
+    <div style={{ background: 'var(--bg)', minHeight: '100vh', maxWidth: 430, margin: '0 auto', position: 'relative', borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>
 
       {/* Top bar */}
-      <div style={{ background: '#003f63', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3px solid #EEAF24', position: 'sticky', top: 0, zIndex: 20 }}>
-        <div style={{ fontSize: 22, fontWeight: 800, color: 'white', letterSpacing: '-0.5px' }}>
-          Med<span style={{ color: '#EEAF24' }}>Ex</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={signOut} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit' }}>Sign out</button>
+      <div style={{ background: 'linear-gradient(180deg,#2E88E8 0%,#2076D4 20%,#1565C0 50%,#1254A8 75%,#0D47A1 100%)', padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '3px solid #FFD040', position: 'sticky', top: 0, zIndex: 20, overflow: 'hidden' }}>
+        <div style={{ fontSize: 22, fontWeight: 800, color: '#FFD040', letterSpacing: '-0.5px', position: 'relative', zIndex: 1 }}>MedEx</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative', zIndex: 1 }}>
+          <button onClick={signOut} style={{ fontSize: 10, padding: '5px 11px', borderRadius: 7, background: 'var(--blue-light)', color: 'var(--blue)', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 700 }}>Sign Out</button>
           {/* Notification Bell */}
           <div style={{ position: 'relative' }}>
             <button onClick={() => { setShowNotifications(!showNotifications); if (!showNotifications) markAllRead(); }}
@@ -182,13 +180,13 @@ export default function RepDashboard() {
       </div>
 
       {/* Body */}
-      <div style={{ padding: '18px 16px 110px' }}>
+      <div style={{ padding: '18px 16px 100px' }}>
 
         {/* Greeting */}
-        <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.5px', color: '#1A2B38', marginBottom: 2 }}>
+        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.5px', color: 'var(--text)', marginBottom: 2 }}>
           {greeting}, {firstName}
         </div>
-        <div style={{ fontSize: 13, color: '#7A909F', marginBottom: 18 }}>
+        <div style={{ fontSize: 13, color: 'var(--text-dim)', marginBottom: 18 }}>
           {remaining > 0
             ? remaining + ' account' + (remaining !== 1 ? 's' : '') + ' still need your attention'
             : total > 0 ? 'All accounts submitted!' : 'No accounts assigned yet.'}
@@ -196,7 +194,7 @@ export default function RepDashboard() {
 
         {/* Hero card */}
         {cycle ? (
-          <div style={{ background: 'linear-gradient(135deg, #003f63 0%, #0076BB 100%)', borderRadius: 18, padding: 20, marginBottom: 20, color: 'white', position: 'relative', overflow: 'hidden', borderLeft: '4px solid #EEAF24' }}>
+          <div style={{ background: 'linear-gradient(180deg,#2E88E8 0%,#1565C0 50%,#0D47A1 100%)', borderRadius: 18, padding: 20, marginBottom: 20, color: 'white', position: 'relative', overflow: 'hidden', borderLeft: '4px solid #FFD040' }}>
             <div style={{ position: 'absolute', right: -30, top: -30, width: 130, height: 130, background: 'rgba(255,255,255,0.04)', borderRadius: '50%' }} />
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 4 }}>Active Cycle</div>
             <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.4px', marginBottom: 16 }}>{cycle.name}</div>
@@ -228,7 +226,7 @@ export default function RepDashboard() {
         {/* Accounts list */}
         {counts.length > 0 && (
           <>
-            <div style={{ fontSize: 16, fontWeight: 600, letterSpacing: '-0.3px', color: '#1A2B38', marginBottom: 10 }}>Your Accounts</div>
+            <div style={{ fontSize: 16, fontWeight: 800, letterSpacing: '-0.3px', color: 'var(--text)', marginBottom: 10 }}>Your Accounts</div>
             {counts.map(count => {
               const st = STATUS_COLOR[count.status] || STATUS_COLOR.not_started;
               const locked = count.status === 'submitted' || count.status === 'approved';
@@ -238,9 +236,9 @@ export default function RepDashboard() {
                   onClick={() => { if (!locked) navigate('/count/' + count.id); }}
                   style={{
                     background: 'white', borderRadius: 12,
-                    border: '1px solid #E1E8EE', padding: '14px 16px',
+                    border: '1px solid var(--border)', padding: '14px 16px',
                     marginBottom: 8, display: 'flex', alignItems: 'center', gap: 12,
-                    boxShadow: '0 1px 4px rgba(0,118,187,0.08)',
+                    boxShadow: 'var(--s1)',
                     cursor: locked ? 'default' : 'pointer',
                     transition: 'all 0.15s',
                     opacity: count.status === 'approved' ? 0.7 : 1,
@@ -248,12 +246,10 @@ export default function RepDashboard() {
                   onMouseEnter={e => { if (!locked) { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,118,187,0.12)'; e.currentTarget.style.transform = 'translateY(-1px)'; }}}
                   onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 1px 4px rgba(0,118,187,0.08)'; e.currentTarget.style.transform = 'none'; }}
                 >
-                  <div style={{ width: 38, height: 38, background: '#e8f4fb', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>
-                    &#127973;
-                  </div>
+                  <div style={{ width: 4, alignSelf: 'stretch', borderRadius: 4, flexShrink: 0, background: count.status === 'approved' ? 'var(--green)' : count.status === 'submitted' ? 'var(--gold)' : count.status === 'in_progress' ? 'var(--blue)' : 'var(--border)' }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 14, fontWeight: 500, color: '#1A2B38', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{count.account?.name}</div>
-                    <div style={{ fontSize: 11, color: '#7A909F', marginTop: 2 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{count.account?.name}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>
                       {count.account?.region?.name}&nbsp;&middot;&nbsp;
                       <span style={{ color: st.color, fontWeight: 600 }}>{st.label}</span>
                     </div>
@@ -267,7 +263,7 @@ export default function RepDashboard() {
                     ) : (
                       <button
                         onClick={e => { e.stopPropagation(); setEditRequestModal(count); setEditForm({ reason: '', details: '', urgency: 'normal' }); }}
-                        style={{ fontSize: 11, fontWeight: 600, color: '#0076BB', background: '#e8f4fb', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', flexShrink: 0, fontFamily: 'inherit' }}>
+                        style={{ fontSize: 11, fontWeight: 700, color: 'var(--blue)', background: 'var(--blue-light)', border: 'none', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', flexShrink: 0, fontFamily: 'var(--font)' }}>
                         Request Edit
                       </button>
                     )
@@ -291,7 +287,7 @@ export default function RepDashboard() {
       {/* Notifications Panel */}
       {showNotifications && (
         <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: '100%', maxWidth: 430, background: 'white', zIndex: 100, display: 'flex', flexDirection: 'column', boxShadow: '-4px 0 20px rgba(0,0,0,0.15)' }}>
-          <div style={{ background: '#003f63', padding: '14px 18px', borderBottom: '3px solid #EEAF24', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ background: 'linear-gradient(180deg,#2E88E8 0%,#1565C0 100%)', padding: '14px 18px', borderBottom: '3px solid #FFD040', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>Notifications</div>
             <button onClick={() => setShowNotifications(false)}
               style={{ background: 'rgba(255,255,255,0.1)', border: 'none', color: 'white', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit', fontSize: 13 }}>
@@ -318,7 +314,7 @@ export default function RepDashboard() {
                       background: isApproved ? '#dcfce7' : isDenied ? '#fee2e2' : '#e8f4fb',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16,
                     }}>
-                      {isApproved ? 'âœ“' : isDenied ? 'âœ—' : 'i'}
+                      {isApproved ? 'Ã¢Å“â€œ' : isDenied ? 'Ã¢Å“â€”' : 'i'}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: isApproved ? '#15803d' : isDenied ? '#b91c1c' : '#1A2B38', marginBottom: 3 }}>
@@ -337,26 +333,35 @@ export default function RepDashboard() {
         </div>
       )}
 
-      {/* Bottom tab bar */}
-      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: 430, maxWidth: '100%', background: 'rgba(255,255,255,0.96)', backdropFilter: 'blur(20px)', borderTop: '1px solid #E1E8EE', display: 'flex', padding: '8px 0 20px', zIndex: 50 }}>
-        {[
-          { key: 'accounts', label: 'Accounts' },
-          { key: 'history',  label: 'History'  },
-          { key: 'settings', label: 'Settings' },
-        ].map(t => (
-          <div key={t.key} onClick={() => setActiveTab(t.key)}
-            style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
-            <div style={{ width: 24, height: 24, borderRadius: '50%', background: activeTab === t.key ? '#0076BB' : '#E1E8EE', transition: 'background 0.15s' }} />
-            <div style={{ fontSize: 10, color: activeTab === t.key ? '#0076BB' : '#C5D1DA', fontWeight: 600 }}>{t.label}</div>
-          </div>
-        ))}
+      {/* Bottom nav */}
+      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: 430, maxWidth: '100%', background: 'linear-gradient(180deg,#2E88E8 0%,#2076D4 20%,#1565C0 50%,#1254A8 75%,#0D47A1 100%)', zIndex: 50, overflow: 'hidden' }}>
+        {/* Gold top bar */}
+        <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: 'linear-gradient(90deg,#FFD040,#FFC010)', zIndex: 2 }} />
+        {/* Mesh */}
+        <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0px,rgba(255,255,255,0.03) 1px,transparent 1px,transparent 12px)', pointerEvents: 'none' }} />
+        <div style={{ display: 'flex', padding: '10px 0 18px', position: 'relative', zIndex: 1 }}>
+          {[
+            { key: 'accounts', label: 'Accounts' },
+            { key: 'history',  label: 'History'  },
+            { key: 'alerts',   label: 'Alerts'   },
+            { key: 'settings', label: 'Settings' },
+          ].map(t => (
+            <div key={t.key} onClick={() => setActiveTab(t.key)}
+              style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', cursor: 'pointer', position: 'relative', paddingTop: 6 }}>
+              {activeTab === t.key && (
+                <div style={{ position: 'absolute', top: -10, left: '15%', right: '15%', height: 3, background: '#FFD040', borderRadius: '0 0 4px 4px' }} />
+              )}
+              <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 0.5, color: activeTab === t.key ? '#FFD040' : 'rgba(255,255,255,0.6)' }}>{t.label}</div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Edit Request Modal */}
       {editRequestModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,31,50,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 400, overflow: 'hidden', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ background: '#003f63', padding: '20px 24px', borderBottom: '3px solid #EEAF24' }}>
+            <div style={{ background: 'linear-gradient(180deg,#2E88E8 0%,#1565C0 100%)', padding: '20px 24px', borderBottom: '3px solid #FFD040', position: 'relative', overflow: 'hidden' }}>
               <div style={{ fontSize: 18, fontWeight: 700, color: 'white' }}>Request to Reopen Count</div>
               <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 3 }}>{editRequestModal.account?.name}</div>
             </div>
@@ -417,7 +422,7 @@ export default function RepDashboard() {
                   Cancel
                 </button>
                 <button onClick={submitEditRequest} disabled={submittingRequest}
-                  style={{ flex: 2, padding: '12px', background: '#0076BB', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'inherit' }}>
+                  style={{ flex: 2, padding: '12px', background: 'var(--blue)', border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 700, color: 'white', cursor: 'pointer', fontFamily: 'var(--font)' }}>
                   {submittingRequest ? 'Sending...' : 'Send Request'}
                 </button>
               </div>
