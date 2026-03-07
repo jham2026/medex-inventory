@@ -78,7 +78,6 @@ function MyCounts({ cycle, profile, navigate }) {
         <div className="cycle-hero" style={{ marginBottom: 24 }}>
           <div className="hero-top">
             <div>
-              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#7A9ABE', marginBottom: 6 }}>Active Cycle</div>
               <div className="hero-title">{cycle.name}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
@@ -496,7 +495,6 @@ export default function AdminDashboard() {
                   <div className="cycle-hero">
                     <div className="hero-top">
                       <div>
-                        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: '#7A9ABE', marginBottom: 6 }}>Company Wide</div>
                         <div className="hero-title">{cycle.name} Count Cycle</div>
                         <div className="hero-meta">Opened {new Date(cycle.opened_at).toLocaleDateString()} &middot; {total} accounts total</div>
                       </div>
@@ -546,10 +544,10 @@ export default function AdminDashboard() {
                         <div className="region-header" onClick={() => toggleRegion(rName)} style={{ cursor: 'pointer' }}>
                           {/* Top row: region name | centered stats | pct + chevron */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                            {/* Left: region label */}
-                            <div style={{ minWidth: 120 }}>
-                              <div className="region-eyebrow">Region</div>
-                              <div className="region-name">{rName}</div>
+                            {/* Left: region name + account count */}
+                            <div style={{ minWidth: 140 }}>
+                              <div className="region-name" style={{ fontSize: 22 }}>{rName}</div>
+                              <div style={{ fontSize: 12, color: '#4a6a8a', marginTop: 3, fontWeight: 500 }}>{rTotal} account{rTotal !== 1 ? 's' : ''}</div>
                             </div>
                             {/* Center: stat cards fill all available space equally */}
                             <div style={{ display: 'flex', gap: 8, flex: 1, margin: '0 16px' }}>
