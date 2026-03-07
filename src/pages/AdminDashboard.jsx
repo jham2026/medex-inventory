@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthContext';
 import { useToast } from '../components/ToastContext';
 import AdminUsers from './AdminUsers';
-import AdminDataManagement from './AdminDataManagement';
+import AdminExport from './AdminExport';
 import AdminAccounts from './AdminAccounts';
 import AdminItemCatalog from './AdminItemCatalog';
 
@@ -295,7 +295,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
             overflow: 'hidden',
           }}>
 
-            {/* HEADER â€” fixed, never scrolls */}
+            {/* HEADER Ã¢â‚¬â€ fixed, never scrolls */}
             <div className="modal-head-blue" style={{ flexShrink: 0 }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', marginBottom: 6, position: 'relative', zIndex: 1 }}>
                 {reviewModal.todo_type === 'edit_request'    && 'Edit Request'}
@@ -331,7 +331,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
             {/* COUNT APPROVAL LAYOUT */}
             {reviewModal.todo_type === 'count_approval' && (
               <>
-                {/* STAT BAR â€” fixed */}
+                {/* STAT BAR Ã¢â‚¬â€ fixed */}
                 <div style={{ display: 'flex', background: '#F7F9FC', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
                   {[
                     { label: 'Total Items',    value: countLoading ? '...' : String(countItems.length) },
@@ -346,7 +346,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                   ))}
                 </div>
 
-                {/* ITEM TABLE â€” scrollable, takes all remaining space */}
+                {/* ITEM TABLE Ã¢â‚¬â€ scrollable, takes all remaining space */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 10 }}>Count Details</div>
                   {countLoading ? (
@@ -389,9 +389,9 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                   )}
                 </div>
 
-                {/* REJECTION NOTES â€” always visible, fixed at bottom */}
+                {/* REJECTION NOTES Ã¢â‚¬â€ always visible, fixed at bottom */}
                 <div style={{ padding: '16px 24px', borderTop: '1px solid #E2E8F0', background: '#F8FAFC', flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Rejection Notes (optional) â€” sent to rep if rejected</div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Rejection Notes (optional) Ã¢â‚¬â€ sent to rep if rejected</div>
                   <textarea
                     className="form-ta"
                     value={rejectReason}
@@ -460,7 +460,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                   )}
                 </div>
 
-                {/* ADMIN NOTES â€” always visible */}
+                {/* ADMIN NOTES Ã¢â‚¬â€ always visible */}
                 <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', background: '#F8FAFC', flexShrink: 0 }}>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Admin Notes (optional) -- sent to rep</div>
                   <textarea className="form-ta" value={closureNotes} onChange={e => setClosureNotes(e.target.value)} placeholder="Add any notes for the rep before confirming or denying this closure..." style={{ width: '100%', boxSizing: 'border-box', minHeight: 70, resize: 'vertical' }} />
@@ -776,18 +776,100 @@ export default function AdminDashboard() {
           <div>
             <h1>{pageTitle}</h1>
             <p>
-              {tab === 'overview'  && (cycle ? cycle.name + ' \u2014 ' + total + ' accounts' : 'No active cycle')}
+              {tab === 'overview'  && (cycle ? cycle.name + '\u2014' + total + ' accounts' : 'No active cycle')}
               {tab === 'todos'     && todos.length + ' pending task' + (todos.length !== 1 ? 's' : '')}
               {tab === 'mycounts'  && 'Your assigned accounts for the active cycle'}
-              {tab === 'reports'   && 'Export count data'}
+              {tab === 'reports'   && 'Download data as CSV files'}
               {tab === 'accounts'  && 'Manage account assignments'}
               {tab === 'users'     && 'Manage rep accounts'}
               {tab === 'catalog'   && 'Manage inventory items'}
             </p>
           </div>
-          {tab === 'overview' && cycle && (
-            <button className="btn btn-danger" onClick={closeCycle}>Close Cycle</button>
-          )}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {tab === 'overview' && cycle && (
+              <button className="btn btn-danger" onClick={closeCycle}>Close Cycle</button>
+            )}
+            {tab === 'accounts' && (
+              <>
+                <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    const csv = 'Account,Region,Status,Rep,Item Catalog\nExample Account,Austin,Open,Jane Smith,edge';
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = 'accounts_template.csv'; a.click();
+                    URL.revokeObjectURL(url);
+                  }}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Template
+                </button>
+                <label className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 9V2M3.5 4.5l3-3 3 3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Import
+                  <input type="file" accept=".csv" style={{ display: 'none' }} onChange={e => {
+                    const file = e.target.files[0]; if (!file) return;
+                    import('papaparse').then(({ default: Papa }) => {
+                      Papa.parse(file, { header: true, skipEmptyLines: true, complete: async (res) => {
+                        let inserted = 0, errors = 0;
+                        for (const row of res.data) {
+                          const name    = (row['Account'] || row['account'] || '').trim();
+                          const region  = (row['Region']  || row['region']  || '').trim();
+                          const status  = (row['Status']  || row['status']  || 'Open').trim();
+                          const catalog = (row['Item Catalog'] || row['item_catalog'] || 'edge').trim().toLowerCase();
+                          const repRaw  = (row['Rep'] || row['rep'] || '').trim();
+                          if (!name) { errors++; continue; }
+                          const { data: regionData } = await supabase.from('regions').select('id').eq('name', region).maybeSingle();
+                          const { error } = await supabase.from('accounts').upsert({ name, is_active: status.toLowerCase() === 'open', catalog_source: catalog, region_id: regionData?.id || null, rep_name_raw: repRaw || null }, { onConflict: 'name' });
+                          if (error) errors++; else inserted++;
+                        }
+                        if (errors === 0) toast.success('Imported ' + inserted + ' accounts!');
+                        else toast.warning('Imported ' + inserted + ' with ' + errors + ' errors.');
+                        e.target.value = '';
+                      }});
+                    });
+                  }} />
+                </label>
+              </>
+            )}
+            {tab === 'users' && (
+              <>
+                <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    const csv = 'FullName,EmailAddress,Role,Region\nJane Smith,jsmith@medexpsi.com,rep,Austin';
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = 'users_template.csv'; a.click();
+                    URL.revokeObjectURL(url);
+                  }}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Template
+                </button>
+                <label className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 9V2M3.5 4.5l3-3 3 3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Import
+                  <input type="file" accept=".csv" style={{ display: 'none' }} onChange={e => {
+                    const file = e.target.files[0]; if (!file) return;
+                    import('papaparse').then(({ default: Papa }) => {
+                      Papa.parse(file, { header: true, skipEmptyLines: true, complete: async (res) => {
+                        let updated = 0, errors = 0;
+                        for (const row of res.data) {
+                          const email    = (row['EmailAddress'] || row['Email'] || row['email'] || '').trim();
+                          const fullName = (row['FullName'] || row['Full Name'] || row['full_name'] || '').trim();
+                          const role     = (row['Role'] || row['role'] || 'rep').trim().toLowerCase();
+                          const region   = (row['Region'] || row['region'] || '').trim();
+                          if (!email) { errors++; continue; }
+                          const { error } = await supabase.from('profiles').update({ full_name: fullName, role, region: region || null }).eq('email', email);
+                          if (error) errors++; else updated++;
+                        }
+                        if (errors === 0) toast.success('Updated ' + updated + ' users!');
+                        else toast.warning('Updated ' + updated + ' with ' + errors + ' errors.');
+                        e.target.value = '';
+                      }});
+                    });
+                  }} />
+                </label>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="content-area">
@@ -956,7 +1038,7 @@ export default function AdminDashboard() {
           {tab === 'accounts' && <AdminAccounts />}
           {tab === 'users'    && <AdminUsers />}
           {tab === 'catalog'  && <AdminItemCatalog />}
-          {tab === 'reports'  && <AdminDataManagement cycle={cycle} />}
+          {tab === 'reports'  && <AdminExport cycle={cycle} />}
 
         </div>
       </div>
