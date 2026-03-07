@@ -89,9 +89,13 @@ function MyCounts({ cycle, profile, navigate }) {
           <div className="hero-stats">
             {STAT_CARDS.map(s => (
               <div key={s.key} className={'stat-card hero-stat-card ' + s.cls}>
-                <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
-                <div className={'sc-lbl ' + s.tc}>{s.label}</div>
-                <div className={'sc-sub ' + s.tc}>{total > 0 ? Math.round(stats[s.key] / total * 100) : 0}%</div>
+                <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', position:'relative', zIndex:1 }}>
+                  <div>
+                    <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
+                    <div className={'sc-lbl ' + s.tc}>{s.label}</div>
+                  </div>
+                  <div className={'sc-sub ' + s.tc} style={{ fontSize:22, fontWeight:800, lineHeight:1, opacity:0.85 }}>{total > 0 ? Math.round(stats[s.key] / total * 100) : 0}%</div>
+                </div>
               </div>
             ))}
           </div>
@@ -291,6 +295,9 @@ export default function AdminDashboard() {
         acctRepsMap[ar.account_id].push(repMap[ar.rep_id]);
       }
       setProgress((counts || []).map(c => ({ ...c, rep: c.rep_id ? repMap[c.rep_id] : null, allReps: acctRepsMap[c.account?.id] || [] })));
+      // Default all regions to collapsed
+      const regionNames = [...new Set((counts || []).map(c => c.account?.region?.name || 'Unassigned'))];
+      setCollapsedRegions(Object.fromEntries(regionNames.map(r => [r, true])));
     }
     setLoading(false);
   }
@@ -504,9 +511,13 @@ export default function AdminDashboard() {
                           className={'stat-card hero-stat-card ' + s.cls}
                           style={{ outline: progressFilter === s.key ? '2.5px solid white' : 'none', outlineOffset: 2 }}
                           onClick={() => setProgressFilter(f => f === s.key ? 'all' : s.key)}>
-                          <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
-                          <div className={'sc-lbl ' + s.tc}>{s.label}</div>
-                          <div className={'sc-sub ' + s.tc}>{total > 0 ? Math.round(stats[s.key] / total * 100) : 0}%</div>
+                          <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', position:'relative', zIndex:1 }}>
+                            <div>
+                              <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
+                              <div className={'sc-lbl ' + s.tc}>{s.label}</div>
+                            </div>
+                            <div className={'sc-sub ' + s.tc} style={{ fontSize:22, fontWeight:800, lineHeight:1, opacity:0.85 }}>{total > 0 ? Math.round(stats[s.key] / total * 100) : 0}%</div>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -544,9 +555,13 @@ export default function AdminDashboard() {
                             <div style={{ display: 'flex', gap: 8, flex: 1, margin: '0 16px' }}>
                               {STAT_CARDS.map(s => (
                                 <div key={s.key} className={'stat-card ' + s.cls} style={{ padding: '8px 10px', flex: '1 1 0' }}>
-                                  <div className={'sc-num ' + s.tc} style={{ fontSize: 22, letterSpacing: '-0.5px' }}>{rStats[s.key]}</div>
-                                  <div className={'sc-lbl ' + s.tc} style={{ fontSize: 9 }}>{s.label}</div>
-                                  <div className={'sc-sub ' + s.tc} style={{ fontSize: 9 }}>{rTotal > 0 ? Math.round(rStats[s.key] / rTotal * 100) : 0}%</div>
+                                  <div style={{ display:'flex', alignItems:'flex-end', justifyContent:'space-between', position:'relative', zIndex:1 }}>
+                                    <div>
+                                      <div className={'sc-num ' + s.tc} style={{ fontSize:22, letterSpacing:'-0.5px' }}>{rStats[s.key]}</div>
+                                      <div className={'sc-lbl ' + s.tc} style={{ fontSize:9 }}>{s.label}</div>
+                                    </div>
+                                    <div className={'sc-sub ' + s.tc} style={{ fontSize:16, fontWeight:800, lineHeight:1, opacity:0.85 }}>{rTotal > 0 ? Math.round(rStats[s.key] / rTotal * 100) : 0}%</div>
+                                  </div>
                                 </div>
                               ))}
                             </div>
