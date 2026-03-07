@@ -53,7 +53,7 @@ const TEMPLATES = {
   },
   edge_catalog: {
     version: 'v1',
-    label: 'Account Edge Catalog',
+    label: 'Account Edge',
     filename: 'MedEx_EdgeCatalog_Template_v1.csv',
     requiredCols: ['Item Number', 'Item Name'],
     optionalCols: [
@@ -88,7 +88,7 @@ const IMPORT_TYPES = [
   { key: 'accounts',          label: 'Accounts',             desc: 'Account name, region, status, rep, catalog' },
   { key: 'users',             label: 'Users',                desc: 'FirstName, LastName, Email, Role, Region' },
   { key: 'claimsoft_catalog', label: 'Claimsoft Catalog',    desc: 'ItemNumber, Description + 47 optional fields' },
-  { key: 'edge_catalog',      label: 'Account Edge Catalog', desc: 'Item Number, Item Name + 74 optional fields' },
+  { key: 'edge_catalog',      label: 'Account Edge', desc: 'Item Number, Item Name + 74 optional fields' },
   { key: 'referral_sources',  label: 'Claimsoft Referral',   desc: 'Referral Source Name, Rep, Region' },
 ];
 
