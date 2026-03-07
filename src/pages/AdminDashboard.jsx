@@ -551,7 +551,7 @@ export default function AdminDashboard() {
 
   if (loading) return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
-      <div style={{ width: 240, background: '#003f63', flexShrink: 0 }} />
+      <div style={{ width: 220, background: 'linear-gradient(180deg,#1565C0,#0D47A1)', flexShrink: 0 }} />
       <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <div className="loading-center"><div className="spinner" /><span>Loading...</span></div>
       </div>
@@ -561,24 +561,29 @@ export default function AdminDashboard() {
   return (
     <div style={{ display: 'flex', height: '100vh', width: '100vw', overflow: 'hidden' }}>
 
-      {/* â”â” SIDEBAR â”â” */}
+      {/* Ã¢â€Ã¢â€ SIDEBAR Ã¢â€Ã¢â€ */}
       <div style={{ width: 240, minWidth: 240, background: '#003f63', display: 'flex', flexDirection: 'column', height: '100vh', overflowY: 'auto', flexShrink: 0 }}>
 
+        {/* Mesh overlay */}
+        <div style={{ position: 'absolute', inset: 0, background: 'repeating-linear-gradient(45deg,rgba(255,255,255,0.03) 0px,rgba(255,255,255,0.03) 1px,transparent 1px,transparent 12px)', pointerEvents: 'none', zIndex: 0 }} />
+        {/* Gold right border */}
+        <div style={{ position: 'absolute', top: 0, right: 0, bottom: 0, width: 3, background: 'linear-gradient(180deg,#FFD040,#FFC010)', pointerEvents: 'none', zIndex: 1 }} />
+
         {/* Logo */}
-        <div style={{ padding: '24px 20px 18px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={{ fontSize: 32, fontWeight: 800, color: 'white', letterSpacing: '-1px', lineHeight: 1 }}>
-            Med<span style={{ color: '#EEAF24' }}>Ex</span>
+        <div style={{ padding: '22px 16px 16px', borderBottom: '1px solid rgba(255,255,255,0.08)', position: 'relative', zIndex: 1 }}>
+          <div style={{ fontSize: 28, fontWeight: 800, color: '#FFD040', letterSpacing: '-0.5px', lineHeight: 1 }}>
+            MedEx
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)', textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: 7, fontWeight: 600 }}>
-            Inventory Control System
+          <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.35)', textTransform: 'uppercase', letterSpacing: '0.14em', marginTop: 5, fontWeight: 700 }}>
+            Inventory Counts
           </div>
         </div>
 
         {/* Nav */}
-        <div style={{ padding: '8px 0', flex: 1 }}>
+        <div style={{ padding: '8px 0', flex: 1, position: 'relative', zIndex: 1 }}>
           {NAV.map((item, i) => {
             if (item.section) return (
-              <div key={i} style={{ padding: '14px 20px 4px', fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em' }}>
+              <div key={i} style={{ padding: '14px 14px 4px', fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '2px', textTransform: 'uppercase' }}>
                 {item.section}
               </div>
             );
@@ -588,17 +593,17 @@ export default function AdminDashboard() {
                 onClick={() => setTab(item.key)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '9px 12px', margin: '1px 8px',
-                  color: active ? 'white' : 'rgba(255,255,255,0.55)',
-                  fontSize: 15, fontWeight: active ? 600 : 400,
-                  cursor: 'pointer', borderRadius: 8,
-                  background: active ? 'rgba(255,255,255,0.11)' : 'transparent',
+                  padding: '9px 10px', margin: '1px 6px',
+                  color: active ? '#fff' : 'rgba(255,255,255,0.65)',
+                  fontSize: 13, fontWeight: active ? 600 : 500,
+                  cursor: 'pointer', borderRadius: 9,
+                  background: active ? 'rgba(255,255,255,0.14)' : 'transparent',
                   transition: 'all 0.15s', position: 'relative',
                 }}
-                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = 'rgba(255,255,255,0.85)'; }}}
-                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.55)'; }}}
+                onMouseEnter={e => { if (!active) { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = 'rgba(255,255,255,0.9)'; }}}
+                onMouseLeave={e => { if (!active) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(255,255,255,0.65)'; }}}
               >
-                {active && <div style={{ position: 'absolute', left: -8, top: '25%', bottom: '25%', width: 3, background: '#EEAF24', borderRadius: '0 2px 2px 0' }} />}
+                <div style={{ width: 6, height: 6, borderRadius: '50%', background: active ? '#FFD040' : 'rgba(255,255,255,0.2)', flexShrink: 0, boxShadow: active ? '0 0 6px rgba(255,208,64,0.6)' : 'none' }} />
                 <NavIcon path={item.icon} />
                 <span style={{ flex: 1 }}>{item.label}</span>
                 {item.key === 'todos' && todos.length > 0 && (
@@ -614,8 +619,8 @@ export default function AdminDashboard() {
 
         {/* My Counts */}
         {myCounts.length > 0 && (
-          <div style={{ padding: '8px 8px 12px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-            <div style={{ padding: '10px 12px 6px', fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.08em' }}>MY COUNTS</div>
+          <div style={{ padding: '8px 8px 12px', borderTop: '1px solid rgba(255,255,255,0.08)', position: 'relative', zIndex: 1 }}>
+            <div style={{ padding: '10px 12px 6px', fontSize: 8, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '2px', textTransform: 'uppercase' }}>MY COUNTS</div>
             {myCounts.map(c => (
               <div key={c.id} onClick={() => navigate('/count/' + c.id)}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', margin: '1px 0', borderRadius: 8, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontWeight: 500, transition: 'all 0.15s' }}
@@ -629,32 +634,29 @@ export default function AdminDashboard() {
         )}
 
         {/* Footer */}
-        <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ padding: '14px 14px', borderTop: '1px solid rgba(255,255,255,0.10)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
           <div style={{ width: 32, height: 32, background: 'linear-gradient(135deg, #3398cc, #EEAF24)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: 'white', flexShrink: 0 }}>
             {initials}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.75)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.full_name}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.3)' }}>Administrator</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{profile?.full_name}</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>Administrator</div>
           </div>
-          <button onClick={signOut} title="Sign Out"
-            style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 18, padding: 4, lineHeight: 1 }}
-            onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.7)'}
-            onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.3)'}>
-            &rarr;
+          <button onClick={signOut} style={{ fontSize: 11, padding: '5px 11px', borderRadius: 7, background: 'var(--blue-light)', color: 'var(--blue)', border: 'none', cursor: 'pointer', fontFamily: 'var(--font)', fontWeight: 700, flexShrink: 0 }}>
+            Sign Out
           </button>
         </div>
       </div>
 
-      {/* â”â” MAIN â”â” */}
+      {/* Ã¢â€Ã¢â€ MAIN Ã¢â€Ã¢â€ */}
       <div style={{ flex: 1, minWidth: 0, background: '#F7F9FB', overflowY: 'auto', height: '100vh' }}>
 
         {/* Sticky header */}
-        <div style={{ background: 'rgba(247,249,251,0.95)', backdropFilter: 'blur(20px)', borderBottom: '1px solid #E1E8EE', padding: '14px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10 }}>
+        <div style={{ background: 'rgba(247,249,252,0.97)', backdropFilter: 'blur(20px)', borderBottom: '1px solid var(--border)', padding: '16px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 10, boxShadow: '0 1px 0 var(--border)' }}>
           <div>
-            <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-0.5px', color: '#1A2B38' }}>{currentLabel}</div>
-            <div style={{ fontSize: 14, color: '#7A909F', marginTop: 2 }}>
-              {tab === 'overview' && (cycle ? cycle.name + ' — ' + total + ' accounts' : 'No active cycle')}
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.3px', color: 'var(--text)' }}>{currentLabel}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-dim)', marginTop: 2 }}>
+              {tab === 'overview' && (cycle ? cycle.name + ' â€” ' + total + ' accounts' : 'No active cycle')}
               {tab === 'todos'    && todos.length + ' pending task' + (todos.length !== 1 ? 's' : '')}
               {tab === 'accounts' && 'Manage account assignments'}
               {tab === 'users'    && 'Manage rep accounts'}
@@ -675,7 +677,7 @@ export default function AdminDashboard() {
         {/* Content */}
         <div style={{ padding: '24px 28px' }}>
 
-          {/* â”â” OVERVIEW â”â” */}
+          {/* Ã¢â€Ã¢â€ OVERVIEW Ã¢â€Ã¢â€ */}
           {tab === 'overview' && (
             <>
               {alerts.length > 0 && (
@@ -718,25 +720,25 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ) : (
-                <div style={{ background: 'linear-gradient(135deg, #003f63 0%, #0076BB 100%)', borderRadius: 14, padding: '28px 32px', marginBottom: 20, color: 'white', borderLeft: '5px solid #EEAF24', boxShadow: '0 4px 20px rgba(0,118,187,0.25)' }}>
+                <div style={{ background: 'linear-gradient(180deg,#2E88E8 0%,#1565C0 50%,#0D47A1 100%)', borderRadius: 14, padding: '28px 32px', marginBottom: 20, color: 'white', borderLeft: '5px solid #FFD040', boxShadow: '0 4px 20px rgba(21,101,192,0.25)', position: 'relative', overflow: 'hidden' }}>
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 16 }}>
                     <div>
                       <div style={{ fontSize: 28, fontWeight: 800, letterSpacing: '-0.5px', lineHeight: 1 }}>{cycle.name} Count Cycle</div>
                       <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', marginTop: 6 }}>Opened {new Date(cycle.opened_at).toLocaleDateString()} &middot; {total} accounts total</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 56, fontWeight: 800, color: '#EEAF24', lineHeight: 1, letterSpacing: '-2px' }}>{pct}%</div>
+                      <div style={{ fontSize: 56, fontWeight: 800, color: '#FFD040', lineHeight: 1, letterSpacing: '-2px' }}>{pct}%</div>
                       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 2 }}>Complete</div>
                     </div>
                   </div>
                   <div style={{ height: 6, background: 'rgba(255,255,255,0.12)', borderRadius: 3, overflow: 'hidden', marginBottom: 24 }}>
-                    <div style={{ height: '100%', background: '#EEAF24', borderRadius: 3, width: pct + '%', transition: 'width 0.5s' }} />
+                    <div style={{ height: '100%', background: '#FFD040', borderRadius: 3, width: pct + '%', transition: 'width 0.5s' }} />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 }}>
                     {[
                       { key: 'not_started', label: 'Not Started', color: 'rgba(255,255,255,0.6)', bg: 'rgba(255,255,255,0.07)' },
                       { key: 'in_progress', label: 'In Progress',  color: '#7dd3fc', bg: 'rgba(0,118,187,0.3)' },
-                      { key: 'submitted',   label: 'Submitted',    color: '#EEAF24', bg: 'rgba(238,175,36,0.2)' },
+                      { key: 'submitted',   label: 'Submitted',    color: '#FFD040', bg: 'rgba(255,208,64,0.15)' },
                       { key: 'approved',    label: 'Approved',     color: '#4ade80', bg: 'rgba(34,197,94,0.2)' },
                     ].map(s => (
                       <div key={s.key} onClick={() => setProgressFilter(f => f === s.key ? 'all' : s.key)}
@@ -772,16 +774,16 @@ export default function AdminDashboard() {
                       const rPct = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
                       return (
                         <div key={rName} className="card" style={{ marginBottom: 16 }}>
-                          <div style={{ padding: '14px 20px', background: '#003f63', borderRadius: '10px 10px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <div style={{ padding: '14px 20px', background: 'linear-gradient(180deg,#2E88E8 0%,#1565C0 100%)', borderRadius: '10px 10px 0 0', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                             <div style={{ fontSize: 16, fontWeight: 700, color: 'white' }}>{rName}</div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                               <div style={{ display: 'flex', gap: 12 }}>
                                 {rNotStarted > 0 && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 600 }}>{rNotStarted} Not Started</span>}
                                 {rInProgress > 0 && <span style={{ fontSize: 11, color: '#7dd3fc', fontWeight: 600 }}>{rInProgress} In Progress</span>}
-                                {rSubmitted > 0  && <span style={{ fontSize: 11, color: '#EEAF24', fontWeight: 600 }}>{rSubmitted} Submitted</span>}
+                                {rSubmitted > 0  && <span style={{ fontSize: 11, color: '#FFD040', fontWeight: 600 }}>{rSubmitted} Submitted</span>}
                                 {rApproved > 0   && <span style={{ fontSize: 11, color: '#4ade80', fontWeight: 600 }}>{rApproved} Approved</span>}
                               </div>
-                              <div style={{ fontSize: 14, fontWeight: 700, color: '#EEAF24', paddingLeft: 12, borderLeft: '1px solid rgba(255,255,255,0.15)' }}>{rPct}% done</div>
+                              <div style={{ fontSize: 14, fontWeight: 700, color: '#FFD040', paddingLeft: 12, borderLeft: '1px solid rgba(255,255,255,0.15)' }}>{rPct}% done</div>
                             </div>
                           </div>
                           <table className="tbl">
@@ -794,7 +796,7 @@ export default function AdminDashboard() {
                                   <td><strong style={{ color: '#1A2B38', fontWeight: 600 }}>{p.account?.name}</strong></td>
                                   <td>{p.allReps?.length > 0 ? p.allReps.filter(Boolean).map(r => (<span key={r.id} style={{ display: 'inline-block', fontSize: 11, background: '#F2F5F8', color: '#3D5466', padding: '2px 7px', borderRadius: 5, marginRight: 4, whiteSpace: 'nowrap' }}>{r.full_name}</span>)) : <span style={{ color: '#EF4444', fontSize: 12 }}>Unassigned</span>}</td>
                                   <td><span className={'badge ' + (p.status === 'approved' ? 'b-green' : p.status === 'submitted' ? 'b-gold' : p.status === 'in_progress' ? 'b-blue' : 'b-gray')}>{COUNT_STATUS[p.status]?.label}</span></td>
-                                  <td style={{ color: '#7A909F' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'}</td>
+                                  <td style={{ color: '#7A909F' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'â€”'}</td>
                                   <td style={{ display: 'flex', gap: 6 }}>
                                     {p.status === 'submitted' && <button className="btn btn-blue btn-sm" onClick={() => approveCount(p.id)}>Approve</button>}
                                     {(p.status === 'not_started' || p.status === 'in_progress') && <button className="btn btn-ghost btn-sm" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>}
@@ -809,7 +811,7 @@ export default function AdminDashboard() {
                   })()}
                   {progressFilter !== 'all' && (
                     <div style={{ textAlign: 'center', marginTop: 8 }}>
-                      <button className="btn btn-ghost btn-sm" onClick={() => setProgressFilter('all')}>Clear Filter — Show All</button>
+                      <button className="btn btn-ghost btn-sm" onClick={() => setProgressFilter('all')}>Clear Filter â€” Show All</button>
                     </div>
                   )}
                 </>
@@ -817,7 +819,7 @@ export default function AdminDashboard() {
             </>
           )}
 
-          {/* â”â” TO DO â”â” */}
+          {/* Ã¢â€Ã¢â€ TO DO Ã¢â€Ã¢â€ */}
           {tab === 'todos' && (
             <TodoSection
               todos={todos}
