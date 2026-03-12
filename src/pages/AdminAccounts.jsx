@@ -152,7 +152,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
   async function saveEdit() {
     if (!editAccount) return;
 
-    // If flagged selected and not already flagged â€” show confirmation
+    // If flagged selected and not already flagged - show confirmation
     if (editStatus === 'flagged' && !editAccount.flagged_closed) {
       setShowFlagConfirm(true);
       return;
@@ -170,7 +170,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
       flagged_closed: editStatus === 'flagged',
     }).eq('id', editAccount.id);
 
-    // Sync reps â€” delete then reinsert
+    // Sync reps - delete then reinsert
     await supabase.from('account_reps').delete().eq('account_id', editAccount.id);
     if (editRepIds.length > 0) {
       await supabase.from('account_reps').insert(
@@ -193,7 +193,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
     await supabase.from('accounts').update({
       flagged_closed: true,
       is_active:      false,
-      closed_notes:   flagReason + (flagNotes ? ' â€” ' + flagNotes : ''),
+      closed_notes:   flagReason + (flagNotes ? ' - ' + flagNotes : ''),
       closed_by:      profile?.id || null,
       closed_at:      new Date().toISOString(),
     }).eq('id', editAccount.id);
@@ -274,7 +274,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
               <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 Regions
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  â€” {editRegionIds.length > 0 ? editRegionIds.length + ' selected' : 'none selected'}
+                  - {editRegionIds.length > 0 ? editRegionIds.length + ' selected' : 'none selected'}
                 </span>
               </div>
               <CheckboxList items={regionItems} selected={editRegionIds} onChange={setEditRegionIds} />
@@ -283,7 +283,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
               <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 Item Catalogs
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  â€” {editCatalogs.length > 0 ? editCatalogs.length + ' selected' : 'none selected'}
+                  - {editCatalogs.length > 0 ? editCatalogs.length + ' selected' : 'none selected'}
                 </span>
               </div>
               <CheckboxList items={CATALOGS} selected={editCatalogs} onChange={setEditCatalogs} />
@@ -294,7 +294,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
               <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 Assigned Reps
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  â€” {editRepIds.length > 0 ? editRepIds.length + ' selected' : 'none assigned'}
+                  - {editRepIds.length > 0 ? editRepIds.length + ' selected' : 'none assigned'}
                 </span>
               </div>
               <CheckboxList items={repItems} selected={editRepIds} onChange={setEditRepIds} />
@@ -371,7 +371,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
               <button className="btn btn-outline" onClick={() => setShowFlagConfirm(false)}>Go Back</button>
               <button className="btn btn-danger" onClick={confirmFlagClosed}
                 disabled={!flagReason || !flagConfirmChecked || saving}>
-                {saving ? 'Saving...' : 'Confirm â€” Flag Closed'}
+                {saving ? 'Saving...' : 'Confirm - Flag Closed'}
               </button>
             </div>
           </div>
@@ -394,7 +394,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
               <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 Regions
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  â€” {newRegionIds.length > 0 ? newRegionIds.length + ' selected' : 'none selected'}
+                  - {newRegionIds.length > 0 ? newRegionIds.length + ' selected' : 'none selected'}
                 </span>
               </div>
               <CheckboxList items={regionItems} selected={newRegionIds} onChange={setNewRegionIds} />
@@ -403,7 +403,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
               <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 Item Catalogs
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  â€” {newCatalogs.length > 0 ? newCatalogs.length + ' selected' : 'none selected'}
+                  - {newCatalogs.length > 0 ? newCatalogs.length + ' selected' : 'none selected'}
                 </span>
               </div>
               <CheckboxList items={CATALOGS} selected={newCatalogs} onChange={setNewCatalogs} />
@@ -411,7 +411,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
               <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 Assigned Reps
                 <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  â€” {newRepIds.length > 0 ? newRepIds.length + ' selected' : 'none selected'}
+                  - {newRepIds.length > 0 ? newRepIds.length + ' selected' : 'none selected'}
                 </span>
               </div>
               <CheckboxList items={repItems} selected={newRepIds} onChange={setNewRepIds} />
@@ -432,7 +432,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
       <div className="summary-grid">
         {[
           { key: 'all',        label: 'Active Accounts', val: activeCount,     cls: 'sc-blue',  tc: 'c-blue'  },
-          { key: 'unassigned', label: 'Unassigned',       val: unassignedCount, cls: unassignedCount > 0 ? 'sc-red' : 'sc-green', tc: unassignedCount > 0 ? 'c-red' : 'c-green' },
+          { key: 'unassigned', label: 'Unassigned',       val: unassignedCount, cls: unassignedCount > 0 ? 'sc-red' : 'sc-gold', tc: unassignedCount > 0 ? 'c-red' : 'c-gold' },
           { key: 'assigned',   label: 'Assigned',         val: assignedCount,   cls: 'sc-green', tc: 'c-green' },
           { key: 'closed',     label: 'Flagged Closed',   val: closedCount,     cls: closedCount > 0 ? 'sc-red' : 'sc-gold', tc: closedCount > 0 ? 'c-red' : 'c-gold' },
         ].map(s => (
@@ -491,7 +491,7 @@ export default function AdminAccounts({ onRegisterAdd }) {
             ) : filtered.map(acct => (
               <tr key={acct.id}>
                 <td style={{ fontWeight: 700 }}>{acct.name}</td>
-                <td>{acct.region?.name || <span style={{ color: 'var(--text-dim)' }}>â€”</span>}</td>
+                <td>{acct.region?.name || <span style={{ color: 'var(--text-dim)' }}>--</span>}</td>
                 <td><StatusPill account={acct} /></td>
                 <td><button className="tbl-btn-sm" onClick={() => openEdit(acct)}>Edit</button></td>
               </tr>
