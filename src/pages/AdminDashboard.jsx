@@ -772,10 +772,10 @@ export default function AdminDashboard() {
               <>
                 <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
                   onClick={() => {
-                    const csv = 'Account,Region,Status,Rep,Item Catalog\nExample Account,Austin,Open,Jane Smith,edge';
+                    const csv = '#MedEx_Template,accounts,v1\nAccount,Region,Status,Rep,Item Catalog\nExample Account,Austin,Open,Jane Smith,edge';
                     const blob = new Blob([csv], { type: 'text/csv' });
                     const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a'); a.href = url; a.download = 'accounts_template.csv'; a.click();
+                    const a = document.createElement('a'); a.href = url; a.download = 'MedEx_Accounts_Template_v1.csv'; a.click();
                     URL.revokeObjectURL(url);
                   }}>
                   <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
