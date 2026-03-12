@@ -9,65 +9,106 @@ const CATALOGS = [
   { value: 'edge', label: 'Account Edge' },
 ];
 
-function Pill({ status }) {
-  const map = { Active: 'pill-app', Inactive: 'pill-ns' };
-  return <span className={'pill ' + (map[status] || 'pill-ns')}>{status}</span>;
+const CLOSURE_REASONS = [
+  'Account closed / out of business',
+  'No longer a customer',
+  'Merged with another account',
+  'Other',
+];
+
+// â”€â”€ Status pill â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function StatusPill({ account }) {
+  if (account.flagged_closed) return <span className="pill pill-ns">Flagged Closed</span>;
+  if (account.is_active)      return <span className="pill pill-app">Active</span>;
+  return <span className="pill pill-ns">Inactive</span>;
 }
 
-
-// â”€â”€ Versioned template download â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-const TEMPLATE_DEFS = {
-  accounts: {
-    filename: 'MedEx_Accounts_Template_v1.csv',
-    csvContent: '#MedEx_Template,accounts,v1\nAccount,Region,Status,Rep,Item Catalog\nExample Account,Austin,Open,Jane Smith,Claimsoft Catalog',
-  },
-  users: {
-    filename: 'MedEx_Users_Template_v1.csv',
-    csvContent: '#MedEx_Template,users,v1\nFirstName,LastName,FullName,EmailAddress,Role,Region,Status\nJane,Smith,Jane Smith,jsmith@medexpsi.com,rep,Austin,Active',
-  },
-  claimsoft_catalog: {
-    filename: 'MedEx_ClaimsoftCatalog_Template_v1.csv',
-    csvContent: '#MedEx_Template,claimsoft_catalog,v1\nItemNumber,ItemCategory,ItemType,ProductFamily,Description,Size,Side,Barcode1,Barcode2,NDCNumber,AllowNegQty,IsSerialized,SerialNumber,TransferCanCreatePO,VendorPartNumber,VendorName,VendorDescription,Manufacturer,CostPerItem,PurchaseUOM,CostPerUOM,ItemsPerUOM,LeadTime,BillableItem,HCPCS,Mod1,Mod2,Mod3,Mod4,SellingPrice,RentalPrice,UsedPrice,IsTaxable,IsOxygenItem,NonMedicareItem,Warehouse,Location,Bin,QOH,IsAvailable,ParLevel,MinOrderQuantity,Devices,CMN,NewItemNumber,Instructions,RequiredForms,LinkText,QRCodeURL,DiscontinueDate\nCS-001,Category,Type,Family,Example Item,Medium,,123456,,,,,,,,Claimsoft,Description,Mfg,10.00,EA,10.00,1,0,Yes,A4570,,,,,25.00,,,,,,,,,,1,1,0,5,,,,,,,',
-  },
-  edge_catalog: {
-    filename: 'MedEx_EdgeCatalog_Template_v1.csv',
-    csvContent: '#MedEx_Template,edge_catalog,v1\nItem Number,Item Name,Buy,Sell,Inventory,Asset Acct,Income Acct,Expense/COS Acct,Item Picture,Description,Use Desc. On Sale,Custom List 1,Custom List 2,Custom List 3,Custom Field 1,Custom Field 2,Custom Field 3,Primary Vendor,Vendor Item Number,Tax When Bought,Buy Unit Measure,# Items/Buy Unit,Reorder Quantity,Minimum Level,Selling Price,Sell Unit Measure,Tax When Sold,# Items/Sell Unit,Inactive Item,Standard Cost,Brand\nEDG-001,Example Item,Yes,Yes,Yes,,,,,Description,,,,,,,CF3,Edge Vendor,V001,,,5,2,25.00,EA,,,No,20.00,Brand',
-  },
-};
-
-function downloadTemplate(type) {
-  const tmpl = TEMPLATE_DEFS[type];
-  if (!tmpl) return;
-  const blob = new Blob([tmpl.csvContent], { type: 'text/csv' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url; a.download = tmpl.filename; a.click();
-  URL.revokeObjectURL(url);
+// â”€â”€ Checkbox list â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function CheckboxList({ items, selected, onChange, labelKey = 'label', valueKey = 'value' }) {
+  return (
+    <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 160, overflowY: 'auto' }}>
+      {items.map((item, i) => {
+        const val     = item[valueKey];
+        const lbl     = item[labelKey];
+        const checked = selected.includes(val);
+        return (
+          <label key={val} style={{
+            display: 'flex', alignItems: 'center', gap: 10,
+            padding: '9px 12px',
+            background: checked ? 'var(--blue-light)' : 'var(--white)',
+            borderBottom: i < items.length - 1 ? '1px solid var(--border)' : 'none',
+            cursor: 'pointer',
+          }}>
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={() => onChange(checked ? selected.filter(v => v !== val) : [...selected, val])}
+              style={{ width: 16, height: 16, accentColor: '#1565C0' }}
+            />
+            <span style={{ fontSize: 14, fontWeight: checked ? 600 : 400, color: checked ? 'var(--blue)' : 'var(--text)' }}>{lbl}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
 }
 
-export default function AdminAccounts() {
+// â”€â”€ Selected pills â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+function SelectedPills({ items, selected, labelKey = 'label', valueKey = 'value', emptyText = 'None selected' }) {
+  const sel = items.filter(i => selected.includes(i[valueKey]));
+  if (!sel.length) return <span style={{ fontSize: 12, color: 'var(--text-dim)', fontStyle: 'italic' }}>{emptyText}</span>;
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+      {sel.map(i => <span key={i[valueKey]} className="rep-tag">{i[labelKey]}</span>)}
+    </div>
+  );
+}
+
+// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+export default function AdminAccounts({ onRegisterAdd }) {
   const toast = useToast();
   const { profile } = useAuth();
-  const [accounts, setAccounts]     = useState([]);
-  const [reps, setReps]             = useState([]);
-  const [regions, setRegions]       = useState([]);
-  const [accountReps, setAccountReps] = useState({});
-  const [loading, setLoading]       = useState(true);
-  const [search, setSearch]         = useState('');
+
+  const [accounts, setAccounts]         = useState([]);
+  const [reps, setReps]                 = useState([]);
+  const [regions, setRegions]           = useState([]);
+  const [accountReps, setAccountReps]   = useState({});
+  const [loading, setLoading]           = useState(true);
+  const [saving, setSaving]             = useState(false);
+  const [search, setSearch]             = useState('');
   const [filterRegion, setFilterRegion] = useState('');
-  const [filterRep, setFilterRep]   = useState('');
-  const [activeCard, setActiveCard] = useState('all');
-  const [saving, setSaving]         = useState(null);
-  const [selectedClosed, setSelectedClosed] = useState(null);
-  const [editingReps, setEditingReps] = useState(null);
+  const [filterRep, setFilterRep]       = useState('');
+  const [activeCard, setActiveCard]     = useState('all');
+
+  // â”€â”€ Edit modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [editAccount, setEditAccount]     = useState(null);
+  const [editName, setEditName]           = useState('');
+  const [editRegionIds, setEditRegionIds] = useState([]);
+  const [editCatalogs, setEditCatalogs]   = useState([]);
+  const [editRepIds, setEditRepIds]       = useState([]);
+  const [editStatus, setEditStatus]       = useState('active');
+
+  // â”€â”€ Flag closed confirmation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [showFlagConfirm, setShowFlagConfirm]       = useState(false);
+  const [flagReason, setFlagReason]                 = useState('');
+  const [flagNotes, setFlagNotes]                   = useState('');
+  const [flagConfirmChecked, setFlagConfirmChecked] = useState(false);
+
+  // â”€â”€ Add account modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newName, setNewName]           = useState('');
+  const [newRegionIds, setNewRegionIds] = useState([]);
+  const [newCatalogs, setNewCatalogs]   = useState([]);
+  const [newRepIds, setNewRepIds]       = useState([]);
 
   useEffect(() => { loadData(); }, []);
+  useEffect(() => { if (onRegisterAdd) onRegisterAdd(() => setShowAddModal(true)); }, [onRegisterAdd]);
 
   async function loadData() {
     setLoading(true);
     const [{ data: accts }, { data: repData }, { data: regData }, { data: arData }] = await Promise.all([
       supabase.from('accounts').select('id, name, rep_name_raw, is_active, assigned_rep_id, flagged_closed, closed_date, closed_notes, closed_at, closed_by, catalog_source, region:regions(id, name)').order('name'),
-      supabase.from('profiles').select('id, full_name, role').in('role', ['rep','manager','admin']).eq('is_active', true).order('full_name'),
+      supabase.from('profiles').select('id, full_name, role').in('role', ['rep', 'manager', 'admin']).eq('is_active', true).order('full_name'),
       supabase.from('regions').select('*').order('name'),
       supabase.from('account_reps').select('account_id, rep_id'),
     ]);
@@ -83,74 +124,116 @@ export default function AdminAccounts() {
     setLoading(false);
   }
 
-  async function addRepToAccount(accountId, repId) {
-    if (!repId) return;
-    const current = accountReps[accountId] || [];
-    if (current.includes(repId)) { toast.info('Rep already assigned.'); return; }
-    setSaving(accountId);
-    const { error } = await supabase.from('account_reps').insert({ account_id: accountId, rep_id: repId });
-    if (error) { toast.error('Failed: ' + error.message); setSaving(null); return; }
-    const acct = accounts.find(a => a.id === accountId);
-    if (!acct?.assigned_rep_id) {
-      await supabase.from('accounts').update({ assigned_rep_id: repId }).eq('id', accountId);
-      setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, assigned_rep_id: repId } : a));
+  // â”€â”€ Open edit modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  function openEdit(acct) {
+    setEditAccount(acct);
+    setEditName(acct.name);
+    setEditRegionIds(acct.region?.id ? [acct.region.id] : []);
+    const cats = acct.catalog_source
+      ? (Array.isArray(acct.catalog_source)
+          ? acct.catalog_source
+          : acct.catalog_source.split(',').map(s => s.trim()).filter(Boolean))
+      : [];
+    setEditCatalogs(cats);
+    setEditRepIds(accountReps[acct.id] || []);
+    setEditStatus(acct.flagged_closed ? 'flagged' : acct.is_active ? 'active' : 'inactive');
+    setShowFlagConfirm(false);
+    setFlagReason('');
+    setFlagNotes('');
+    setFlagConfirmChecked(false);
+  }
+
+  function closeEdit() {
+    setEditAccount(null);
+    setShowFlagConfirm(false);
+  }
+
+  // â”€â”€ Save edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  async function saveEdit() {
+    if (!editAccount) return;
+
+    // If flagged selected and not already flagged â€” show confirmation
+    if (editStatus === 'flagged' && !editAccount.flagged_closed) {
+      setShowFlagConfirm(true);
+      return;
     }
-    const repName = reps.find(r => r.id === repId)?.full_name || repId;
-    const acctName = accounts.find(a => a.id === accountId)?.name || accountId;
-    await logAudit(profile, 'ACCOUNT_REP_ADDED', 'account', { target_name: acctName, details: { rep: repName } });
-    setAccountReps(prev => ({ ...prev, [accountId]: [...(prev[accountId] || []), repId] }));
-    toast.success('Rep added!');
-    setSaving(null);
+
+    setSaving(true);
+    const catalogValue = editCatalogs.join(',');
+    const regionId     = editRegionIds[0] || null;
+
+    await supabase.from('accounts').update({
+      name:           editName.trim(),
+      region_id:      regionId,
+      catalog_source: catalogValue || null,
+      is_active:      editStatus === 'active',
+      flagged_closed: editStatus === 'flagged',
+    }).eq('id', editAccount.id);
+
+    // Sync reps â€” delete then reinsert
+    await supabase.from('account_reps').delete().eq('account_id', editAccount.id);
+    if (editRepIds.length > 0) {
+      await supabase.from('account_reps').insert(
+        editRepIds.map(rid => ({ account_id: editAccount.id, rep_id: rid }))
+      );
+    }
+    await supabase.from('accounts').update({ assigned_rep_id: editRepIds[0] || null }).eq('id', editAccount.id);
+
+    await logAudit(profile, 'ACCOUNT_UPDATED', 'account', { target_name: editAccount.name });
+    toast.success(editName.trim() + ' updated.');
+    await loadData();
+    closeEdit();
+    setSaving(false);
   }
 
-  async function removeRepFromAccount(accountId, repId) {
-    setSaving(accountId);
-    await supabase.from('account_reps').delete().eq('account_id', accountId).eq('rep_id', repId);
-    const remaining = (accountReps[accountId] || []).filter(id => id !== repId);
-    const newPrimary = remaining[0] || null;
-    await supabase.from('accounts').update({ assigned_rep_id: newPrimary }).eq('id', accountId);
-    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, assigned_rep_id: newPrimary } : a));
-    const repName2 = reps.find(r => r.id === repId)?.full_name || repId;
-    const acctName2 = accounts.find(a => a.id === accountId)?.name || accountId;
-    await logAudit(profile, 'ACCOUNT_REP_REMOVED', 'account', { target_name: acctName2, details: { rep: repName2 } });
-    setAccountReps(prev => ({ ...prev, [accountId]: remaining }));
-    toast.success('Rep removed.');
-    setSaving(null);
+  // â”€â”€ Confirm flag closed â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  async function confirmFlagClosed() {
+    if (!flagReason || !flagConfirmChecked) return;
+    setSaving(true);
+    await supabase.from('accounts').update({
+      flagged_closed: true,
+      is_active:      false,
+      closed_notes:   flagReason + (flagNotes ? ' â€” ' + flagNotes : ''),
+      closed_by:      profile?.id || null,
+      closed_at:      new Date().toISOString(),
+    }).eq('id', editAccount.id);
+    await logAudit(profile, 'ACCOUNT_FLAGGED_CLOSED', 'account', {
+      target_name: editAccount.name,
+      details: { reason: flagReason },
+    });
+    toast.success(editAccount.name + ' flagged for closure.');
+    await loadData();
+    closeEdit();
+    setSaving(false);
   }
 
-  async function assignCatalog(accountId, catalogSource) {
-    await supabase.from('accounts').update({ catalog_source: catalogSource }).eq('id', accountId);
-    setAccounts(prev => prev.map(a => a.id === accountId ? { ...a, catalog_source: catalogSource } : a));
-    const acctNameC = accounts.find(a => a.id === accountId)?.name || accountId;
-    await logAudit(profile, 'ACCOUNT_CATALOG_CHANGED', 'account', { target_name: acctNameC, details: { catalog: catalogSource } });
-    toast.success('Catalog assigned!');
+  // â”€â”€ Add account â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  async function saveNewAccount() {
+    if (!newName.trim()) { toast.error('Account name is required.'); return; }
+    setSaving(true);
+    const { data: inserted, error } = await supabase.from('accounts').insert({
+      name:           newName.trim(),
+      region_id:      newRegionIds[0] || null,
+      catalog_source: newCatalogs.join(',') || null,
+      is_active:      true,
+      flagged_closed: false,
+    }).select('id').single();
+    if (error) { toast.error('Failed: ' + error.message); setSaving(false); return; }
+    if (newRepIds.length > 0 && inserted?.id) {
+      await supabase.from('account_reps').insert(
+        newRepIds.map(rid => ({ account_id: inserted.id, rep_id: rid }))
+      );
+      await supabase.from('accounts').update({ assigned_rep_id: newRepIds[0] }).eq('id', inserted.id);
+    }
+    await logAudit(profile, 'ACCOUNT_CREATED', 'account', { target_name: newName.trim() });
+    toast.success(newName.trim() + ' created.');
+    setShowAddModal(false);
+    setNewName(''); setNewRegionIds([]); setNewCatalogs([]); setNewRepIds([]);
+    await loadData();
+    setSaving(false);
   }
 
-  async function toggleActive(account) {
-    await supabase.from('accounts').update({ is_active: !account.is_active }).eq('id', account.id);
-    setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, is_active: !a.is_active } : a));
-    await logAudit(profile, account.is_active ? 'ACCOUNT_DEACTIVATED' : 'ACCOUNT_ACTIVATED', 'account', { target_name: account.name });
-    toast.success(account.name + (account.is_active ? ' deactivated' : ' activated'));
-  }
-
-  async function approveClosure(account) {
-    if (!window.confirm('Confirm permanent closure of "' + account.name + '"?')) return;
-    await supabase.from('accounts').update({ flagged_closed: true, is_active: false }).eq('id', account.id);
-    setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, is_active: false } : a));
-    setSelectedClosed(null);
-    await logAudit(profile, 'ACCOUNT_CLOSURE_APPROVED', 'account', { target_name: account.name });
-    toast.success('Closure of ' + account.name + ' approved.');
-  }
-
-  async function reactivateClosed(account) {
-    if (!window.confirm('Reactivate "' + account.name + '"?')) return;
-    await supabase.from('accounts').update({ flagged_closed: false, closed_date: null, closed_notes: null, closed_by: null, closed_at: null, is_active: true }).eq('id', account.id);
-    setAccounts(prev => prev.map(a => a.id === account.id ? { ...a, flagged_closed: false, is_active: true } : a));
-    setSelectedClosed(null);
-    await logAudit(profile, 'ACCOUNT_REACTIVATED', 'account', { target_name: account.name });
-    toast.success(account.name + ' reactivated.');
-  }
-
+  // â”€â”€ Derived counts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const activeCount     = accounts.filter(a => !a.flagged_closed).length;
   const unassignedCount = accounts.filter(a => !(accountReps[a.id]?.length) && !a.flagged_closed).length;
   const assignedCount   = accounts.filter(a => (accountReps[a.id]?.length > 0) && !a.flagged_closed).length;
@@ -164,106 +247,188 @@ export default function AdminAccounts() {
       return !a.flagged_closed;
     })
     .filter(a => !filterRegion || a.region?.name === filterRegion)
-    .filter(a => !filterRep || (accountReps[a.id] || []).includes(filterRep))
-    .filter(a => !search || a.name.toLowerCase().includes(search.toLowerCase()));
+    .filter(a => !filterRep    || (accountReps[a.id] || []).includes(filterRep))
+    .filter(a => !search       || a.name.toLowerCase().includes(search.toLowerCase()));
 
-  const isClosedView = activeCard === 'closed';
+  const repItems    = reps.map(r => ({ value: r.id, label: r.full_name }));
+  const regionItems = regions.map(r => ({ value: r.id, label: r.name }));
 
   if (loading) return <div className="loading-center"><div className="spinner" /></div>;
 
   return (
     <div>
-      {/* Closure review modal */}
-      {selectedClosed && (
-        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setSelectedClosed(null)}>
-          <div className="modal">
-            <div className="modal-head-red">
-              <div className="modal-head-title">Closure Review</div>
-              <div className="modal-head-sub">{selectedClosed.name}</div>
+
+      {/* â”€â”€ EDIT MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {editAccount && !showFlagConfirm && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeEdit()}>
+          <div className="modal" style={{ maxWidth: 520 }}>
+            <div className="modal-head-blue">
+              <div className="modal-head-title">Edit Account</div>
+              <div className="modal-head-sub">{editAccount.name}</div>
             </div>
-            <div className="modal-body">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-                <div style={{ background: 'var(--bg)', borderRadius: 8, padding: 12 }}>
-                  <div className="form-lbl" style={{ marginTop: 0 }}>Flagged By</div>
-                  <div style={{ fontWeight: 700 }}>{reps.find(r => r.id === selectedClosed.closed_by)?.full_name || 'Unknown'}</div>
-                </div>
-                <div style={{ background: 'var(--bg)', borderRadius: 8, padding: 12 }}>
-                  <div className="form-lbl" style={{ marginTop: 0 }}>Close Date</div>
-                  <div style={{ fontWeight: 700 }}>{selectedClosed.closed_date || '--'}</div>
-                </div>
+            <div className="modal-body" style={{ overflowY: 'auto', maxHeight: '65vh' }}>
+
+              <div className="form-lbl" style={{ marginTop: 0 }}>Account Name</div>
+              <input className="form-inp" value={editName} onChange={e => setEditName(e.target.value)} />
+
+              <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                Regions
+                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  â€” {editRegionIds.length > 0 ? editRegionIds.length + ' selected' : 'none selected'}
+                </span>
               </div>
-              <div style={{ background: 'var(--red-light)', borderRadius: 8, padding: 12, border: '1px solid #FECACA' }}>
-                <div className="form-lbl" style={{ marginTop: 0 }}>Reason</div>
-                <div style={{ fontWeight: 700, color: 'var(--red)' }}>{selectedClosed.closed_notes || '--'}</div>
+              <CheckboxList items={regionItems} selected={editRegionIds} onChange={setEditRegionIds} />
+              <SelectedPills items={regionItems} selected={editRegionIds} emptyText="No regions selected" />
+
+              <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                Item Catalogs
+                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  â€” {editCatalogs.length > 0 ? editCatalogs.length + ' selected' : 'none selected'}
+                </span>
               </div>
+              <CheckboxList items={CATALOGS} selected={editCatalogs} onChange={setEditCatalogs} />
+              <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '5px 0 0' }}>
+                Reps will only see items from selected catalog(s) during count entry.
+              </p>
+
+              <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                Assigned Reps
+                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  â€” {editRepIds.length > 0 ? editRepIds.length + ' selected' : 'none assigned'}
+                </span>
+              </div>
+              <CheckboxList items={repItems} selected={editRepIds} onChange={setEditRepIds} />
+              <SelectedPills items={repItems} selected={editRepIds} emptyText="No reps assigned" />
+
+              <div className="form-lbl">Account Status</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[
+                  { val: 'active',   label: 'Active',      sub: 'Currently counting',   activeBorder: '#1565C0', activeBg: 'var(--blue-light)', activeColor: 'var(--blue)' },
+                  { val: 'inactive', label: 'Inactive',    sub: 'Excluded from cycles', activeBorder: 'var(--text-mid)', activeBg: 'var(--bg)', activeColor: 'var(--text-mid)' },
+                  { val: 'flagged',  label: 'Flag Closed', sub: 'Opens confirmation',   activeBorder: 'var(--red)', activeBg: 'var(--red-light)', activeColor: 'var(--red)' },
+                ].map(s => (
+                  <div key={s.val} onClick={() => setEditStatus(s.val)} style={{
+                    flex: 1, padding: '10px 12px', borderRadius: 8, cursor: 'pointer',
+                    border: editStatus === s.val ? '2px solid ' + s.activeBorder : '1.5px solid var(--border)',
+                    background: editStatus === s.val ? s.activeBg : 'var(--white)',
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: editStatus === s.val ? s.activeColor : 'var(--text)' }}>{s.label}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{s.sub}</div>
+                  </div>
+                ))}
+              </div>
+
             </div>
             <div className="modal-actions">
-              <button className="btn btn-outline" onClick={() => setSelectedClosed(null)}>Cancel</button>
-              <button className="btn btn-primary" onClick={() => reactivateClosed(selectedClosed)}>Reactivate</button>
-              <button className="btn btn-danger" onClick={() => approveClosure(selectedClosed)}>Approve Closure</button>
+              <button className="btn btn-outline" onClick={closeEdit}>Cancel</button>
+              <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>
+                {saving ? 'Saving...' : 'Save Changes'}
+              </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Rep assignment modal */}
-      {editingReps && (() => {
-        const acct = accounts.find(a => a.id === editingReps);
-        const assigned = accountReps[editingReps] || [];
-        const assignedRepObjects = assigned.map(id => reps.find(r => r.id === id)).filter(Boolean);
-        const unassigned = reps.filter(r => !assigned.includes(r.id));
-        return (
-          <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setEditingReps(null)}>
-            <div className="modal">
-              <div className="modal-head-blue">
-                <div className="modal-head-title">Assign Reps</div>
-                <div className="modal-head-sub">{acct?.name} Ã‚Â· {acct?.region?.name}</div>
+      {/* â”€â”€ FLAG CLOSED CONFIRMATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {editAccount && showFlagConfirm && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && closeEdit()}>
+          <div className="modal" style={{ maxWidth: 460 }}>
+            <div className="modal-head-red">
+              <div className="modal-head-title">Flag Account for Closure</div>
+              <div className="modal-head-sub">{editAccount.name}</div>
+            </div>
+            <div className="modal-body">
+              <div style={{ background: 'var(--red-light)', border: '1px solid #FECACA', borderRadius: 8, padding: '12px 14px', marginBottom: 4 }}>
+                <div style={{ fontWeight: 700, color: 'var(--red)', fontSize: 13 }}>This action cannot be undone.</div>
+                <div style={{ fontSize: 13, color: 'var(--red)', marginTop: 4, lineHeight: 1.5 }}>
+                  Flagging this account as closed will remove it from all future count cycles.
+                </div>
               </div>
-              <div className="modal-body">
-                <div className="form-lbl" style={{ marginTop: 0 }}>Assigned Reps ({assignedRepObjects.length})</div>
-                {assignedRepObjects.length === 0
-                  ? <div style={{ fontSize: 13, color: 'var(--text-dim)', padding: 12, background: 'var(--bg)', borderRadius: 8, textAlign: 'center' }}>No reps assigned yet</div>
-                  : assignedRepObjects.map(r => (
-                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--blue-light)', borderRadius: 8, marginBottom: 8, border: '1px solid #CCE6F5' }}>
-                      <div>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{r.full_name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{r.role}</div>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {acct?.assigned_rep_id === r.id && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--blue)', background: 'var(--white)', padding: '2px 8px', borderRadius: 10, border: '1px solid var(--blue)' }}>Primary</span>}
-                        <button className="tbl-btn-danger" onClick={() => removeRepFromAccount(editingReps, r.id)}>Remove</button>
-                      </div>
-                    </div>
-                  ))
-                }
-                {unassigned.length > 0 && (
-                  <>
-                    <div className="form-lbl">Add Rep</div>
-                    <div style={{ display: 'flex', gap: 10 }}>
-                      <select id="addRepSelect" className="form-sel" defaultValue="">
-                        <option value="">Select a rep...</option>
-                        {unassigned.map(r => <option key={r.id} value={r.id}>{r.full_name} ({r.role})</option>)}
-                      </select>
-                      <button className="btn btn-primary" disabled={saving === editingReps}
-                        onClick={() => {
-                          const sel = document.getElementById('addRepSelect');
-                          if (sel.value) { addRepToAccount(editingReps, sel.value); sel.value = ''; }
-                        }}>
-                        {saving === editingReps ? 'Adding...' : 'Add'}
-                      </button>
-                    </div>
-                  </>
-                )}
-              </div>
-              <div className="modal-actions">
-                <button className="btn btn-primary" onClick={() => setEditingReps(null)}>Done</button>
-              </div>
+
+              <div className="form-lbl">Reason for Closure *</div>
+              <select className="form-sel" value={flagReason} onChange={e => setFlagReason(e.target.value)}>
+                <option value="">Select a reason...</option>
+                {CLOSURE_REASONS.map(r => <option key={r} value={r}>{r}</option>)}
+              </select>
+
+              <div className="form-lbl">Additional Notes</div>
+              <textarea className="form-inp" style={{ height: 80, resize: 'none' }}
+                placeholder="Any additional details about this closure..."
+                value={flagNotes} onChange={e => setFlagNotes(e.target.value)} />
+
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: 10, marginTop: 14,
+                padding: '10px 12px', background: 'var(--bg)', borderRadius: 8,
+                border: '1px solid var(--border)', cursor: 'pointer',
+              }}>
+                <input type="checkbox" checked={flagConfirmChecked}
+                  onChange={e => setFlagConfirmChecked(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: '#DC2626' }} />
+                <span style={{ fontSize: 13, color: 'var(--text)' }}>I understand this cannot be undone</span>
+              </label>
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-outline" onClick={() => setShowFlagConfirm(false)}>Go Back</button>
+              <button className="btn btn-danger" onClick={confirmFlagClosed}
+                disabled={!flagReason || !flagConfirmChecked || saving}>
+                {saving ? 'Saving...' : 'Confirm â€” Flag Closed'}
+              </button>
             </div>
           </div>
-        );
-      })()}
+        </div>
+      )}
 
-      {/* Stat cards */}
+      {/* â”€â”€ ADD ACCOUNT MODAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {showAddModal && (
+        <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowAddModal(false)}>
+          <div className="modal" style={{ maxWidth: 520 }}>
+            <div className="modal-head-blue">
+              <div className="modal-head-title">Add Account</div>
+              <div className="modal-head-sub">Create a new account</div>
+            </div>
+            <div className="modal-body" style={{ overflowY: 'auto', maxHeight: '65vh' }}>
+
+              <div className="form-lbl" style={{ marginTop: 0 }}>Account Name *</div>
+              <input className="form-inp" placeholder="e.g. AUS-MAIN" value={newName} onChange={e => setNewName(e.target.value)} />
+
+              <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                Regions
+                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  â€” {newRegionIds.length > 0 ? newRegionIds.length + ' selected' : 'none selected'}
+                </span>
+              </div>
+              <CheckboxList items={regionItems} selected={newRegionIds} onChange={setNewRegionIds} />
+              <SelectedPills items={regionItems} selected={newRegionIds} emptyText="No regions selected" />
+
+              <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                Item Catalogs
+                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  â€” {newCatalogs.length > 0 ? newCatalogs.length + ' selected' : 'none selected'}
+                </span>
+              </div>
+              <CheckboxList items={CATALOGS} selected={newCatalogs} onChange={setNewCatalogs} />
+
+              <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                Assigned Reps
+                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+                  â€” {newRepIds.length > 0 ? newRepIds.length + ' selected' : 'none selected'}
+                </span>
+              </div>
+              <CheckboxList items={repItems} selected={newRepIds} onChange={setNewRepIds} />
+              <SelectedPills items={repItems} selected={newRepIds} emptyText="No reps assigned" />
+
+            </div>
+            <div className="modal-actions">
+              <button className="btn btn-outline" onClick={() => setShowAddModal(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={saveNewAccount} disabled={saving || !newName.trim()}>
+                {saving ? 'Creating...' : 'Create Account'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* â”€â”€ STAT CARDS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="summary-grid">
         {[
           { key: 'all',        label: 'Active Accounts', val: activeCount,     cls: 'sc-blue',  tc: 'c-blue'  },
@@ -280,91 +445,61 @@ export default function AdminAccounts() {
         ))}
       </div>
 
-      {/* Filter row */}
+      {/* â”€â”€ FILTER ROW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="filter-row">
-        {!isClosedView && <>
-          <span className="filter-label">Region:</span>
-          <select className="filter-select" value={filterRegion} onChange={e => setFilterRegion(e.target.value)}>
-            <option value="">All Regions</option>
-            {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
-          </select>
-          <span className="filter-label">Rep:</span>
-          <select className="filter-select" value={filterRep} onChange={e => setFilterRep(e.target.value)}>
-            <option value="">All Reps</option>
-            {reps.map(r => <option key={r.id} value={r.id}>{r.full_name}</option>)}
-          </select>
-        </>}
+        <span className="filter-label">Region:</span>
+        <select className="filter-select" value={filterRegion} onChange={e => setFilterRegion(e.target.value)}>
+          <option value="">All Regions</option>
+          {regions.map(r => <option key={r.id} value={r.name}>{r.name}</option>)}
+        </select>
+        <span className="filter-label">Rep:</span>
+        <select className="filter-select" value={filterRep} onChange={e => setFilterRep(e.target.value)}>
+          <option value="">All Reps</option>
+          {reps.map(r => <option key={r.id} value={r.id}>{r.full_name}</option>)}
+        </select>
         <span className="filter-label">Search:</span>
-        <input className="search-input" placeholder="Search accounts..." value={search} onChange={e => setSearch(e.target.value)} />
+        <input className="search-input" placeholder="Search accounts..."
+          value={search} onChange={e => setSearch(e.target.value)} />
         <span className="count-lbl ml-auto">{filtered.length} accounts</span>
-        <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 5 }} onClick={() => downloadTemplate('accounts')}>
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          Template
-        </button>
       </div>
 
       <div className="section-title">
-        {activeCard === 'all' && 'All Active Accounts'}
+        {activeCard === 'all'        && 'All Active Accounts'}
         {activeCard === 'unassigned' && 'Unassigned Accounts'}
-        {activeCard === 'assigned' && 'Assigned Accounts'}
-        {activeCard === 'closed' && 'Flagged Closed Accounts'}
+        {activeCard === 'assigned'   && 'Assigned Accounts'}
+        {activeCard === 'closed'     && 'Flagged Closed Accounts'}
       </div>
 
-      {/* Table */}
+      {/* â”€â”€ TABLE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       <div className="card">
         <table>
           <thead>
-            {!isClosedView ? (
-              <tr><th>Account Name</th><th>Region</th><th>Catalog</th><th>Assigned Reps</th><th>Status</th><th>Actions</th></tr>
-            ) : (
-              <tr><th>Account Name</th><th>Region</th><th>Flagged By</th><th>Close Date</th><th>Actions</th></tr>
-            )}
+            <tr>
+              <th>Account Name</th>
+              <th>Region</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32, fontStyle: 'italic' }}>No accounts match your filter.</td></tr>
-            ) : !isClosedView ? filtered.map(acct => {
-              const assigned = accountReps[acct.id] || [];
-              const assignedRepObjects = assigned.map(id => reps.find(r => r.id === id)).filter(Boolean);
-              return (
-                <tr key={acct.id}>
-                  <td style={{ fontWeight: 700 }}>{acct.name}</td>
-                  <td>{acct.region?.name}</td>
-                  <td>
-                    <select className="cat-select" value={acct.catalog_source || ''} onChange={e => assignCatalog(acct.id, e.target.value)}>
-                      <option value="">Ã¢â‚¬â€ None Ã¢â‚¬â€</option>
-                      {CATALOGS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
-                  </td>
-                  <td>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-                      {assignedRepObjects.length === 0
-                        ? <span style={{ fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>Unassigned</span>
-                        : assignedRepObjects.map(r => <span key={r.id} className="rep-tag">{r.full_name}</span>)
-                      }
-                      <button className="edit-link" onClick={() => setEditingReps(acct.id)}>Edit</button>
-                    </div>
-                  </td>
-                  <td><Pill status={acct.is_active ? 'Active' : 'Inactive'} /></td>
-                  <td>
-                    <button className="tbl-btn-sm" onClick={() => toggleActive(acct)}>
-                      {acct.is_active ? 'Deactivate' : 'Activate'}
-                    </button>
-                  </td>
-                </tr>
-              );
-            }) : filtered.map(acct => (
-              <tr key={acct.id} style={{ cursor: 'pointer' }} onClick={() => setSelectedClosed(acct)}>
+              <tr>
+                <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32, fontStyle: 'italic' }}>
+                  No accounts match your filter.
+                </td>
+              </tr>
+            ) : filtered.map(acct => (
+              <tr key={acct.id}>
                 <td style={{ fontWeight: 700 }}>{acct.name}</td>
-                <td>{acct.region?.name}</td>
-                <td>{reps.find(r => r.id === acct.closed_by)?.full_name || '--'}</td>
-                <td>{acct.closed_date || '--'}</td>
-                <td><button className="tbl-btn-sm" onClick={e => { e.stopPropagation(); setSelectedClosed(acct); }}>Review</button></td>
+                <td>{acct.region?.name || <span style={{ color: 'var(--text-dim)' }}>â€”</span>}</td>
+                <td><StatusPill account={acct} /></td>
+                <td><button className="tbl-btn-sm" onClick={() => openEdit(acct)}>Edit</button></td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
     </div>
   );
 }
