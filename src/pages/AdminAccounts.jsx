@@ -432,9 +432,9 @@ export default function AdminAccounts({ onRegisterAdd }) {
       <div className="summary-grid">
         {[
           { key: 'all',        label: 'Active Accounts', val: activeCount,     cls: 'sc-blue',  tc: 'c-blue'  },
-          { key: 'unassigned', label: 'Unassigned',       val: unassignedCount, cls: unassignedCount > 0 ? 'sc-red' : 'sc-gold', tc: unassignedCount > 0 ? 'c-red' : 'c-gold' },
+          { key: 'unassigned', label: 'Unassigned',       val: unassignedCount, cls: 'sc-gold',  tc: 'c-gold'  },
           { key: 'assigned',   label: 'Assigned',         val: assignedCount,   cls: 'sc-green', tc: 'c-green' },
-          { key: 'closed',     label: 'Flagged Closed',   val: closedCount,     cls: closedCount > 0 ? 'sc-red' : 'sc-gold', tc: closedCount > 0 ? 'c-red' : 'c-gold' },
+          { key: 'closed',     label: 'Flagged Closed',   val: closedCount,     cls: 'sc-red',   tc: 'c-red'   },
         ].map(s => (
           <div key={s.key} className={'stat-card ' + s.cls}
             style={{ outline: activeCard === s.key ? '2.5px solid white' : 'none', outlineOffset: 2 }}
