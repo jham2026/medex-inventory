@@ -152,7 +152,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
         .eq('id', editUser.id);
       if (error) { toast.error('Update failed: ' + error.message); setSaving(false); return; }
 
-      // Sync account_reps â€” delete all then re-insert selected
+      // Sync account_reps Ã¢â‚¬â€ delete all then re-insert selected
       await supabase.from('account_reps').delete().eq('rep_id', editUser.id);
       if (formAccounts.length > 0) {
         const inserts = formAccounts.map(account_id => ({ account_id, rep_id: editUser.id }));
@@ -183,7 +183,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
         await supabase.from('account_reps').insert(inserts);
       }
       await logAudit(profile, 'USER_CREATED', 'user', { target_name: form.full_name, details: { email: form.email, role: form.role } });
-      toast.success('User Created | ' + form.full_name + ' â€” default password: MedEx1234!');
+      toast.success('User Created | ' + form.full_name + ' Ã¢â‚¬â€ default password: MedEx1234!');
       loadData(); setShowForm(false);
     }
     setSaving(false);
@@ -199,7 +199,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
     });
     if (res.ok) {
       await logAudit(profile, 'USER_PASSWORD_RESET', 'user', { target_name: editUser.full_name });
-      toast.success('Password reset | ' + editUser.full_name + ' â€” MedEx1234!');
+      toast.success('Password reset | ' + editUser.full_name + ' Ã¢â‚¬â€ MedEx1234!');
     } else toast.error('Reset failed');
   }
 
@@ -334,7 +334,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
 
   return (
     <div>
-      {/* â”€â”€ Edit / Add modal â”€â”€ */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Edit / Add modal Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {showForm && (
         <div className="modal-overlay" onClick={e => e.target === e.currentTarget && setShowForm(false)}>
           <div className="modal" style={{ width: 520, maxWidth: '95vw' }}>
@@ -360,7 +360,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
                 <option value="admin">Admin</option>
               </select>
 
-              {/* Regions â€” multi-select */}
+              {/* Regions Ã¢â‚¬â€ multi-select */}
               <div className="form-lbl" style={{ marginTop: 16 }}>
                 Regions
                 <span style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 400, marginLeft: 8 }}>
@@ -383,7 +383,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
                 </div>
               )}
 
-              {/* Accounts â€” multi-select */}
+              {/* Accounts Ã¢â‚¬â€ multi-select */}
               <div className="form-lbl" style={{ marginTop: 16 }}>
                 Account Assignments
                 <span style={{ fontSize: 10, color: 'var(--text-dim)', fontWeight: 400, marginLeft: 8 }}>
@@ -425,7 +425,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
         </div>
       )}
 
-      {/* â”€â”€ Import panel â”€â”€ */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Import panel Ã¢â€â‚¬Ã¢â€â‚¬ */}
       {showImport && (
         <div style={{ background: 'var(--white)', border: '1px solid var(--border)', borderRadius: 12, padding: '20px 24px', marginBottom: 16, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
@@ -439,7 +439,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
           {importPreview.length > 0 && (
             <div style={{ marginBottom: 14 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
-                Preview â€” {importPreview.length} of {importRaw.split('\n').filter(l => l.trim() && !l.startsWith('#')).length - 1} rows
+                Preview Ã¢â‚¬â€ {importPreview.length} of {importRaw.split('\n').filter(l => l.trim() && !l.startsWith('#')).length - 1} rows
               </div>
               <div style={{ overflowX: 'auto', borderRadius: 8, border: '1px solid var(--border)' }}>
                 <table style={{ fontSize: 12 }}>
@@ -470,7 +470,7 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
         </div>
       )}
 
-      {/* â”€â”€ Filter row â”€â”€ */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Filter row Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <div className="filter-row">
         <span className="filter-label">Role:</span>
         <select className="filter-select" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
@@ -482,18 +482,9 @@ export default function AdminUsers({ showImportPanel, onImportClose, triggerAdd,
         <span className="filter-label">Search:</span>
         <input className="search-input" placeholder="Name or email..." value={search} onChange={e => setSearch(e.target.value)} />
         <span className="count-lbl ml-auto">{filtered.length} of {users.length} users</span>
-        <button className="btn btn-outline" onClick={downloadTemplate} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          Template
-        </button>
-        <button className="btn btn-outline" onClick={() => setShowImport(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 9V2M3.5 4.5l3-3 3 3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          {showImport ? 'Hide Import' : 'Import'}
-        </button>
-        <button className="btn btn-primary" onClick={openAdd}>+ Add User</button>
       </div>
 
-      {/* â”€â”€ Table â”€â”€ */}
+      {/* Ã¢â€â‚¬Ã¢â€â‚¬ Table Ã¢â€â‚¬Ã¢â€â‚¬ */}
       <div className="region-block">
         <table>
           <thead>
