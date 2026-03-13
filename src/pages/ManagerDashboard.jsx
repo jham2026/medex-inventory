@@ -6,7 +6,6 @@ import { useToast } from '../components/ToastContext';
 import { logAudit } from '../hooks/useAudit';
 import AdminItemCatalog from './AdminItemCatalog';
 
-// â”€â”€ Nav items for manager â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const NAV = [
   { section: 'DASHBOARD' },
   { key: 'overview',  label: 'Count Cycle Details' },
@@ -28,7 +27,6 @@ const CATALOGS = [
   { value: 'edge',      label: 'Account Edge' },
 ];
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Pill({ status }) {
   const map    = { not_started: 'pill-ns', in_progress: 'pill-ip', submitted: 'pill-sub', approved: 'pill-app' };
   const labels = { not_started: 'Not Started', in_progress: 'In Progress', submitted: 'Submitted', approved: 'Approved' };
@@ -41,15 +39,13 @@ function StatusPill({ account }) {
   return <span className="pill pill-ns">Inactive</span>;
 }
 
-function CheckboxList({ items, selected, onChange, labelKey = 'label', valueKey = 'value' }) {
+function CheckboxList({ items, selected, onChange }) {
   return (
     <div style={{ border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 160, overflowY: 'auto' }}>
       {items.map((item, i) => {
-        const val     = item[valueKey];
-        const lbl     = item[labelKey];
-        const checked = selected.includes(val);
+        const checked = selected.includes(item.value);
         return (
-          <label key={val} style={{
+          <label key={item.value} style={{
             display: 'flex', alignItems: 'center', gap: 10,
             padding: '9px 12px',
             background: checked ? 'var(--blue-light)' : 'var(--white)',
@@ -57,9 +53,9 @@ function CheckboxList({ items, selected, onChange, labelKey = 'label', valueKey 
             cursor: 'pointer',
           }}>
             <input type="checkbox" checked={checked}
-              onChange={() => onChange(checked ? selected.filter(v => v !== val) : [...selected, val])}
+              onChange={() => onChange(checked ? selected.filter(v => v !== item.value) : [...selected, item.value])}
               style={{ width: 16, height: 16, accentColor: '#1565C0' }} />
-            <span style={{ fontSize: 14, fontWeight: checked ? 600 : 400, color: checked ? 'var(--blue)' : 'var(--text)' }}>{lbl}</span>
+            <span style={{ fontSize: 14, fontWeight: checked ? 600 : 400, color: checked ? 'var(--blue)' : 'var(--text)' }}>{item.label}</span>
           </label>
         );
       })}
@@ -67,17 +63,17 @@ function CheckboxList({ items, selected, onChange, labelKey = 'label', valueKey 
   );
 }
 
-function SelectedPills({ items, selected, labelKey = 'label', valueKey = 'value', emptyText = 'None selected' }) {
-  const sel = items.filter(i => selected.includes(i[valueKey]));
+function SelectedPills({ items, selected, emptyText = 'None selected' }) {
+  const sel = items.filter(i => selected.includes(i.value));
   if (!sel.length) return <span style={{ fontSize: 12, color: 'var(--text-dim)', fontStyle: 'italic' }}>{emptyText}</span>;
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-      {sel.map(i => <span key={i[valueKey]} className="rep-tag">{i[labelKey]}</span>)}
+      {sel.map(i => <span key={i.value} className="rep-tag">{i.label}</span>)}
     </div>
   );
 }
 
-// â”€â”€ My Counts tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// My Counts tab
 function MyCounts({ cycle, profile, navigate }) {
   const [counts, setCounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -114,7 +110,9 @@ function MyCounts({ cycle, profile, navigate }) {
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', marginBottom: 4 }}>{greeting}, {firstName}</div>
         <div style={{ fontSize: 14, color: 'var(--text-dim)' }}>
-          {needAttention > 0 ? needAttention + ' account' + (needAttention !== 1 ? 's' : '') + ' still need your attention' : 'All counts are up to date!'}
+          {needAttention > 0
+            ? needAttention + ' account' + (needAttention !== 1 ? 's' : '') + ' still need your attention'
+            : 'All counts are up to date!'}
         </div>
       </div>
 
@@ -135,7 +133,9 @@ function MyCounts({ cycle, profile, navigate }) {
                     <div className={'sc-num ' + s.tc}>{stats[s.key]}</div>
                     <div className={'sc-lbl ' + s.tc}>{s.label}</div>
                   </div>
-                  <div className={'sc-sub ' + s.tc} style={{ fontSize: 22, fontWeight: 800, lineHeight: 1, opacity: 0.85 }}>{total > 0 ? Math.round(stats[s.key] / total * 100) : 0}%</div>
+                  <div className={'sc-sub ' + s.tc} style={{ fontSize: 22, fontWeight: 800, lineHeight: 1, opacity: 0.85 }}>
+                    {total > 0 ? Math.round(stats[s.key] / total * 100) : 0}%
+                  </div>
                 </div>
               </div>
             ))}
@@ -167,41 +167,45 @@ function MyCounts({ cycle, profile, navigate }) {
   );
 }
 
-// â”€â”€ Accounts tab (add only, region-scoped) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-function ManagerAccounts({ profile, onRegisterAdd }) {
+// Accounts tab
+function ManagerAccounts({ profile, cycle, onRegisterAdd }) {
   const toast = useToast();
-  const [accounts, setAccounts]       = useState([]);
-  const [reps, setReps]               = useState([]);
-  const [regions, setRegions]         = useState([]);
-  const [accountReps, setAccountReps] = useState({});
-  const [loading, setLoading]         = useState(true);
-  const [saving, setSaving]           = useState(false);
-  const [search, setSearch]           = useState('');
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newName, setNewName]           = useState('');
-  const [newRegionIds, setNewRegionIds] = useState([]);
-  const [newCatalogs, setNewCatalogs]   = useState([]);
-  const [newRepIds, setNewRepIds]       = useState([]);
+  const [accounts, setAccounts]           = useState([]);
+  const [reps, setReps]                   = useState([]);
+  const [regions, setRegions]             = useState([]);
+  const [accountReps, setAccountReps]     = useState({});
+  const [cycleProgress, setCycleProgress] = useState([]);
+  const [loading, setLoading]             = useState(true);
+  const [saving, setSaving]               = useState(false);
+  const [search, setSearch]               = useState('');
+  const [showAddModal, setShowAddModal]   = useState(false);
+  const [newName, setNewName]             = useState('');
+  const [newRegionIds, setNewRegionIds]   = useState([]);
+  const [newCatalogs, setNewCatalogs]     = useState([]);
+  const [newRepIds, setNewRepIds]         = useState([]);
 
-  // Parse manager's regions from comma-separated string
   const managerRegions = (profile?.region || '')
-    .split(',')
-    .map(r => r.trim())
-    .filter(Boolean);
+    .split(',').map(r => r.trim()).filter(Boolean);
 
   useEffect(() => { loadData(); }, []);
   useEffect(() => { if (onRegisterAdd) onRegisterAdd(() => setShowAddModal(true)); }, [onRegisterAdd]);
 
   async function loadData() {
     setLoading(true);
-    const [{ data: accts }, { data: repData }, { data: regData }, { data: arData }] = await Promise.all([
+    const queries = [
       supabase.from('accounts').select('id, name, is_active, flagged_closed, catalog_source, region:regions(id, name)').order('name'),
       supabase.from('profiles').select('id, full_name, role').in('role', ['rep', 'manager']).eq('is_active', true).order('full_name'),
       supabase.from('regions').select('*').order('name'),
       supabase.from('account_reps').select('account_id, rep_id'),
-    ]);
+    ];
+    const [{ data: accts }, { data: repData }, { data: regData }, { data: arData }] = await Promise.all(queries);
 
-    // Scope accounts to manager's regions only
+    let progressData = [];
+    if (cycle?.id) {
+      const { data } = await supabase.from('inventory_counts').select('id, status, account_id').eq('cycle_id', cycle.id);
+      progressData = data || [];
+    }
+
     const scopedAccounts = (accts || []).filter(a =>
       managerRegions.length === 0 || managerRegions.includes(a.region?.name)
     );
@@ -209,6 +213,8 @@ function ManagerAccounts({ profile, onRegisterAdd }) {
     setAccounts(scopedAccounts);
     setReps(repData || []);
     setRegions((regData || []).filter(r => managerRegions.includes(r.name)));
+    setCycleProgress(progressData);
+
     const arMap = {};
     for (const ar of arData || []) {
       if (!arMap[ar.account_id]) arMap[ar.account_id] = [];
@@ -221,6 +227,8 @@ function ManagerAccounts({ profile, onRegisterAdd }) {
   async function saveNewAccount() {
     if (!newName.trim()) { toast.error('Account name is required.'); return; }
     setSaving(true);
+
+    // 1. Create the account
     const { data: inserted, error } = await supabase.from('accounts').insert({
       name:           newName.trim(),
       region_id:      newRegionIds[0] || null,
@@ -228,15 +236,39 @@ function ManagerAccounts({ profile, onRegisterAdd }) {
       is_active:      true,
       flagged_closed: false,
     }).select('id').single();
+
     if (error) { toast.error('Failed: ' + error.message); setSaving(false); return; }
+
+    // 2. Assign reps
     if (newRepIds.length > 0 && inserted?.id) {
       await supabase.from('account_reps').insert(
         newRepIds.map(rid => ({ account_id: inserted.id, rep_id: rid }))
       );
       await supabase.from('accounts').update({ assigned_rep_id: newRepIds[0] }).eq('id', inserted.id);
     }
+
+    // 3. Add to active cycle + create admin review task
+    if (cycle?.id && inserted?.id) {
+      await supabase.from('inventory_counts').insert({
+        cycle_id:   cycle.id,
+        account_id: inserted.id,
+        rep_id:     newRepIds[0] || null,
+        status:     'not_started',
+      });
+
+      await supabase.from('todos').insert({
+        title:       'Review new account: ' + newName.trim(),
+        description: 'Manager ' + (profile?.full_name || '') + ' added a new account (' + newName.trim() + ') to the active cycle "' + cycle.name + '". Please review and confirm before cycle close.',
+        priority:    'normal',
+        todo_type:   'general',
+        account_id:  inserted.id,
+        rep_id:      profile?.id || null,
+        is_complete: false,
+      });
+    }
+
     await logAudit(profile, 'ACCOUNT_CREATED', 'account', { target_name: newName.trim() });
-    toast.success(newName.trim() + ' created.');
+    toast.success(newName.trim() + ' created and added to the active cycle. Admin has been notified.');
     setShowAddModal(false);
     setNewName(''); setNewRegionIds([]); setNewCatalogs([]); setNewRepIds([]);
     await loadData();
@@ -250,9 +282,17 @@ function ManagerAccounts({ profile, onRegisterAdd }) {
     .filter(a => !a.flagged_closed)
     .filter(a => !search || a.name.toLowerCase().includes(search.toLowerCase()));
 
-  const activeCount     = accounts.filter(a => !a.flagged_closed).length;
-  const assignedCount   = accounts.filter(a => (accountReps[a.id]?.length > 0) && !a.flagged_closed).length;
-  const unassignedCount = accounts.filter(a => !(accountReps[a.id]?.length) && !a.flagged_closed).length;
+  const activeCount = accounts.filter(a => !a.flagged_closed).length;
+  const closedCount = accounts.filter(a => a.flagged_closed).length;
+
+  const myAccountIds = new Set(accounts.map(a => a.id));
+  const myProgress   = cycleProgress.filter(p => myAccountIds.has(p.account_id));
+  const countStats   = {
+    not_started: myProgress.filter(p => p.status === 'not_started').length,
+    in_progress:  myProgress.filter(p => p.status === 'in_progress').length,
+    submitted:    myProgress.filter(p => p.status === 'submitted').length,
+    approved:     myProgress.filter(p => p.status === 'approved').length,
+  };
 
   if (loading) return <div className="loading-center"><div className="spinner" /></div>;
 
@@ -271,35 +311,25 @@ function ManagerAccounts({ profile, onRegisterAdd }) {
               <div className="form-lbl" style={{ marginTop: 0 }}>Account Name *</div>
               <input className="form-inp" placeholder="e.g. SAT-NORTH" value={newName} onChange={e => setNewName(e.target.value)} />
 
-              <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                Region
-                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  â€” {newRegionIds.length > 0 ? newRegionIds.length + ' selected' : 'none selected'}
-                </span>
-              </div>
+              <div className="form-lbl">Region</div>
               <CheckboxList items={regionItems} selected={newRegionIds} onChange={setNewRegionIds} />
               <SelectedPills items={regionItems} selected={newRegionIds} emptyText="No region selected" />
 
-              <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                Item Catalog
-                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  â€” {newCatalogs.length > 0 ? newCatalogs.length + ' selected' : 'none selected'}
-                </span>
-              </div>
+              <div className="form-lbl">Item Catalog</div>
               <CheckboxList items={CATALOGS} selected={newCatalogs} onChange={setNewCatalogs} />
               <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: '5px 0 0' }}>
                 Reps will only see items from selected catalog(s) during count entry.
               </p>
 
-              <div className="form-lbl" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                Assigned Reps
-                <span style={{ fontSize: 11, color: 'var(--text-dim)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-                  â€” {newRepIds.length > 0 ? newRepIds.length + ' selected' : 'none selected'}
-                </span>
-              </div>
+              <div className="form-lbl">Assigned Reps</div>
               <CheckboxList items={repItems} selected={newRepIds} onChange={setNewRepIds} />
               <SelectedPills items={repItems} selected={newRepIds} emptyText="No reps assigned" />
 
+              {cycle && (
+                <div style={{ marginTop: 16, background: 'var(--blue-light)', border: '1px solid #BFDBFE', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: 'var(--blue)' }}>
+                  <strong>Active cycle:</strong> This account will be added to <strong>{cycle.name}</strong> and flagged for admin review before cycle close.
+                </div>
+              )}
             </div>
             <div className="modal-actions">
               <button className="btn btn-outline" onClick={() => setShowAddModal(false)}>Cancel</button>
@@ -311,19 +341,40 @@ function ManagerAccounts({ profile, onRegisterAdd }) {
         </div>
       )}
 
-      {/* STAT CARDS */}
-      <div className="summary-grid">
-        {[
-          { label: 'Active Accounts', val: activeCount,     cls: 'sc-blue',  tc: 'c-blue'  },
-          { label: 'Assigned',        val: assignedCount,   cls: 'sc-green', tc: 'c-green' },
-          { label: 'Unassigned',      val: unassignedCount, cls: 'sc-gold',  tc: 'c-gold'  },
-          { label: 'Your Regions',    val: managerRegions.length, cls: 'sc-blue', tc: 'c-blue' },
-        ].map(s => (
-          <div key={s.label} className={'stat-card ' + s.cls}>
-            <div className={'sc-num ' + s.tc}>{s.val}</div>
-            <div className={'sc-lbl ' + s.tc}>{s.label}</div>
+      {/* 6 STAT CARDS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14, marginBottom: 20 }}>
+        <div className="stat-card sc-blue">
+          <div className="sc-num c-blue">{activeCount}</div>
+          <div className="sc-lbl c-blue">Active Accounts</div>
+        </div>
+        <div className="stat-card sc-red">
+          <div className="sc-num c-red">{closedCount}</div>
+          <div className="sc-lbl c-red">Closed Accounts</div>
+        </div>
+        {cycle ? (
+          <>
+            <div className="stat-card sc-red">
+              <div className="sc-num c-red">{countStats.not_started}</div>
+              <div className="sc-lbl c-red">Counts Not Started</div>
+            </div>
+            <div className="stat-card sc-gold">
+              <div className="sc-num c-gold">{countStats.in_progress}</div>
+              <div className="sc-lbl c-gold">In Progress</div>
+            </div>
+            <div className="stat-card sc-blue">
+              <div className="sc-num c-blue">{countStats.submitted}</div>
+              <div className="sc-lbl c-blue">Submitted</div>
+            </div>
+            <div className="stat-card sc-green">
+              <div className="sc-num c-green">{countStats.approved}</div>
+              <div className="sc-lbl c-green">Approved</div>
+            </div>
+          </>
+        ) : (
+          <div className="stat-card sc-gold" style={{ gridColumn: 'span 4', display: 'flex', alignItems: 'center' }}>
+            <div style={{ fontSize: 13, color: '#6B3C00', fontStyle: 'italic' }}>No active cycle - count stats unavailable</div>
           </div>
-        ))}
+        )}
       </div>
 
       {/* FILTER */}
@@ -335,10 +386,10 @@ function ManagerAccounts({ profile, onRegisterAdd }) {
       </div>
 
       <div className="section-title">
-        Accounts â€” {managerRegions.join(', ') || 'Your Regions'}
+        {'Accounts - ' + (managerRegions.join(', ') || 'Your Regions')}
       </div>
 
-      {/* TABLE â€” no Edit button */}
+      {/* TABLE */}
       <div className="card">
         <table>
           <thead>
@@ -346,31 +397,40 @@ function ManagerAccounts({ profile, onRegisterAdd }) {
               <th>Account Name</th>
               <th>Region</th>
               <th>Assigned Reps</th>
-              <th>Status</th>
+              <th>Cycle Status</th>
+              <th>Account Status</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32, fontStyle: 'italic' }}>
+                <td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32, fontStyle: 'italic' }}>
                   No accounts found in your region.
                 </td>
               </tr>
-            ) : filtered.map(acct => (
-              <tr key={acct.id}>
-                <td style={{ fontWeight: 700 }}>{acct.name}</td>
-                <td>{acct.region?.name || <span style={{ color: 'var(--text-dim)' }}>--</span>}</td>
-                <td>
-                  {(accountReps[acct.id] || []).length > 0
-                    ? (accountReps[acct.id] || []).map(rid => {
-                        const rep = reps.find(r => r.id === rid);
-                        return rep ? <span key={rid} className="rep-tag">{rep.full_name}</span> : null;
-                      })
-                    : <span style={{ color: 'var(--red)', fontSize: 12 }}>Unassigned</span>}
-                </td>
-                <td><StatusPill account={acct} /></td>
-              </tr>
-            ))}
+            ) : filtered.map(acct => {
+              const countRow = myProgress.find(p => p.account_id === acct.id);
+              return (
+                <tr key={acct.id}>
+                  <td style={{ fontWeight: 700 }}>{acct.name}</td>
+                  <td>{acct.region?.name || <span style={{ color: 'var(--text-dim)' }}>--</span>}</td>
+                  <td>
+                    {(accountReps[acct.id] || []).length > 0
+                      ? (accountReps[acct.id] || []).map(rid => {
+                          const rep = reps.find(r => r.id === rid);
+                          return rep ? <span key={rid} className="rep-tag">{rep.full_name}</span> : null;
+                        })
+                      : <span style={{ color: 'var(--red)', fontSize: 12 }}>Unassigned</span>}
+                  </td>
+                  <td>
+                    {countRow
+                      ? <Pill status={countRow.status} />
+                      : <span style={{ color: 'var(--text-dim)', fontSize: 12 }}>No cycle</span>}
+                  </td>
+                  <td><StatusPill account={acct} /></td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -378,15 +438,12 @@ function ManagerAccounts({ profile, onRegisterAdd }) {
   );
 }
 
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-// MAIN MANAGER DASHBOARD
-// â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+// Main component
 export default function ManagerDashboard() {
   const { profile } = useAuth();
-  const toast = useToast();
   const navigate = useNavigate();
   const [tab, setTabRaw] = useState(() => sessionStorage.getItem('managerTab') || 'overview');
-  const accountsAddRef   = useRef(null);
+  const accountsAddRef    = useRef(null);
   const catalogActionsRef = useRef({});
 
   function setTab(t) { sessionStorage.setItem('managerTab', t); setTabRaw(t); }
@@ -396,11 +453,8 @@ export default function ManagerDashboard() {
   const [loading, setLoading]   = useState(true);
   const [collapsedRegions, setCollapsedRegions] = useState({});
 
-  // Parse manager's regions
   const managerRegions = (profile?.region || '')
-    .split(',')
-    .map(r => r.trim())
-    .filter(Boolean);
+    .split(',').map(r => r.trim()).filter(Boolean);
 
   useEffect(() => { loadData(); }, []);
 
@@ -412,21 +466,15 @@ export default function ManagerDashboard() {
   async function loadData() {
     setLoading(true);
     const { data: cycleData } = await supabase
-      .from('count_cycles')
-      .select('*')
-      .eq('status', 'open')
-      .single();
+      .from('count_cycles').select('*').eq('status', 'open').single();
 
     setCycle(cycleData || null);
 
     if (cycleData) {
-      const { data: counts } = await supabase
+      const { data: counts }   = await supabase
         .from('inventory_counts')
         .select('id, status, submitted_at, approved_at, rep_id, account:accounts(id, name, region:regions(name))')
-        .eq('cycle_id', cycleData.id)
-        .order('status')
-        .limit(500);
-
+        .eq('cycle_id', cycleData.id).order('status').limit(500);
       const { data: reps }     = await supabase.from('profiles').select('id, full_name');
       const { data: acctReps } = await supabase.from('account_reps').select('account_id, rep_id');
 
@@ -438,14 +486,11 @@ export default function ManagerDashboard() {
         acctRepsMap[ar.account_id].push(repMap[ar.rep_id]);
       }
 
-      // Scope to manager's regions only
       const scoped = (counts || [])
         .filter(c => managerRegions.length === 0 || managerRegions.includes(c.account?.region?.name))
         .map(c => ({ ...c, rep: c.rep_id ? repMap[c.rep_id] : null, allReps: acctRepsMap[c.account?.id] || [] }));
 
       setProgress(scoped);
-
-      // Default regions collapsed
       const regionNames = [...new Set(scoped.map(c => c.account?.region?.name || 'Unassigned'))];
       setCollapsedRegions(Object.fromEntries(regionNames.map(r => [r, true])));
     }
@@ -485,7 +530,6 @@ export default function ManagerDashboard() {
 
   return (
     <div className="app-shell">
-      {/* SIDEBAR */}
       <nav className="sidebar">
         <div className="sidebar-logo">
           <div className="logo-text"><span>Med</span><span>Ex</span></div>
@@ -522,24 +566,20 @@ export default function ManagerDashboard() {
         <div className="sidebar-accent-bar" />
       </nav>
 
-      {/* MAIN */}
       <div className="main-col">
-        {/* TOPBAR */}
         <div className="topbar">
           <div>
             <h1>{pageTitle}</h1>
             <p>
               {tab === 'overview' && (cycle
-                ? cycle.name + ' â€” ' + total + ' account' + (total !== 1 ? 's' : '') + ' in your region' + (managerRegions.length === 1 ? '' : 's')
+                ? cycle.name + ' - ' + total + ' account' + (total !== 1 ? 's' : '') + ' in your region'
                 : 'No active cycle')}
-              {tab === 'mycounts'  && 'Your assigned accounts for the active cycle'}
-              {tab === 'accounts'  && 'Accounts in your region â€” view and add'}
-              {tab === 'catalog'   && 'View inventory items'}
+              {tab === 'mycounts' && 'Your assigned accounts for the active cycle'}
+              {tab === 'accounts' && 'Accounts in your region - view and add'}
+              {tab === 'catalog'  && 'View inventory items'}
             </p>
           </div>
-
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Accounts â€” Add Account only, no edit/import */}
             {tab === 'accounts' && (
               <button className="btn btn-primary" onClick={() => { if (accountsAddRef.current) accountsAddRef.current(); }}>
                 + Add Account
@@ -548,10 +588,8 @@ export default function ManagerDashboard() {
           </div>
         </div>
 
-        {/* CONTENT */}
         <div className="content-area">
 
-          {/* â”€â”€ COUNT CYCLE DETAILS (view-only) â”€â”€ */}
           {tab === 'overview' && (
             <>
               {!cycle ? (
@@ -561,13 +599,12 @@ export default function ManagerDashboard() {
                 </div>
               ) : (
                 <>
-                  {/* Hero â€” view only, no close button */}
                   <div className="cycle-hero">
                     <div className="hero-top">
                       <div>
                         <div className="hero-title">{cycle.name} Count Cycle</div>
                         <div className="hero-meta">
-                          Opened {new Date(cycle.opened_at).toLocaleDateString()} &middot; {total} account{total !== 1 ? 's' : ''} in {managerRegions.join(', ') || 'your region'}
+                          {'Opened ' + new Date(cycle.opened_at).toLocaleDateString() + ' - ' + total + ' account' + (total !== 1 ? 's' : '') + ' in ' + (managerRegions.join(', ') || 'your region')}
                         </div>
                       </div>
                       <div style={{ textAlign: 'right' }}>
@@ -592,14 +629,13 @@ export default function ManagerDashboard() {
                     </div>
                   </div>
 
-                  {/* Region blocks â€” view only */}
                   {Object.keys(regionMap).sort().map(rName => {
-                    const counts       = regionMap[rName];
-                    const rTotal       = counts.length;
-                    const rApproved    = counts.filter(p => p.status === 'approved').length;
-                    const rSubmitted   = counts.filter(p => p.status === 'submitted').length;
-                    const rPct         = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
-                    const isCollapsed  = collapsedRegions[rName];
+                    const counts      = regionMap[rName];
+                    const rTotal      = counts.length;
+                    const rApproved   = counts.filter(p => p.status === 'approved').length;
+                    const rSubmitted  = counts.filter(p => p.status === 'submitted').length;
+                    const rPct        = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
+                    const isCollapsed = collapsedRegions[rName];
                     const rStats = {
                       not_started: counts.filter(p => p.status === 'not_started').length,
                       in_progress:  counts.filter(p => p.status === 'in_progress').length,
@@ -617,13 +653,15 @@ export default function ManagerDashboard() {
                             </div>
                             <div style={{ display: 'flex', gap: 8, flex: 1, margin: '0 16px' }}>
                               {STAT_CARDS.map(s => (
-                                <div key={s.key} className={'stat-card sc-' + s.cls.replace('sc-', '') + '-soft'} style={{ padding: '8px 10px', flex: '1 1 0' }}>
+                                <div key={s.key} className={'stat-card ' + s.cls} style={{ padding: '8px 10px', flex: '1 1 0', opacity: 0.85 }}>
                                   <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
                                     <div>
-                                      <div className={'sc-num c-' + s.tc.replace('c-', '') + '-soft'} style={{ fontSize: 22 }}>{rStats[s.key]}</div>
-                                      <div className={'sc-lbl c-' + s.tc.replace('c-', '') + '-soft'} style={{ fontSize: 9 }}>{s.label}</div>
+                                      <div className={'sc-num ' + s.tc} style={{ fontSize: 22 }}>{rStats[s.key]}</div>
+                                      <div className={'sc-lbl ' + s.tc} style={{ fontSize: 9 }}>{s.label}</div>
                                     </div>
-                                    <div style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, opacity: 0.85 }}>{rTotal > 0 ? Math.round(rStats[s.key] / rTotal * 100) : 0}%</div>
+                                    <div className={'sc-sub ' + s.tc} style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, opacity: 0.85 }}>
+                                      {rTotal > 0 ? Math.round(rStats[s.key] / rTotal * 100) : 0}%
+                                    </div>
                                   </div>
                                 </div>
                               ))}
@@ -654,9 +692,10 @@ export default function ManagerDashboard() {
                                         : <span style={{ color: 'var(--red)', fontSize: 12 }}>Unassigned</span>}
                                     </td>
                                     <td><Pill status={p.status} /></td>
-                                    <td style={{ color: 'var(--text-dim)' }}>{p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : 'â€”'}</td>
+                                    <td style={{ color: 'var(--text-dim)' }}>
+                                      {p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : '--'}
+                                    </td>
                                     <td>
-                                      {/* Manager can enter counts like a rep, but cannot approve */}
                                       {(p.status === 'not_started' || p.status === 'in_progress') && (
                                         <button className="tbl-btn" onClick={e => { e.stopPropagation(); navigate('/count/' + p.id); }}>Enter Count</button>
                                       )}
@@ -683,6 +722,7 @@ export default function ManagerDashboard() {
           {tab === 'accounts' && (
             <ManagerAccounts
               profile={profile}
+              cycle={cycle}
               onRegisterAdd={fn => { accountsAddRef.current = fn; }}
             />
           )}
