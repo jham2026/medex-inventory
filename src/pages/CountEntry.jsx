@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../components/AuthContext';
 import { useToast } from '../components/ToastContext';
@@ -9,6 +9,8 @@ export default function CountEntry() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const toast = useToast();
+  const [searchParams] = useSearchParams();
+  const desktopMode = searchParams.get('mode') === 'desktop';
 
   const [count, setCount]           = useState(null);
   const [items, setItems]           = useState([]);
@@ -211,14 +213,77 @@ export default function CountEntry() {
   );
 
   if (count?.status === 'submitted' || count?.status === 'approved') {
+    if (desktopMode) {
+      const statusLabel = count.status === 'approved' ? 'Approved' : 'Submitted';
+      const statusCls   = count.status === 'approved' ? 'pill-app' : 'pill-sub';
+      return (
+        <div style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+          <div className="topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <button className="btn btn-outline" onClick={() => navigate(-1)} style={{ fontSize: 13 }}>&#8592; Back</button>
+              <div>
+                <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>{count.account?.name}</h1>
+                <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
+                  {count.account?.region?.name} &middot; {count.cycle?.name} &middot; Submitted {count.submitted_at ? new Date(count.submitted_at).toLocaleDateString() : '--'}
+                </p>
+              </div>
+            </div>
+            <span className={'pill ' + statusCls}>{statusLabel}</span>
+          </div>
+          <div style={{ padding: '24px 28px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 24, maxWidth: 480 }}>
+              {[
+                { n: totalItems, l: 'Items',   cls: 'sc-blue',  tc: 'c-blue'  },
+                { n: totalUnits, l: 'Units',   cls: 'sc-gold',  tc: 'c-gold'  },
+                { n: flagged,    l: 'Flagged', cls: flagged > 0 ? 'sc-red' : 'sc-green', tc: flagged > 0 ? 'c-red' : 'c-green' },
+              ].map((s, i) => (
+                <div key={i} className={'stat-card ' + s.cls}>
+                  <div className={'sc-num ' + s.tc}>{s.n}</div>
+                  <div className={'sc-lbl ' + s.tc}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+            <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+              <table>
+                <thead>
+                  <tr>
+                    <th style={{ width: '20%' }}>Item #</th>
+                    <th style={{ width: '40%' }}>Description</th>
+                    <th style={{ width: '20%' }}>Vendor</th>
+                    <th style={{ width: '10%', textAlign: 'right' }}>Qty</th>
+                    <th style={{ width: '10%' }}>Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.length === 0 ? (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32, fontStyle: 'italic' }}>No items recorded in this count.</td></tr>
+                  ) : items.map(item => (
+                    <tr key={item.id}>
+                      <td style={{ fontWeight: 700, color: item.not_in_catalog ? 'var(--amber)' : 'var(--blue-action)' }}>{item.item_number_raw}</td>
+                      <td>{item.description_raw}</td>
+                      <td style={{ color: 'var(--text-dim)' }}>{item.vendor_raw || '--'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: 700 }}>{item.quantity ?? 0}</td>
+                      <td>
+                        {item.not_in_catalog && <span style={{ fontSize: 10, fontWeight: 700, background: 'var(--gold-light)', color: '#92660A', padding: '2px 6px', borderRadius: 4 }}>Custom</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div style={{ background: 'var(--bg)', minHeight: '100vh', maxWidth: 430, margin: '0 auto', borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)' }}>
         <div className="mob-header">
-          <div onClick={() => navigate('/')} style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, cursor: 'pointer', fontWeight: 600, position: 'relative', zIndex: 1 }}>â€¹ Back to Accounts</div>
+          <div onClick={() => navigate('/')} style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 8, cursor: 'pointer', fontWeight: 600, position: 'relative', zIndex: 1 }}>&#8249; Back to Accounts</div>
           <div className="mob-title" style={{ fontSize: 18 }}>{count.account?.name}</div>
         </div>
         <div style={{ padding: 32, textAlign: 'center' }}>
-          <div style={{ fontSize: 48, marginBottom: 16 }}>ðŸ”’</div>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>&#128274;</div>
           <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>Count {count.status === 'approved' ? 'Approved' : 'Submitted'}</div>
           <div style={{ fontSize: 14, color: 'var(--text-dim)', marginBottom: 24, lineHeight: 1.6 }}>
             {count.status === 'approved' ? 'This count has been approved and is locked.' : 'This count has been submitted. To make changes, use the Request Edit button on your dashboard.'}
@@ -234,12 +299,12 @@ export default function CountEntry() {
 
       {/* Header */}
       <div className="mob-header">
-        <div onClick={() => navigate('/')} style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6, cursor: 'pointer', fontWeight: 600, position: 'relative', zIndex: 1 }}>â€¹ Back to Accounts</div>
+        <div onClick={() => navigate('/')} style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6, cursor: 'pointer', fontWeight: 600, position: 'relative', zIndex: 1 }}>ÃƒÂ¢Ã¢Â‚Â¬Ã‚Â¹ Back to Accounts</div>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
           <div>
             <div className="mob-title" style={{ fontSize: 18 }}>{count?.account?.name}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>
-              {count?.account?.region?.name} Â· {count?.cycle?.name}
+              {count?.account?.region?.name} ÃƒÂ‚Ã‚&middot; {count?.cycle?.name}
               <span style={{ marginLeft: 8, background: 'rgba(255,208,64,0.2)', color: '#FFD040', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10 }}>In Progress</span>
             </div>
           </div>
@@ -264,7 +329,7 @@ export default function CountEntry() {
             <div style={{ marginTop: 10, background: 'white', borderRadius: 8, padding: 12 }}>
               <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Found:</div>
               <div style={{ fontSize: 14, fontWeight: 700 }}>{scanResult.description}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>{scanResult.item_number} Â· {scanResult.primary_vendor}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>{scanResult.item_number} ÃƒÂ‚Ã‚&middot; {scanResult.primary_vendor}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>Qty:</span>
                 <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
@@ -307,7 +372,7 @@ export default function CountEntry() {
           {showAddFromCatalog && (
             <div style={{ position: 'absolute', left: 16, right: 16, top: '100%', zIndex: 50, background: 'white', border: '1.5px solid var(--blue-action)', borderRadius: 10, boxShadow: '0 8px 24px rgba(21,101,192,0.15)', overflow: 'hidden', marginTop: 2 }}>
               <div style={{ padding: '7px 12px', background: 'var(--blue-light)', borderBottom: '1px solid #C3DEFF', fontSize: 11, fontWeight: 700, color: 'var(--blue-action)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between' }}>
-                <span>From Catalog â€” not in your count</span>
+                <span>From Catalog ÃƒÂ¢Ã¢Â‚Â¬Ã¢Â€Â not in your count</span>
                 <span style={{ color: 'var(--text-dim)' }}>{catalogResults.length} result{catalogResults.length !== 1 ? 's' : ''}</span>
               </div>
               {catalogResults.map(r => (
@@ -348,7 +413,7 @@ export default function CountEntry() {
         {filteredItems.length === 0 && !search ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-dim)', fontSize: 14 }}>No items yet. Search above to add items.</div>
         ) : filteredItems.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)', fontSize: 13 }}>No existing items match â€” check catalog results above.</div>
+          <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)', fontSize: 13 }}>No existing items match ÃƒÂ¢Ã¢Â‚Â¬Ã¢Â€Â check catalog results above.</div>
         ) : filteredItems.map(item => (
           <div key={item.id} className="cat-item" style={{ background: item.not_in_catalog ? 'var(--gold-light)' : 'white' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -441,7 +506,7 @@ export default function CountEntry() {
               <div className="form-lbl">Inventory Retrieved?</div>
               <select className="form-sel" value={closureForm.inventory_retrieved} onChange={e => setClosureForm(p => ({ ...p, inventory_retrieved: e.target.value }))}>
                 <option value="">Select...</option>
-                <option value="yes">Yes â€” All Retrieved</option>
+                <option value="yes">Yes ÃƒÂ¢Ã¢Â‚Â¬Ã¢Â€Â All Retrieved</option>
                 <option value="partial">Partial</option>
                 <option value="no">No</option>
               </select>
