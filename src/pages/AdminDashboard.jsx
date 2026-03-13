@@ -50,7 +50,7 @@ function MyCounts({ cycle, profile, navigate }) {
 
   if (loading) return <div className="loading-center"><div className="spinner" /></div>;
 
-  const total = counts.length;
+  const total     = counts.length;
   const stats = {
     not_started: counts.filter(c => c.status === 'not_started').length,
     in_progress:  counts.filter(c => c.status === 'in_progress').length,
@@ -78,7 +78,9 @@ function MyCounts({ cycle, profile, navigate }) {
       {cycle ? (
         <div className="cycle-hero" style={{ marginBottom: 24 }}>
           <div className="hero-top">
-            <div><div className="hero-title">{cycle.name}</div></div>
+            <div>
+              <div className="hero-title">{cycle.name}</div>
+            </div>
             <div style={{ textAlign: 'right' }}>
               <div className="hero-pct">{pct}%</div>
               <div className="hero-pct-lbl">COMPLETE</div>
@@ -115,7 +117,10 @@ function MyCounts({ cycle, profile, navigate }) {
           {(c.status === 'not_started' || c.status === 'in_progress') && (
             <button className="btn btn-primary" onClick={() => navigate('/count/' + c.id)}>Enter Count</button>
           )}
-          {(c.status === 'submitted' || c.status === 'approved') && (
+          {c.status === 'submitted' && (
+            <button className="btn btn-outline" onClick={() => navigate('/count/' + c.id)}>View Count</button>
+          )}
+          {c.status === 'approved' && (
             <button className="btn btn-outline" onClick={() => navigate('/count/' + c.id)}>View Count</button>
           )}
         </div>
@@ -124,23 +129,29 @@ function MyCounts({ cycle, profile, navigate }) {
   );
 }
 
+
 function ReportsPage({ cycle }) {
   const [subTab, setSubTab] = useState('export');
   return (
     <div>
+      {/* Sub-tab bar */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
         {[
           { key: 'export',   label: 'Export Data' },
           { key: 'auditlog', label: 'Audit Log' },
         ].map(t => (
-          <button key={t.key} onClick={() => setSubTab(t.key)} style={{
-            padding: '8px 20px', borderRadius: 8, border: '1.5px solid',
-            fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
-            borderColor: subTab === t.key ? 'var(--blue-action)' : 'var(--border)',
-            background:  subTab === t.key ? 'var(--blue-light)' : 'var(--white)',
-            color:       subTab === t.key ? 'var(--blue-action)' : 'var(--text-mid)',
-            transition: 'all 0.15s',
-          }}>
+          <button
+            key={t.key}
+            onClick={() => setSubTab(t.key)}
+            style={{
+              padding: '8px 20px', borderRadius: 8, border: '1.5px solid',
+              fontWeight: 700, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit',
+              borderColor: subTab === t.key ? 'var(--blue-action)' : 'var(--border)',
+              background:  subTab === t.key ? 'var(--blue-light)' : 'var(--white)',
+              color:       subTab === t.key ? 'var(--blue-action)' : 'var(--text-mid)',
+              transition: 'all 0.15s',
+            }}
+          >
             {t.label}
           </button>
         ))}
@@ -155,13 +166,14 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
   const [reviewModal, setReviewModal] = useState(null);
   const [denyReason, setDenyReason]       = useState('');
   const [rejectReason, setRejectReason]   = useState('');
+  
   const [showRejectBox, setShowRejectBox] = useState(false);
   const [showDenyBox, setShowDenyBox]     = useState(false);
-  const [countItems, setCountItems]       = useState([]);
-  const [countMeta, setCountMeta]         = useState({});
-  const [closureMeta, setClosureMeta]     = useState({});
-  const [closureNotes, setClosureNotes]   = useState('');
-  const [countLoading, setCountLoading]   = useState(false);
+  const [countItems, setCountItems]     = useState([]);
+  const [countMeta, setCountMeta] = useState({});
+  const [closureMeta, setClosureMeta] = useState({});
+  const [closureNotes, setClosureNotes] = useState('');
+  const [countLoading, setCountLoading] = useState(false);
 
   const editRequests   = todos.filter(t => t.todo_type === 'edit_request');
   const countApprovals = todos.filter(t => t.todo_type === 'count_approval');
@@ -228,7 +240,6 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
       });
     }
   }
-
   function closeModal() {
     setReviewModal(null); setCountMeta({}); setClosureMeta({}); setClosureNotes('');
     setDenyReason(''); setShowDenyBox(false);
@@ -259,7 +270,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
     );
   }
 
-  const meta    = reviewModal ? parseMeta(reviewModal) : {};
+  const meta = reviewModal ? parseMeta(reviewModal) : {};
   const zeroQty = countItems.filter(i => (i.quantity || 0) === 0).length;
 
   return (
@@ -318,7 +329,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
             overflow: 'hidden',
           }}>
 
-            {/* HEADER */}
+            {/* HEADER ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fixed, never scrolls */}
             <div className="modal-head-blue" style={{ flexShrink: 0 }}>
               <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)', marginBottom: 6, position: 'relative', zIndex: 1 }}>
                 {reviewModal.todo_type === 'edit_request'    && 'Edit Request'}
@@ -341,7 +352,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
               </div>
               {reviewModal.todo_type === 'count_approval'
                 ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4, position: 'relative', zIndex: 1 }}>
-                    {'Submitted by ' + (countMeta.repName || '') + (countMeta.region ? '  |  ' + countMeta.region : '') + (countMeta.submittedAt ? '  |  ' + new Date(countMeta.submittedAt).toLocaleDateString() : '')}
+                    {'Submitted by ' + (countMeta.repName || (reviewModal.description || '').replace(/^Rep /, '').split(' submitted')[0] || 'Unknown') + (countMeta.region ? '  |  ' + countMeta.region : '') + (countMeta.submittedAt ? '  |  ' + new Date(countMeta.submittedAt).toLocaleDateString() : '')}
                   </div>
                 : reviewModal.todo_type === 'account_closure'
                 ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', marginTop: 4, position: 'relative', zIndex: 1 }}>
@@ -351,15 +362,16 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
               }
             </div>
 
-            {/* COUNT APPROVAL */}
+            {/* COUNT APPROVAL LAYOUT */}
             {reviewModal.todo_type === 'count_approval' && (
               <>
+                {/* STAT BAR ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â fixed */}
                 <div style={{ display: 'flex', background: '#F7F9FC', borderBottom: '1px solid var(--border)', flexShrink: 0 }}>
                   {[
-                    { label: 'Total Items',   value: countLoading ? '...' : String(countItems.length) },
-                    { label: 'Items Counted', value: countLoading ? '...' : String(countItems.filter(i => (i.quantity || 0) > 0).length) },
-                    { label: 'Zero Qty',      value: countLoading ? '...' : String(zeroQty), red: zeroQty > 0 },
-                    { label: 'Submitted',     value: countMeta.submittedAt ? new Date(countMeta.submittedAt).toLocaleDateString() + ' ' + new Date(countMeta.submittedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : (countLoading ? '...' : '--') },
+                    { label: 'Total Items',    value: countLoading ? '...' : String(countItems.length) },
+                    { label: 'Items Counted',  value: countLoading ? '...' : String(countItems.filter(i => (i.quantity || 0) > 0).length) },
+                    { label: 'Zero Qty',       value: countLoading ? '...' : String(zeroQty), red: zeroQty > 0 },
+                    { label: 'Submitted', value: countMeta.submittedAt ? new Date(countMeta.submittedAt).toLocaleDateString() + ' ' + new Date(countMeta.submittedAt).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : (countLoading ? '...' : '--') },
                   ].map(s => (
                     <div key={s.label} style={{ flex: 1, padding: '12px 16px', borderRight: '1px solid var(--border)' }}>
                       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)' }}>{s.label}</div>
@@ -367,6 +379,8 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     </div>
                   ))}
                 </div>
+
+                {/* ITEM TABLE ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â scrollable, takes all remaining space */}
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 10 }}>Count Details</div>
                   {countLoading ? (
@@ -377,9 +391,10 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                       <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                         <tr style={{ background: '#F7F9FC' }}>
-                          {['Item #','Description','Vendor','Qty'].map((h, i) => (
-                            <th key={h} style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: i === 3 ? 'right' : 'left', borderBottom: '1px solid var(--border)' }}>{h}</th>
-                          ))}
+                          <th style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Item #</th>
+                          <th style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Description</th>
+                          <th style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>Vendor</th>
+                          <th style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', padding: '8px 10px', textAlign: 'right', borderBottom: '1px solid var(--border)' }}>Qty</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -407,12 +422,20 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     </div>
                   )}
                 </div>
+
+                {/* REJECTION NOTES ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â always visible, fixed at bottom */}
                 <div style={{ padding: '16px 24px', borderTop: '1px solid #E2E8F0', background: '#F8FAFC', flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Rejection Notes (optional) â€” sent to rep if rejected</div>
-                  <textarea className="form-ta" value={rejectReason} onChange={e => setRejectReason(e.target.value)}
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Rejection Notes (optional) ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â sent to rep if rejected</div>
+                  <textarea
+                    className="form-ta"
+                    value={rejectReason}
+                    onChange={e => setRejectReason(e.target.value)}
                     placeholder="Add notes for the rep explaining what needs to be corrected before resubmitting..."
-                    style={{ width: '100%', boxSizing: 'border-box', minHeight: 72, resize: 'vertical' }} />
+                    style={{ width: '100%', boxSizing: 'border-box', minHeight: 72, resize: 'vertical' }}
+                  />
                 </div>
+
+                {/* ACTIONS */}
                 <div className="modal-actions" style={{ flexShrink: 0 }}>
                   <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
                   <button className="btn btn-danger" onClick={() => { onRejectCount(reviewModal, rejectReason, countMeta); closeModal(); }}>Reject Count</button>
@@ -421,7 +444,7 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
               </>
             )}
 
-            {/* EDIT REQUEST */}
+            {/* ALL OTHER MODAL TYPES */}
             {reviewModal.todo_type === 'edit_request' && (
               <div className="modal-body">
                 {meta.reason && <div style={{ display: 'flex', gap: 16, marginBottom: 14 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', minWidth: 80, paddingTop: 2 }}>Reason</div><div style={{ fontSize: 14, color: 'var(--text)', fontWeight: 600 }}>{meta.reason.replace(/_/g,' ')}</div></div>}
@@ -430,15 +453,14 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                 {showDenyBox && <div style={{ marginTop: 12 }}><div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Reason for Denial</div><textarea className="form-ta" value={denyReason} onChange={e => setDenyReason(e.target.value)} placeholder="Explain why this request is being denied..." /></div>}
               </div>
             )}
-
-            {/* ACCOUNT CLOSURE */}
             {reviewModal.todo_type === 'account_closure' && (
               <>
+                {/* STAT BAR */}
                 <div style={{ display: 'flex', background: '#F7F9FC', borderBottom: '1px solid var(--border)', flexShrink: 0, overflow: 'hidden' }}>
                   {[
-                    { label: 'Reason',        value: (closureMeta.reason || '--').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()), color: '#D97706' },
-                    { label: 'Last Count',    value: closureMeta.lastCountDate ? new Date(closureMeta.lastCountDate).toLocaleDateString() : '--' },
-                    { label: 'Final Count',   value: closureMeta.finalCountPerformed ? closureMeta.finalCountPerformed.charAt(0).toUpperCase() + closureMeta.finalCountPerformed.slice(1) : '--', color: closureMeta.finalCountPerformed === 'yes' ? '#16A34A' : closureMeta.finalCountPerformed === 'no' ? '#EF4444' : undefined },
+                    { label: 'Reason', value: (closureMeta.reason || '--').replace(/_/g, ' ').replace(/\w/g, c => c.toUpperCase()), color: '#D97706' },
+                    { label: 'Last Count', value: closureMeta.lastCountDate ? new Date(closureMeta.lastCountDate).toLocaleDateString() : '--' },
+                    { label: 'Final Count', value: closureMeta.finalCountPerformed ? closureMeta.finalCountPerformed.charAt(0).toUpperCase() + closureMeta.finalCountPerformed.slice(1) : '--', color: closureMeta.finalCountPerformed === 'yes' ? '#16A34A' : closureMeta.finalCountPerformed === 'no' ? '#EF4444' : undefined },
                     { label: 'Inv. Returned', value: closureMeta.inventoryReturned ? closureMeta.inventoryReturned.charAt(0).toUpperCase() + closureMeta.inventoryReturned.slice(1) : '--', color: closureMeta.inventoryReturned === 'yes' ? '#16A34A' : closureMeta.inventoryReturned === 'partial' ? '#D97706' : closureMeta.inventoryReturned === 'no' ? '#EF4444' : undefined },
                   ].map(s => (
                     <div key={s.label} style={{ flex: 1, padding: '12px 10px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
@@ -447,13 +469,15 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     </div>
                   ))}
                 </div>
+
+                {/* DETAILS GRID */}
                 <div style={{ padding: '20px 24px', flex: 1, overflowY: 'auto' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 14 }}>Closure Details</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 20 }}>
                     {[
-                      { label: 'Account',    value: closureMeta.accountName },
-                      { label: 'Region',     value: closureMeta.region },
-                      { label: 'Rep',        value: closureMeta.repName },
+                      { label: 'Account', value: closureMeta.accountName },
+                      { label: 'Region', value: closureMeta.region },
+                      { label: 'Rep', value: closureMeta.repName },
                       { label: 'Flagged On', value: closureMeta.flaggedAt ? new Date(closureMeta.flaggedAt).toLocaleDateString() + ' ' + new Date(closureMeta.flaggedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--' },
                     ].map(d => (
                       <div key={d.label} style={{ background: '#F8FAFC', border: '1px solid var(--border)', borderRadius: 8, padding: '12px 14px' }}>
@@ -469,12 +493,14 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                     </>
                   )}
                 </div>
+
+                {/* ADMIN NOTES ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â always visible */}
                 <div style={{ padding: '16px 24px', borderTop: '1px solid var(--border)', background: '#F8FAFC', flexShrink: 0 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Admin Notes (optional) â€” sent to rep</div>
-                  <textarea className="form-ta" value={closureNotes} onChange={e => setClosureNotes(e.target.value)}
-                    placeholder="Add any notes for the rep before confirming or denying this closure..."
-                    style={{ width: '100%', boxSizing: 'border-box', minHeight: 70, resize: 'vertical' }} />
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--text-dim)', marginBottom: 8 }}>Admin Notes (optional) -- sent to rep</div>
+                  <textarea className="form-ta" value={closureNotes} onChange={e => setClosureNotes(e.target.value)} placeholder="Add any notes for the rep before confirming or denying this closure..." style={{ width: '100%', boxSizing: 'border-box', minHeight: 70, resize: 'vertical' }} />
                 </div>
+
+                {/* ACTIONS */}
                 <div className="modal-actions" style={{ flexShrink: 0 }}>
                   <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
                   <button className="btn btn-danger" onClick={() => { denyClosure(reviewModal, closureMeta, closureNotes); closeModal(); }}>Deny Closure</button>
@@ -482,34 +508,25 @@ function TodoSection({ todos, onComplete, onApproveEdit, onDenyEdit, onApproveCo
                 </div>
               </>
             )}
-
-            {/* GENERAL TASK */}
             {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && (
               <div className="modal-body">
                 <div style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.7 }}>{reviewModal.description || 'No additional details provided.'}</div>
               </div>
             )}
 
-            {/* Actions for non-count, non-closure modals */}
+            {/* Actions for non-count modals */}
             {reviewModal.todo_type !== 'count_approval' && reviewModal.todo_type !== 'account_closure' && (
               <div className="modal-actions">
                 <button className="btn btn-outline" onClick={closeModal}>Cancel</button>
                 {reviewModal.todo_type === 'edit_request' && (
                   showDenyBox ? (
-                    <>
-                      <button className="btn btn-outline" onClick={() => setShowDenyBox(false)}>Back</button>
-                      <button className="btn btn-danger" onClick={() => { onDenyEdit(reviewModal, denyReason); closeModal(); }}>Confirm Denial</button>
-                    </>
+                    <><button className="btn btn-outline" onClick={() => setShowDenyBox(false)}>Back</button><button className="btn btn-danger" onClick={() => { onDenyEdit(reviewModal, denyReason); closeModal(); }}>Confirm Denial</button></>
                   ) : (
-                    <>
-                      <button className="btn btn-danger" onClick={() => setShowDenyBox(true)}>Deny Request</button>
-                      <button className="btn btn-primary" onClick={() => { onApproveEdit(reviewModal); closeModal(); }}>Approve &amp; Reopen</button>
-                    </>
+                    <><button className="btn btn-danger" onClick={() => setShowDenyBox(true)}>Deny Request</button><button className="btn btn-primary" onClick={() => { onApproveEdit(reviewModal); closeModal(); }}>Approve &amp; Reopen</button></>
                   )
                 )}
-                {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && (
-                  <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Complete</button>
-                )}
+                {reviewModal.todo_type === 'account_closure' && <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Reviewed</button>}
+                {(!reviewModal.todo_type || reviewModal.todo_type === 'general') && <button className="btn btn-primary" onClick={() => { onComplete(reviewModal.id); closeModal(); }}>Mark Complete</button>}
               </div>
             )}
           </div>
@@ -527,6 +544,7 @@ export default function AdminDashboard() {
   const [tab, setTabRaw]            = useState(() => sessionStorage.getItem('adminTab') || 'overview');
   const [usersShowImport, setUsersShowImport] = useState(false);
   const [usersShowAdd,    setUsersShowAdd]    = useState(false);
+  const accountsAddRef = useRef(null);
   function setTab(t) { sessionStorage.setItem('adminTab', t); setTabRaw(t); }
   const [cycle, setCycle]           = useState(null);
   const [progress, setProgress]     = useState([]);
@@ -535,9 +553,6 @@ export default function AdminDashboard() {
   const [progressFilter, setProgressFilter] = useState('all');
   const [cycleForm, setCycleForm]   = useState({ name: '', quarter: 'Q1', year: new Date().getFullYear() });
   const [collapsedRegions, setCollapsedRegions] = useState({});
-
-  // Ref to trigger + Add Account modal inside AdminAccounts child
-  const accountsAddRef = useRef(null);
 
   useEffect(() => { loadData(); }, []);
 
@@ -561,8 +576,8 @@ export default function AdminDashboard() {
         .select('id, status, submitted_at, approved_at, rep_id, account:accounts(id, name, region:regions(name))')
         .eq('cycle_id', cycleData.id)
         .order('status').limit(500);
-      const { data: reps }      = await supabase.from('profiles').select('id, full_name');
-      const { data: acctReps }  = await supabase.from('account_reps').select('account_id, rep_id');
+      const { data: reps } = await supabase.from('profiles').select('id, full_name');
+      const { data: acctReps } = await supabase.from('account_reps').select('account_id, rep_id');
       const repMap = {};
       for (const r of reps || []) repMap[r.id] = r;
       const acctRepsMap = {};
@@ -571,6 +586,7 @@ export default function AdminDashboard() {
         acctRepsMap[ar.account_id].push(repMap[ar.rep_id]);
       }
       setProgress((counts || []).map(c => ({ ...c, rep: c.rep_id ? repMap[c.rep_id] : null, allReps: acctRepsMap[c.account?.id] || [] })));
+      // Default all regions to collapsed
       const regionNames = [...new Set((counts || []).map(c => c.account?.region?.name || 'Unassigned'))];
       setCollapsedRegions(Object.fromEntries(regionNames.map(r => [r, true])));
     }
@@ -584,7 +600,7 @@ export default function AdminDashboard() {
       status: 'open', opened_at: new Date().toISOString(),
     }).select().single();
     if (error) { toast.error('Error: ' + error.message); return; }
-    toast.info('Cycle "' + cycleForm.name + '" created â€” populating counts...');
+    toast.info('Cycle "' + cycleForm.name + '" created -- populating counts...');
     const { data: accounts } = await supabase.from('accounts').select('id, name, assigned_rep_id').eq('is_active', true);
     if (!accounts?.length) { toast.warning('No active accounts found.'); loadData(); return; }
     for (let i = 0; i < accounts.length; i += 100) {
@@ -614,17 +630,35 @@ export default function AdminDashboard() {
 
   async function rejectCount(todo, reason, countMeta) {
     const countId = todo.count_id;
-    const repId   = countMeta?.repId || todo._repId;
+    const repId = countMeta?.repId || todo._repId;
     const accountName = countMeta?.accountName || todo.title?.replace('Count to approve: ', '') || '';
     await supabase.from('inventory_counts').update({ status: 'in_progress' }).eq('id', countId);
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
     if (repId) {
-      await supabase.from('alerts').insert({ alert_type: 'count_rejected', title: 'Count Rejected â€” Action Required', message: 'Your count for ' + accountName + ' was rejected and needs corrections.' + (reason ? ' Reason: ' + reason : ''), is_read: false, rep_id: repId, inventory_count_id: countId });
-      await supabase.from('todos').insert({ title: 'Resubmit count: ' + accountName, description: 'Your count was rejected.' + (reason ? ' Reason: ' + reason : '') + ' Please make corrections and resubmit.', priority: 'high', todo_type: 'resubmit_required', account_id: todo.account_id, count_id: countId, rep_id: repId, is_complete: false });
+      // Alert -- shows as a notification on the rep's dashboard
+      await supabase.from('alerts').insert({
+        alert_type: 'count_rejected',
+        title: 'Count Rejected \u2014 Action Required',
+        message: 'Your count for ' + accountName + ' was rejected and needs corrections.' + (reason ? ' Reason: ' + reason : ''),
+        is_read: false,
+        rep_id: repId,
+        inventory_count_id: countId,
+      });
+      // Rep-facing todo task so they must acknowledge and resubmit
+      await supabase.from('todos').insert({
+        title: 'Resubmit count: ' + accountName,
+        description: 'Your count was rejected.' + (reason ? ' Reason: ' + reason : '') + ' Please make corrections and resubmit.',
+        priority: 'high',
+        todo_type: 'resubmit_required',
+        account_id: todo.account_id,
+        count_id: countId,
+        rep_id: repId,
+        is_complete: false,
+      });
     }
     setProgress(prev => prev.map(p => p.id === countId ? { ...p, status: 'in_progress' } : p));
     setTodos(prev => prev.filter(t => t.id !== todo.id));
-    toast.info('Count rejected â€” rep has been notified.');
+    toast.info('Count rejected \u2014 rep has been notified.');
   }
 
   async function completeTodo(todoId) {
@@ -654,23 +688,50 @@ export default function AdminDashboard() {
   }
 
   async function confirmClosure(todo, cm, adminNotes) {
-    await supabase.from('accounts').update({ is_active: false, flagged_closed: true, closed_at: new Date().toISOString(), closed_by: 'admin' }).eq('id', cm.accountId);
+    const accountId = cm.accountId;
+    const repId = cm.repId;
+    const accountName = cm.accountName;
+    // 1. Mark account as inactive/closed in database
+    await supabase.from('accounts').update({
+      is_active: false,
+      flagged_closed: true,
+      closed_at: new Date().toISOString(),
+      closed_by: 'admin',
+    }).eq('id', accountId);
+    // 2. Close the todo task
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
-    if (cm.repId) {
-      await supabase.from('alerts').insert({ alert_type: 'account_closed', title: 'Account Closure Confirmed', message: cm.accountName + ' has been officially closed.' + (adminNotes ? ' Admin notes: ' + adminNotes : ''), is_read: false, rep_id: cm.repId });
+    // 3. Notify the rep
+    if (repId) {
+      await supabase.from('alerts').insert({
+        alert_type: 'account_closed',
+        title: 'Account Closure Confirmed',
+        message: accountName + ' has been officially closed.' + (adminNotes ? ' Admin notes: ' + adminNotes : ''),
+        is_read: false,
+        rep_id: repId,
+      });
     }
     setTodos(prev => prev.filter(t => t.id !== todo.id));
-    toast.success(cm.accountName + ' has been closed and marked inactive.');
+    toast.success(accountName + ' has been closed and marked inactive.');
     loadData();
   }
 
   async function denyClosure(todo, cm, adminNotes) {
+    const repId = cm.repId;
+    const accountName = cm.accountName;
+    // Close the todo task
     await supabase.from('todos').update({ is_complete: true, completed_at: new Date().toISOString() }).eq('id', todo.id);
-    if (cm.repId) {
-      await supabase.from('alerts').insert({ alert_type: 'closure_denied', title: 'Account Closure Denied', message: 'The closure request for ' + cm.accountName + ' has been denied. The account remains open.' + (adminNotes ? ' Admin notes: ' + adminNotes : ''), is_read: false, rep_id: cm.repId });
+    // Notify the rep the closure was denied
+    if (repId) {
+      await supabase.from('alerts').insert({
+        alert_type: 'closure_denied',
+        title: 'Account Closure Denied',
+        message: 'The closure request for ' + accountName + ' has been denied. The account remains open.' + (adminNotes ? ' Admin notes: ' + adminNotes : ''),
+        is_read: false,
+        rep_id: repId,
+      });
     }
     setTodos(prev => prev.filter(t => t.id !== todo.id));
-    toast.info('Closure denied â€” rep has been notified.');
+    toast.info('Closure denied - rep has been notified.');
   }
 
   function toggleRegion(rName) {
@@ -763,11 +824,9 @@ export default function AdminDashboard() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-
             {tab === 'overview' && cycle && (
               <button className="btn btn-danger" onClick={closeCycle}>Close Cycle</button>
             )}
-
             {tab === 'accounts' && (
               <>
                 <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
@@ -807,29 +866,30 @@ export default function AdminDashboard() {
                     });
                   }} />
                 </label>
-                <button className="btn btn-primary"
-                  onClick={() => { if (accountsAddRef.current) accountsAddRef.current(); }}>
-                  + Add Account
-                </button>
+                <button className="btn btn-primary" onClick={() => { if (accountsAddRef.current) accountsAddRef.current(); }}>+ Add Account</button>
               </>
             )}
 
             {tab === 'users' && (
               <>
-                <button className="btn btn-outline" onClick={() => setUsersShowImport(true)}
-                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    const csv = '#MedEx_Template,users,v1\nFirstName,LastName,FullName,EmailAddress,Role,Region,Status\nJane,Smith,Jane Smith,jsmith@example.com,rep,Austin,Active';
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a'); a.href = url; a.download = 'MedEx_Users_Template_v1.csv'; a.click();
+                    URL.revokeObjectURL(url);
+                  }}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Template
+                </button>
+                <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => setUsersShowImport(v => !v)}>
                   <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 9V2M3.5 4.5l3-3 3 3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   Import
                 </button>
                 <button className="btn btn-primary" onClick={() => setUsersShowAdd(true)}>+ Add User</button>
               </>
-            )}
-
-            {tab === 'catalog' && (
-              <button className="btn btn-primary"
-                onClick={() => { /* AdminItemCatalog handles its own add */ document.getElementById('catalog-add-btn')?.click(); }}>
-                + Add Item
-              </button>
             )}
 
           </div>
@@ -845,7 +905,7 @@ export default function AdminDashboard() {
                   <div className="card-head">
                     <div>
                       <div className="card-head-title">Open a Count Cycle</div>
-                      <div className="card-head-sub">No active cycle â€” create one to begin</div>
+                      <div className="card-head-sub">No active cycle \u2014 create one to begin</div>
                     </div>
                   </div>
                   <div className="card-body">
@@ -870,6 +930,7 @@ export default function AdminDashboard() {
                 </div>
               ) : (
                 <>
+                  {/* Hero card */}
                   <div className="cycle-hero">
                     <div className="hero-top">
                       <div>
@@ -899,14 +960,16 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
+                  {/* Region blocks */}
                   {Object.keys(regionMap).sort().map(rName => {
-                    const counts       = regionMap[rName];
+                    const counts = regionMap[rName];
                     const allForRegion = progress.filter(p => (p.account?.region?.name || 'Unassigned') === rName);
-                    const rTotal       = allForRegion.length;
-                    const rApproved    = allForRegion.filter(p => p.status === 'approved').length;
-                    const rSubmitted   = allForRegion.filter(p => p.status === 'submitted').length;
-                    const rPct         = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
-                    const isCollapsed  = collapsedRegions[rName];
+                    const rTotal     = allForRegion.length;
+                    const rApproved  = allForRegion.filter(p => p.status === 'approved').length;
+                    const rSubmitted = allForRegion.filter(p => p.status === 'submitted').length;
+                    const rPct       = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
+                    const progColor  = rPct === 100 ? '#16A34A' : '#1565C0';
+                    const isCollapsed = collapsedRegions[rName];
                     const rStats = {
                       not_started: allForRegion.filter(p => p.status === 'not_started').length,
                       in_progress:  allForRegion.filter(p => p.status === 'in_progress').length,
@@ -916,12 +979,16 @@ export default function AdminDashboard() {
 
                     return (
                       <div key={rName} className="region-block">
+                        {/* Clickable region header */}
                         <div className="region-header" onClick={() => toggleRegion(rName)} style={{ cursor: 'pointer' }}>
+                          {/* Top row: region name | centered stats | pct + chevron */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                            {/* Left: region name + account count */}
                             <div style={{ minWidth: 140 }}>
                               <div className="region-name" style={{ fontSize: 22 }}>{rName}</div>
                               <div style={{ fontSize: 12, color: '#4a6a8a', marginTop: 3, fontWeight: 500 }}>{rTotal} account{rTotal !== 1 ? 's' : ''}</div>
                             </div>
+                            {/* Center: stat cards fill all available space equally */}
                             <div style={{ display: 'flex', gap: 8, flex: 1, margin: '0 16px' }}>
                               {STAT_CARDS.map(s => (
                                 <div key={s.key} className={'stat-card ' + s.soft} style={{ padding: '8px 10px', flex: '1 1 0' }}>
@@ -935,6 +1002,7 @@ export default function AdminDashboard() {
                                 </div>
                               ))}
                             </div>
+                            {/* Right: pct + chevron */}
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 90, justifyContent: 'flex-end' }}>
                               <div style={{ textAlign: 'right' }}>
                                 <div className="region-pct-num">{rPct}%</div>
@@ -945,6 +1013,7 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
+                        {/* Collapsible table */}
                         {!isCollapsed && (
                           <div className="region-detail">
                             <table>
@@ -979,7 +1048,7 @@ export default function AdminDashboard() {
 
                   {progressFilter !== 'all' && (
                     <div style={{ textAlign: 'center', marginTop: 12 }}>
-                      <button className="btn btn-outline" onClick={() => setProgressFilter('all')}>Clear Filter â€” Show All</button>
+                      <button className="btn btn-outline" onClick={() => setProgressFilter('all')}>Clear Filter \u2014 Show All</button>
                     </div>
                   )}
                 </>
