@@ -156,10 +156,10 @@ function MyCounts({ cycle, profile, navigate }) {
             <div style={{ fontSize: 12, fontWeight: 700, color: statusColor[c.status], marginTop: 3 }}>{statusLabel[c.status]}</div>
           </div>
           {(c.status === 'not_started' || c.status === 'in_progress') && (
-            <button className="btn btn-primary" onClick={() => navigate('/count/' + c.id)}>Enter Count</button>
+            <button className="btn btn-primary" onClick={() => navigate('/count/' + c.id + '?mode=desktop')}>Enter Count</button>
           )}
           {(c.status === 'submitted' || c.status === 'approved') && (
-            <button className="btn btn-outline" onClick={() => navigate('/count/' + c.id)}>View Count</button>
+            <button className="btn btn-outline" onClick={() => navigate('/count/' + c.id + '?mode=desktop')}>View Count</button>
           )}
         </div>
       ))}
@@ -655,10 +655,10 @@ export default function ManagerDashboard() {
                                   </td>
                                   <td>
                                     {(p.status === 'not_started' || p.status === 'in_progress') && (
-                                      <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>
+                                      <button className="tbl-btn" onClick={() => navigate('/count/' + p.id + '?mode=desktop')}>Enter Count</button>
                                     )}
                                     {(p.status === 'submitted' || p.status === 'approved') && (
-                                      <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>View Count</button>
+                                      <button className="tbl-btn" onClick={() => navigate('/count/' + p.id + '?mode=desktop')}>View Count</button>
                                     )}
                                   </td>
                                 </tr>
