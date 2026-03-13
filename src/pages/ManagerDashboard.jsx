@@ -15,7 +15,7 @@ const NAV = [
   { key: 'catalog',   label: 'Item Catalog' },
 ];
 
-const STAT_CARDS = [
+const CYCLE_STAT_CARDS = [
   { key: 'not_started', label: 'Not Started', cls: 'sc-red',   tc: 'c-red'   },
   { key: 'in_progress', label: 'In Progress',  cls: 'sc-gold',  tc: 'c-gold'  },
   { key: 'submitted',   label: 'Submitted',    cls: 'sc-blue',  tc: 'c-blue'  },
@@ -126,7 +126,7 @@ function MyCounts({ cycle, profile, navigate }) {
             </div>
           </div>
           <div className="hero-stats">
-            {STAT_CARDS.map(s => (
+            {CYCLE_STAT_CARDS.map(s => (
               <div key={s.key} className={'stat-card hero-stat-card ' + s.cls}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
                   <div>
@@ -341,8 +341,8 @@ function ManagerAccounts({ profile, cycle, onRegisterAdd }) {
         </div>
       )}
 
-      {/* 6 STAT CARDS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 14, marginBottom: 20 }}>
+      {/* 2 STAT CARDS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14, marginBottom: 20 }}>
         <div className="stat-card sc-blue">
           <div className="sc-num c-blue">{activeCount}</div>
           <div className="sc-lbl c-blue">Active Accounts</div>
@@ -351,30 +351,6 @@ function ManagerAccounts({ profile, cycle, onRegisterAdd }) {
           <div className="sc-num c-red">{closedCount}</div>
           <div className="sc-lbl c-red">Closed Accounts</div>
         </div>
-        {cycle ? (
-          <>
-            <div className="stat-card sc-red">
-              <div className="sc-num c-red">{countStats.not_started}</div>
-              <div className="sc-lbl c-red">Counts Not Started</div>
-            </div>
-            <div className="stat-card sc-gold">
-              <div className="sc-num c-gold">{countStats.in_progress}</div>
-              <div className="sc-lbl c-gold">In Progress</div>
-            </div>
-            <div className="stat-card sc-blue">
-              <div className="sc-num c-blue">{countStats.submitted}</div>
-              <div className="sc-lbl c-blue">Submitted</div>
-            </div>
-            <div className="stat-card sc-green">
-              <div className="sc-num c-green">{countStats.approved}</div>
-              <div className="sc-lbl c-green">Approved</div>
-            </div>
-          </>
-        ) : (
-          <div className="stat-card sc-gold" style={{ gridColumn: 'span 4', display: 'flex', alignItems: 'center' }}>
-            <div style={{ fontSize: 13, color: '#6B3C00', fontStyle: 'italic' }}>No active cycle - count stats unavailable</div>
-          </div>
-        )}
       </div>
 
       {/* FILTER */}
@@ -451,7 +427,6 @@ export default function ManagerDashboard() {
   const [cycle, setCycle]       = useState(null);
   const [progress, setProgress] = useState([]);
   const [loading, setLoading]   = useState(true);
-  const [collapsedRegions, setCollapsedRegions] = useState({});
 
   const managerRegions = (profile?.region || '')
     .split(',').map(r => r.trim()).filter(Boolean);
@@ -491,14 +466,8 @@ export default function ManagerDashboard() {
         .map(c => ({ ...c, rep: c.rep_id ? repMap[c.rep_id] : null, allReps: acctRepsMap[c.account?.id] || [] }));
 
       setProgress(scoped);
-      const regionNames = [...new Set(scoped.map(c => c.account?.region?.name || 'Unassigned'))];
-      setCollapsedRegions(Object.fromEntries(regionNames.map(r => [r, true])));
     }
     setLoading(false);
-  }
-
-  function toggleRegion(rName) {
-    setCollapsedRegions(prev => ({ ...prev, [rName]: !prev[rName] }));
   }
 
   const stats = {
@@ -509,13 +478,6 @@ export default function ManagerDashboard() {
   };
   const total = progress.length;
   const pct   = total > 0 ? Math.round((stats.submitted + stats.approved) / total * 100) : 0;
-
-  const regionMap = {};
-  progress.forEach(p => {
-    const rName = p.account?.region?.name || 'Unassigned';
-    if (!regionMap[rName]) regionMap[rName] = [];
-    regionMap[rName].push(p);
-  });
 
   const pageTitle = NAV.find(n => n.key === tab)?.label || 'Dashboard';
 
@@ -612,8 +574,20 @@ export default function ManagerDashboard() {
                         <div className="hero-pct-lbl">COMPLETE</div>
                       </div>
                     </div>
-                    <div className="hero-stats">
-                      {STAT_CARDS.map(s => (
+                    <div className="hero-stats" style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}>
+                      <div className="stat-card hero-stat-card sc-blue">
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                          <div className="sc-num c-blue">{total}</div>
+                          <div className="sc-lbl c-blue">Active Accts</div>
+                        </div>
+                      </div>
+                      <div className="stat-card hero-stat-card sc-red">
+                        <div style={{ position: 'relative', zIndex: 1 }}>
+                          <div className="sc-num c-red">{progress.filter(p => p.account?.flagged_closed).length}</div>
+                          <div className="sc-lbl c-red">Closed</div>
+                        </div>
+                      </div>
+                      {CYCLE_STAT_CARDS.map(s => (
                         <div key={s.key} className={'stat-card hero-stat-card ' + s.cls}>
                           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
                             <div>
@@ -629,89 +603,72 @@ export default function ManagerDashboard() {
                     </div>
                   </div>
 
-                  {Object.keys(regionMap).sort().map(rName => {
-                    const counts      = regionMap[rName];
-                    const rTotal      = counts.length;
-                    const rApproved   = counts.filter(p => p.status === 'approved').length;
-                    const rSubmitted  = counts.filter(p => p.status === 'submitted').length;
-                    const rPct        = rTotal > 0 ? Math.round((rApproved + rSubmitted) / rTotal * 100) : 0;
-                    const isCollapsed = collapsedRegions[rName];
-                    const rStats = {
-                      not_started: counts.filter(p => p.status === 'not_started').length,
-                      in_progress:  counts.filter(p => p.status === 'in_progress').length,
-                      submitted:    counts.filter(p => p.status === 'submitted').length,
-                      approved:     counts.filter(p => p.status === 'approved').length,
-                    };
-
-                    return (
-                      <div key={rName} className="region-block">
-                        <div className="region-header" onClick={() => toggleRegion(rName)} style={{ cursor: 'pointer' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                            <div style={{ minWidth: 140 }}>
-                              <div className="region-name" style={{ fontSize: 22 }}>{rName}</div>
-                              <div style={{ fontSize: 12, color: '#4a6a8a', marginTop: 3, fontWeight: 500 }}>{rTotal} account{rTotal !== 1 ? 's' : ''}</div>
+                  {(() => {
+                    // Build rep -> accounts map
+                    const repMap = {};
+                    for (const p of progress) {
+                      const repList = p.allReps?.filter(Boolean) || [];
+                      if (repList.length === 0) {
+                        if (!repMap['__unassigned__']) repMap['__unassigned__'] = { repName: 'Unassigned', counts: [] };
+                        repMap['__unassigned__'].counts.push(p);
+                      } else {
+                        for (const r of repList) {
+                          if (!repMap[r.id]) repMap[r.id] = { repName: r.full_name, counts: [] };
+                          if (!repMap[r.id].counts.find(c => c.id === p.id)) repMap[r.id].counts.push(p);
+                        }
+                      }
+                    }
+                    const badgeStyle = { fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 99, whiteSpace: 'nowrap' };
+                    return Object.entries(repMap).sort((a, b) => a[1].repName.localeCompare(b[1].repName)).map(([repId, { repName, counts: repCounts }]) => {
+                      const rStats = {
+                        not_started: repCounts.filter(p => p.status === 'not_started').length,
+                        in_progress:  repCounts.filter(p => p.status === 'in_progress').length,
+                        submitted:    repCounts.filter(p => p.status === 'submitted').length,
+                        approved:     repCounts.filter(p => p.status === 'approved').length,
+                      };
+                      return (
+                        <div key={repId} className="region-block" style={{ marginBottom: 14 }}>
+                          <div style={{ background: 'var(--white)', padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                            <div>
+                              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>{repName}</div>
+                              <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 2 }}>{repCounts.length} account{repCounts.length !== 1 ? 's' : ''} assigned</div>
                             </div>
-                            <div style={{ display: 'flex', gap: 8, flex: 1, margin: '0 16px' }}>
-                              {STAT_CARDS.map(s => (
-                                <div key={s.key} className={'stat-card ' + s.cls} style={{ padding: '8px 10px', flex: '1 1 0', opacity: 0.85 }}>
-                                  <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
-                                    <div>
-                                      <div className={'sc-num ' + s.tc} style={{ fontSize: 22 }}>{rStats[s.key]}</div>
-                                      <div className={'sc-lbl ' + s.tc} style={{ fontSize: 9 }}>{s.label}</div>
-                                    </div>
-                                    <div className={'sc-sub ' + s.tc} style={{ fontSize: 16, fontWeight: 800, lineHeight: 1, opacity: 0.85 }}>
-                                      {rTotal > 0 ? Math.round(rStats[s.key] / rTotal * 100) : 0}%
-                                    </div>
-                                  </div>
-                                </div>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {rStats.not_started > 0 && <span style={{ ...badgeStyle, background: 'var(--red-light)', color: 'var(--red)' }}>{rStats.not_started} Not Started</span>}
+                              {rStats.in_progress  > 0 && <span style={{ ...badgeStyle, background: 'var(--amber-light)', color: 'var(--amber)' }}>{rStats.in_progress} In Progress</span>}
+                              {rStats.submitted    > 0 && <span style={{ ...badgeStyle, background: 'var(--blue-light)', color: 'var(--blue)' }}>{rStats.submitted} Submitted</span>}
+                              {rStats.approved     > 0 && <span style={{ ...badgeStyle, background: 'var(--green-light)', color: 'var(--green)' }}>{rStats.approved} Approved</span>}
+                            </div>
+                          </div>
+                          <table>
+                            <thead>
+                              <tr><th>Account</th><th>Region</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                              {repCounts.map(p => (
+                                <tr key={p.id}>
+                                  <td style={{ fontWeight: 700 }}>{p.account?.name}</td>
+                                  <td style={{ color: 'var(--text-dim)' }}>{p.account?.region?.name || '--'}</td>
+                                  <td><Pill status={p.status} /></td>
+                                  <td style={{ color: 'var(--text-dim)' }}>
+                                    {p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : '--'}
+                                  </td>
+                                  <td>
+                                    {(p.status === 'not_started' || p.status === 'in_progress') && (
+                                      <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>Enter Count</button>
+                                    )}
+                                    {(p.status === 'submitted' || p.status === 'approved') && (
+                                      <button className="tbl-btn" onClick={() => navigate('/count/' + p.id)}>View Count</button>
+                                    )}
+                                  </td>
+                                </tr>
                               ))}
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 90, justifyContent: 'flex-end' }}>
-                              <div style={{ textAlign: 'right' }}>
-                                <div className="region-pct-num">{rPct}%</div>
-                                <div className="region-pct-lbl">Complete</div>
-                              </div>
-                              <div style={{ fontSize: 16, color: '#1a3a5c', transition: 'transform 0.2s', transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}>&#9660;</div>
-                            </div>
-                          </div>
+                            </tbody>
+                          </table>
                         </div>
-
-                        {!isCollapsed && (
-                          <div className="region-detail">
-                            <table>
-                              <thead>
-                                <tr><th>Account</th><th>Rep(s)</th><th>Status</th><th>Submitted</th><th>Actions</th></tr>
-                              </thead>
-                              <tbody>
-                                {counts.map(p => (
-                                  <tr key={p.id}>
-                                    <td style={{ fontWeight: 700 }}>{p.account?.name}</td>
-                                    <td>
-                                      {p.allReps?.length > 0
-                                        ? p.allReps.filter(Boolean).map(r => <span key={r.id} className="rep-tag">{r.full_name}</span>)
-                                        : <span style={{ color: 'var(--red)', fontSize: 12 }}>Unassigned</span>}
-                                    </td>
-                                    <td><Pill status={p.status} /></td>
-                                    <td style={{ color: 'var(--text-dim)' }}>
-                                      {p.submitted_at ? new Date(p.submitted_at).toLocaleDateString() : '--'}
-                                    </td>
-                                    <td>
-                                      {(p.status === 'not_started' || p.status === 'in_progress') && (
-                                        <button className="tbl-btn" onClick={e => { e.stopPropagation(); navigate('/count/' + p.id); }}>Enter Count</button>
-                                      )}
-                                      {(p.status === 'submitted' || p.status === 'approved') && (
-                                        <button className="tbl-btn" onClick={e => { e.stopPropagation(); navigate('/count/' + p.id); }}>View Count</button>
-                                      )}
-                                    </td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                      );
+                    });
+                  })()}
                 </>
               )}
             </>
