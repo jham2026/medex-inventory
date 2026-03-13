@@ -294,17 +294,265 @@ export default function CountEntry() {
     );
   }
 
+  if (desktopMode) {
+    return (
+      <div style={{ background: 'var(--bg)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {/* Desktop topbar */}
+        <div className="topbar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <button className="btn btn-outline" onClick={() => navigate(-1)} style={{ fontSize: 13 }}>&#8592; Back</button>
+            <div>
+              <h1 style={{ fontSize: 20, fontWeight: 800, margin: 0 }}>{count?.account?.name}</h1>
+              <p style={{ fontSize: 12, color: 'var(--text-dim)', margin: 0 }}>
+                {count?.account?.region?.name} &middot; {count?.cycle?.name}
+              </p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <button className={'btn btn-outline' + (scanMode ? ' btn-danger' : '')} onClick={() => setScanMode(!scanMode)}>
+              {scanMode ? 'Exit Scan' : 'Scan'}
+            </button>
+            <button className="btn btn-outline" style={{ borderColor: '#FCA5A5', color: '#DC2626' }} onClick={() => setShowClosureModal(true)}>Flag Closure</button>
+          </div>
+        </div>
+
+        <div style={{ padding: '20px 28px', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* Scan mode panel */}
+          {scanMode && (
+            <div style={{ background: '#0D1B2A', borderRadius: 10, padding: 14, marginBottom: 16, flexShrink: 0 }}>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Scan Mode Active</div>
+              <input ref={scanInputRef} autoFocus value={scanInput} onChange={e => setScanInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleScanInput(scanInput); }}
+                placeholder="Scan barcode or type item number..."
+                style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '2px solid #FFD040', background: '#0D1B2A', color: 'white', fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }} />
+              {scanResult && (
+                <div style={{ marginTop: 10, background: 'white', borderRadius: 8, padding: 12, display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700 }}>{scanResult.description}</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>{scanResult.item_number} &middot; {scanResult.primary_vendor}</div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>Qty:</span>
+                    <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                      <button onClick={() => setScanQty(q => Math.max(1, q-1))} style={{ width: 32, height: 34, border: 'none', background: 'var(--bg)', fontSize: 18, cursor: 'pointer' }}>-</button>
+                      <input type="number" value={scanQty} onChange={e => setScanQty(Math.max(1, parseInt(e.target.value)||1))}
+                        style={{ width: 48, height: 34, border: 'none', borderLeft: '1.5px solid var(--border)', borderRight: '1.5px solid var(--border)', textAlign: 'center', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', outline: 'none' }} />
+                      <button onClick={() => setScanQty(q => q+1)} style={{ width: 32, height: 34, border: 'none', background: 'var(--bg)', fontSize: 18, cursor: 'pointer' }}>+</button>
+                    </div>
+                    <button className="btn btn-primary" onClick={confirmScanItem}>Confirm + Next</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Stat cards + search row */}
+          <div style={{ display: 'flex', gap: 14, alignItems: 'stretch', marginBottom: 16, flexShrink: 0 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, width: 360, flexShrink: 0 }}>
+              {[
+                { n: totalItems, l: 'Items',   cls: 'sc-blue',  tc: 'c-blue'  },
+                { n: totalUnits, l: 'Units',   cls: 'sc-gold',  tc: 'c-gold'  },
+                { n: flagged,    l: 'Flagged', cls: flagged > 0 ? 'sc-red' : 'sc-green', tc: flagged > 0 ? 'c-red' : 'c-green' },
+              ].map((s, i) => (
+                <div key={i} className={'stat-card ' + s.cls} style={{ padding: '12px 14px' }}>
+                  <div className={'sc-num ' + s.tc} style={{ fontSize: 28 }}>{s.n}</div>
+                  <div className={'sc-lbl ' + s.tc}>{s.l}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ flex: 1, position: 'relative' }}>
+              <input
+                className={search.length >= 1 ? 'active-input' : ''}
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by item #, description, vendor, part #..."
+                style={{ width: '100%', height: '100%', padding: '12px 16px', border: '1.5px solid', borderColor: search.length >= 1 ? 'var(--blue-action)' : 'var(--border)', borderRadius: 9, fontSize: 14, fontFamily: 'inherit', background: search.length >= 1 ? 'var(--blue-light)' : 'var(--bg)', outline: 'none', boxSizing: 'border-box' }}
+              />
+              {showAddFromCatalog && (
+                <div style={{ position: 'absolute', left: 0, right: 0, top: '100%', zIndex: 50, background: 'white', border: '1.5px solid var(--blue-action)', borderRadius: 10, boxShadow: '0 8px 24px rgba(21,101,192,0.15)', overflow: 'hidden', marginTop: 2 }}>
+                  <div style={{ padding: '7px 12px', background: 'var(--blue-light)', borderBottom: '1px solid #C3DEFF', fontSize: 11, fontWeight: 700, color: 'var(--blue-action)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>From Catalog &#8212; not in your count</span>
+                    <span style={{ color: 'var(--text-dim)' }}>{catalogResults.length} result{catalogResults.length !== 1 ? 's' : ''}</span>
+                  </div>
+                  {catalogResults.map(r => (
+                    <div key={r.id} onClick={() => addCatalogItem(r)}
+                      style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, borderBottom: '1px solid var(--border)' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--blue-light)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'white'}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', gap: 8, marginBottom: 2 }}>
+                          <span className="item-id">{r.item_number}</span>
+                          <span className="item-vendor">{r.primary_vendor}</span>
+                        </div>
+                        <div className="item-desc">{r.description}</div>
+                      </div>
+                      <button className="add-btn">+ Add</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showAddCustom && (
+                <div onClick={() => addCustomItem(search)}
+                  style={{ position: 'absolute', left: 0, right: 0, top: '100%', marginTop: 4, padding: '10px 14px', background: 'var(--gold-light)', border: '1px solid var(--gold)', borderRadius: 8, cursor: 'pointer', fontSize: 13, color: '#92660A', fontWeight: 600, zIndex: 50 }}>
+                  + Add "{search}" as custom item (not in catalog)
+                </div>
+              )}
+              {searching && <div style={{ fontSize: 12, color: 'var(--text-dim)', marginTop: 6 }}>Searching catalog...</div>}
+            </div>
+          </div>
+
+          {/* Item table */}
+          <div className="card" style={{ padding: 0, overflow: 'hidden', flex: 1, display: 'flex', flexDirection: 'column' }}>
+            <table style={{ tableLayout: 'fixed' }}>
+              <thead>
+                <tr>
+                  <th style={{ width: '18%' }}>Item #</th>
+                  <th style={{ width: '38%' }}>Description</th>
+                  <th style={{ width: '18%' }}>Vendor</th>
+                  <th style={{ width: '8%' }}>Prev</th>
+                  <th style={{ width: '12%', textAlign: 'right' }}>Qty</th>
+                  <th style={{ width: '6%' }}></th>
+                </tr>
+              </thead>
+            </table>
+            <div style={{ flex: 1, overflowY: 'auto' }}>
+              <table style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '38%' }} />
+                  <col style={{ width: '18%' }} />
+                  <col style={{ width: '8%' }} />
+                  <col style={{ width: '12%' }} />
+                  <col style={{ width: '6%' }} />
+                </colgroup>
+                <tbody>
+                  {filteredItems.length === 0 && !search ? (
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-dim)', fontSize: 14 }}>No items yet. Search above to add items.</td></tr>
+                  ) : filteredItems.length === 0 ? (
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)', fontSize: 13 }}>No existing items match &#8212; check catalog results above.</td></tr>
+                  ) : filteredItems.map(item => (
+                    <tr key={item.id} style={{ background: item.not_in_catalog ? 'var(--gold-light)' : 'white' }}>
+                      <td style={{ fontWeight: 700, color: item.not_in_catalog ? '#92660A' : 'var(--blue-action)' }}>{item.item_number_raw}</td>
+                      <td>{item.description_raw}</td>
+                      <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{item.vendor_raw}</td>
+                      <td style={{ color: 'var(--text-dim)', fontSize: 12 }}>{item.previous_quantity ?? '--'}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                          <button onClick={() => updateQty(item.id, (item.quantity || 0) - 1)}
+                            style={{ width: 28, height: 32, border: 'none', background: 'var(--bg)', fontSize: 16, color: 'var(--text-dim)', cursor: 'pointer' }}>-</button>
+                          <input type="number" min="0" value={item.quantity || 0} onChange={e => updateQty(item.id, e.target.value)}
+                            style={{ width: 44, height: 32, border: 'none', borderLeft: '1.5px solid var(--border)', borderRight: '1.5px solid var(--border)', textAlign: 'center', fontSize: 14, fontWeight: 700, fontFamily: 'inherit', color: 'var(--text)', background: 'white', outline: 'none' }} />
+                          <button onClick={() => updateQty(item.id, (item.quantity || 0) + 1)}
+                            style={{ width: 28, height: 32, border: 'none', background: 'var(--bg)', fontSize: 16, color: 'var(--text-dim)', cursor: 'pointer' }}>+</button>
+                        </div>
+                      </td>
+                      <td>
+                        {item.not_in_catalog && <span style={{ fontSize: 9, fontWeight: 700, color: '#92660A', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Custom</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Footer actions */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 16, flexShrink: 0 }}>
+            <button className="btn btn-outline" onClick={saveProgress} disabled={saving}>{saving ? 'Saving...' : 'Save Progress'}</button>
+            <button className="btn btn-primary" onClick={() => setShowSubmitModal(true)} disabled={submitting}>Submit Count</button>
+          </div>
+        </div>
+
+        {/* Modals (shared) */}
+        {showSubmitModal && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <div className="modal-head-blue">
+                <div className="modal-head-title">Submit Count</div>
+                <div className="modal-head-sub">{count?.account?.name}</div>
+              </div>
+              <div className="modal-body">
+                <p style={{ fontSize: 14, color: 'var(--text-mid)', lineHeight: 1.6, marginBottom: 12 }}>
+                  You are about to submit this count for <strong>{count?.account?.name}</strong> for review and approval.
+                </p>
+                <div className="warn-box">
+                  <strong>This cannot be undone</strong> without going through the admin request to reopen process. Please make sure all items and quantities are correct.
+                </div>
+                <div className="modal-stats" style={{ marginBottom: 12 }}>
+                  {[
+                    { n: totalItems, l: 'Items',   cls: 'sc-blue',  tc: 'c-blue'  },
+                    { n: totalUnits, l: 'Units',   cls: 'sc-gold',  tc: 'c-gold'  },
+                    { n: flagged,    l: 'Flagged', cls: flagged > 0 ? 'sc-red' : 'sc-green', tc: flagged > 0 ? 'c-red' : 'c-green' },
+                  ].map((s, i) => (
+                    <div key={i} className={'ms-card stat-card ' + s.cls}>
+                      <div className={'sc-num ' + s.tc} style={{ fontSize: 26 }}>{s.n}</div>
+                      <div className={'sc-lbl ' + s.tc} style={{ fontSize: 9 }}>{s.l}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-outline" onClick={() => setShowSubmitModal(false)}>Go Back</button>
+                <button className="btn btn-primary" onClick={submitCount}>Yes, Submit Count</button>
+              </div>
+            </div>
+          </div>
+        )}
+        {showClosureModal && (
+          <div className="modal-overlay">
+            <div className="modal">
+              <div className="modal-head-red">
+                <div className="modal-head-title">Flag Account for Closure</div>
+                <div className="modal-head-sub">{count?.account?.name}</div>
+              </div>
+              <div className="modal-body">
+                <div className="form-lbl" style={{ marginTop: 0 }}>Reason for Closure *</div>
+                <select className="form-sel" value={closureForm.reason} onChange={e => setClosureForm(p => ({ ...p, reason: e.target.value }))}>
+                  <option value="">Select a reason...</option>
+                  <option value="business_closed">Business Closed</option>
+                  <option value="lost_account">Lost Account</option>
+                  <option value="moved_location">Moved Location</option>
+                  <option value="no_longer_using">No Longer Using Service</option>
+                  <option value="other">Other</option>
+                </select>
+                <div className="form-lbl">Last Count Date</div>
+                <input type="date" className="form-inp" value={closureForm.last_count_date} onChange={e => setClosureForm(p => ({ ...p, last_count_date: e.target.value }))} />
+                <div className="form-lbl">Final Count Performed?</div>
+                <select className="form-sel" value={closureForm.final_count_performed} onChange={e => setClosureForm(p => ({ ...p, final_count_performed: e.target.value }))}>
+                  <option value="">Select...</option><option value="yes">Yes</option><option value="no">No</option>
+                </select>
+                <div className="form-lbl">Inventory Retrieved?</div>
+                <select className="form-sel" value={closureForm.inventory_retrieved} onChange={e => setClosureForm(p => ({ ...p, inventory_retrieved: e.target.value }))}>
+                  <option value="">Select...</option>
+                  <option value="yes">Yes &#8212; All Retrieved</option>
+                  <option value="partial">Partial</option>
+                  <option value="no">No</option>
+                </select>
+                <div className="form-lbl">Additional Notes</div>
+                <textarea className="form-ta" value={closureForm.notes} onChange={e => setClosureForm(p => ({ ...p, notes: e.target.value }))} placeholder="Any additional details..." />
+              </div>
+              <div className="modal-actions">
+                <button className="btn btn-outline" onClick={() => setShowClosureModal(false)}>Cancel</button>
+                <button className="btn btn-danger" onClick={flagForClosure}>Flag for Closure</button>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ background: 'var(--bg)', height: '100vh', maxWidth: 430, margin: '0 auto', display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border)', borderRight: '1px solid var(--border)', overflow: 'hidden' }}>
 
       {/* Header */}
       <div className="mob-header">
-        <div onClick={() => navigate('/')} style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6, cursor: 'pointer', fontWeight: 600, position: 'relative', zIndex: 1 }}>ÃƒÂ¢Ã¢Â‚Â¬Ã‚Â¹ Back to Accounts</div>
+        <div onClick={() => navigate('/')} style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 6, cursor: 'pointer', fontWeight: 600, position: 'relative', zIndex: 1 }}>&#8249; Back to Accounts</div>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', position: 'relative', zIndex: 1 }}>
           <div>
             <div className="mob-title" style={{ fontSize: 18 }}>{count?.account?.name}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>
-              {count?.account?.region?.name} ÃƒÂ‚Ã‚&middot; {count?.cycle?.name}
+              {count?.account?.region?.name} &middot; {count?.cycle?.name}
               <span style={{ marginLeft: 8, background: 'rgba(255,208,64,0.2)', color: '#FFD040', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 10 }}>In Progress</span>
             </div>
           </div>
@@ -329,7 +577,7 @@ export default function CountEntry() {
             <div style={{ marginTop: 10, background: 'white', borderRadius: 8, padding: 12 }}>
               <div style={{ fontSize: 12, color: 'var(--text-dim)', marginBottom: 4 }}>Found:</div>
               <div style={{ fontSize: 14, fontWeight: 700 }}>{scanResult.description}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>{scanResult.item_number} ÃƒÂ‚Ã‚&middot; {scanResult.primary_vendor}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 10 }}>{scanResult.item_number} &middot; {scanResult.primary_vendor}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-mid)' }}>Qty:</span>
                 <div style={{ display: 'flex', alignItems: 'center', border: '1.5px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
@@ -372,7 +620,7 @@ export default function CountEntry() {
           {showAddFromCatalog && (
             <div style={{ position: 'absolute', left: 16, right: 16, top: '100%', zIndex: 50, background: 'white', border: '1.5px solid var(--blue-action)', borderRadius: 10, boxShadow: '0 8px 24px rgba(21,101,192,0.15)', overflow: 'hidden', marginTop: 2 }}>
               <div style={{ padding: '7px 12px', background: 'var(--blue-light)', borderBottom: '1px solid #C3DEFF', fontSize: 11, fontWeight: 700, color: 'var(--blue-action)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', justifyContent: 'space-between' }}>
-                <span>From Catalog ÃƒÂ¢Ã¢Â‚Â¬Ã¢Â€Â not in your count</span>
+                <span>From Catalog &#8212; not in your count</span>
                 <span style={{ color: 'var(--text-dim)' }}>{catalogResults.length} result{catalogResults.length !== 1 ? 's' : ''}</span>
               </div>
               {catalogResults.map(r => (
@@ -413,7 +661,7 @@ export default function CountEntry() {
         {filteredItems.length === 0 && !search ? (
           <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-dim)', fontSize: 14 }}>No items yet. Search above to add items.</div>
         ) : filteredItems.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)', fontSize: 13 }}>No existing items match ÃƒÂ¢Ã¢Â‚Â¬Ã¢Â€Â check catalog results above.</div>
+          <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-dim)', fontSize: 13 }}>No existing items match &#8212; check catalog results above.</div>
         ) : filteredItems.map(item => (
           <div key={item.id} className="cat-item" style={{ background: item.not_in_catalog ? 'var(--gold-light)' : 'white' }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -506,7 +754,7 @@ export default function CountEntry() {
               <div className="form-lbl">Inventory Retrieved?</div>
               <select className="form-sel" value={closureForm.inventory_retrieved} onChange={e => setClosureForm(p => ({ ...p, inventory_retrieved: e.target.value }))}>
                 <option value="">Select...</option>
-                <option value="yes">Yes ÃƒÂ¢Ã¢Â‚Â¬Ã¢Â€Â All Retrieved</option>
+                <option value="yes">Yes &#8212; All Retrieved</option>
                 <option value="partial">Partial</option>
                 <option value="no">No</option>
               </select>
