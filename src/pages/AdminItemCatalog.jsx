@@ -39,7 +39,7 @@ function downloadTemplate(type) {
   URL.revokeObjectURL(url);
 }
 
-export default function AdminItemCatalog() {
+export default function AdminItemCatalog({ onRegisterActions }) {
   const toast = useToast();
   const [items, setItems]           = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -52,6 +52,15 @@ export default function AdminItemCatalog() {
   const [form, setForm]             = useState({ item_number: '', description: '', primary_vendor: '', catalog_source: 'edge' });
 
   useEffect(() => { loadItems(); }, []);
+
+  useEffect(() => {
+    if (onRegisterActions) onRegisterActions({
+      downloadClaimsoft: () => downloadTemplate('claimsoft_catalog'),
+      downloadEdge:      () => downloadTemplate('edge_catalog'),
+      triggerImport:     () => document.getElementById('catalog-import-input')?.click(),
+      triggerAdd:        () => openAdd(),
+    });
+  }, []); // eslint-disable-line
 
   async function loadItems() {
     setLoading(true);
@@ -208,19 +217,9 @@ export default function AdminItemCatalog() {
         <span className="filter-label">Search:</span>
         <input className="search-input" placeholder="Search items..." value={search} onChange={e => setSearch(e.target.value)} />
         <span className="count-lbl ml-auto">{filtered.length} items</span>
-        <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 5 }} onClick={() => downloadTemplate('claimsoft_catalog')}>
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          Claimsoft Template
-        </button>
-        <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 5 }} onClick={() => downloadTemplate('edge_catalog')}>
-          <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M3 5.5l3 3 3-3M1 10h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          Account Edge Template
-        </button>
-        <label className="btn btn-outline" style={{ cursor: 'pointer' }}>
-          {importing ? 'Importing...' : 'Import'}
-          <input type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} disabled={importing} />
+        <label className="btn btn-outline" style={{ cursor: 'pointer', display: 'none' }}>
+          <input id="catalog-import-input" type="file" accept=".csv" onChange={handleImport} style={{ display: 'none' }} disabled={importing} />
         </label>
-        <button className="btn btn-primary" onClick={openAdd}>+ Add Item</button>
       </div>
 
       {/* Table */}
