@@ -545,6 +545,7 @@ export default function AdminDashboard() {
   const [usersShowImport, setUsersShowImport] = useState(false);
   const [usersShowAdd,    setUsersShowAdd]    = useState(false);
   const accountsAddRef = useRef(null);
+  const catalogActionsRef = useRef({});
   function setTab(t) { sessionStorage.setItem('adminTab', t); setTabRaw(t); }
   const [cycle, setCycle]           = useState(null);
   const [progress, setProgress]     = useState([]);
@@ -892,6 +893,27 @@ export default function AdminDashboard() {
               </>
             )}
 
+            {tab === 'catalog' && (
+              <>
+                <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => catalogActionsRef.current.downloadClaimsoft?.()}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Claimsoft Template
+                </button>
+                <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => catalogActionsRef.current.downloadEdge?.()}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 1v7M3.5 5.5l3 3 3-3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Account Edge Template
+                </button>
+                <button className="btn btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => catalogActionsRef.current.triggerImport?.()}>
+                  <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M6.5 9V2M3.5 4.5l3-3 3 3M1.5 10.5h10" stroke="#475569" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  Import
+                </button>
+                <button className="btn btn-primary" onClick={() => catalogActionsRef.current.triggerAdd?.()}>+ Add Item</button>
+              </>
+            )}
+
           </div>
         </div>
 
@@ -1060,7 +1082,7 @@ export default function AdminDashboard() {
           {tab === 'mycounts' && <MyCounts cycle={cycle} profile={profile} navigate={navigate} />}
           {tab === 'accounts' && <AdminAccounts onRegisterAdd={fn => { accountsAddRef.current = fn; }} />}
           {tab === 'users'    && <AdminUsers showImportPanel={usersShowImport} onImportClose={() => setUsersShowImport(false)} triggerAdd={usersShowAdd} onAddHandled={() => setUsersShowAdd(false)} />}
-          {tab === 'catalog'  && <AdminItemCatalog />}
+          {tab === 'catalog'  && <AdminItemCatalog onRegisterActions={actions => { catalogActionsRef.current = actions; }} />}
           {tab === 'reports'  && <ReportsPage cycle={cycle} />}
 
         </div>
