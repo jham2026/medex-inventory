@@ -9,7 +9,7 @@ const CATALOGS = [
 ];
 
 
-// â”€â”€ Versioned template download â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Ã¢â€â‚¬Ã¢â€â‚¬ Versioned template download Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 const TEMPLATE_DEFS = {
   accounts: {
     filename: 'MedEx_Accounts_Template_v1.csv',
@@ -240,9 +240,9 @@ export default function AdminItemCatalog() {
               <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--text-dim)', padding: 32, fontStyle: 'italic' }}>No items match your filter.</td></tr>
             ) : filtered.map(item => (
               <tr key={item.id}>
-                <td style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 13 }}>{item.item_number}</td>
+                <td style={{ fontWeight: 700, fontSize: 13 }}>{item.item_number}</td>
                 <td>{item.description}</td>
-                <td style={{ color: 'var(--text-mid)' }}>{item.primary_vendor || 'Ã¢â‚¬â€'}</td>
+                <td style={{ color: 'var(--text-mid)' }}>{item.primary_vendor || 'ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â'}</td>
                 <td>
                   <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6,
                     background: item.catalog_source === 'edge' ? 'var(--blue-light)' : 'var(--gold-light)',
