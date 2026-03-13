@@ -1,11 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './components/AuthContext';
 import { ToastProvider } from './components/ToastContext';
-import LoginPage      from './pages/LoginPage';
-import RepDashboard   from './pages/RepDashboard';
-import CountEntry     from './pages/CountEntry';
-import AdminDashboard from './pages/AdminDashboard';
-import RequestAccount from './pages/RequestAccount';
+import LoginPage       from './pages/LoginPage';
+import RepDashboard    from './pages/RepDashboard';
+import CountEntry      from './pages/CountEntry';
+import AdminDashboard  from './pages/AdminDashboard';
+import ManagerDashboard from './pages/ManagerDashboard';
+import RequestAccount  from './pages/RequestAccount';
 import './index.css';
 
 function AppRoutes() {
@@ -27,7 +28,7 @@ function AppRoutes() {
     <Routes>
       <Route path="/login" element={<Navigate to="/" />} />
       <Route path="/"
-        element={isAdmin || isManager ? <AdminDashboard /> : <RepDashboard />}
+        element={isAdmin ? <AdminDashboard /> : isManager ? <ManagerDashboard /> : <RepDashboard />}
       />
       <Route path="/count/:countId" element={<CountEntry />} />
       <Route path="/request-account" element={<RequestAccount />} />
